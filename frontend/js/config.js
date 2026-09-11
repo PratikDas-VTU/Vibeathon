@@ -6,26 +6,15 @@
  *   which Vercel's rewrite proxy forwards directly to the Render backend service.
  *   This avoids CORS issues and keeps the backend URL decoupled from client code.
  * 
- * In VS Code Live Server (port 5500 / 5501 / file:):
- *   Directs requests to the live Render backend service (or localhost:5000 if running).
+ * In local development (VS Code Live Server 5500, localhost, etc.):
+ *   Routes directly to the local backend at http://localhost:5000.
  */
 
 (function (global) {
-  const PRODUCTION_BACKEND = "https://vibeathon-backend-g210.onrender.com";
-
   const isLocal = Boolean(
     typeof window !== "undefined" && (
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1" ||
-      window.location.protocol === "file:"
-    )
-  );
-
-  const isLiveServer = Boolean(
-    typeof window !== "undefined" && (
-      window.location.port === "5500" ||
-      window.location.port === "5501" ||
-      window.location.port === "5502" ||
       window.location.protocol === "file:"
     )
   );
@@ -42,18 +31,9 @@
 
   // Routing strategy:
   // 1. If customBackend set in localStorage -> use customBackend
-  // 2. If running inside VS Code Live Server (port 5500/5501) -> use PRODUCTION_BACKEND
-  // 3. If running on local Node port 5000 -> use "" (relative)
-  // 4. In production (Vercel) -> use "" (relative to let vercel.json proxy route to Render)
-  let defaultBackend = "";
-  if (isLiveServer) {
-    defaultBackend = PRODUCTION_BACKEND;
-  } else if (isLocal && window.location.port === "5000") {
-    defaultBackend = "";
-  } else if (isLocal) {
-    defaultBackend = PRODUCTION_BACKEND;
-  }
-
+  // 2. If running locally (e.g. Live Server port 5500) -> route to http://localhost:5000
+  // 3. In production (Vercel) -> use "" (relative to let vercel.json proxy route to Render)
+  const defaultBackend = isLocal ? "http://localhost:5000" : "";
   const API_BASE = customBackend || defaultBackend;
 
   function getApiUrl(endpoint) {
