@@ -60,14 +60,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const loginUrl = window.getApiUrl ? window.getApiUrl("/api/admin/login") : "/api/admin/login";
+      let loginUrl = "/api/admin/login";
+      if (typeof window !== "undefined" && window.getApiUrl) {
+        loginUrl = window.getApiUrl("/api/admin/login");
+      } else if (window.location.port === "5500" || window.location.port === "5501" || window.location.protocol === "file:") {
+        loginUrl = "https://vibeathon-backend-g210.onrender.com/api/admin/login";
+      }
+
+      console.log("Connecting to login endpoint:", loginUrl);
+
       const res = await fetch(loginUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
       });
 
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        data = { message: `Gateway error (${res.status}: ${res.statusText || "No response body"})` };
+      }
 
       if (!res.ok) {
         showMessage(data.message || "Invalid administrative credentials.", "error");
@@ -93,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage("Unable to connect to authentication gateway. Please check network connection.", "error");
       if (loginBtn) {
         loginBtn.disabled = false;
+
         loginBtn.innerHTML = '<i class="fas fa-terminal"></i> <span class="btn-text">Authenticate to Gateway</span>';
       }
     }

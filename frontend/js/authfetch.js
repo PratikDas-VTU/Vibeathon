@@ -1,7 +1,12 @@
-import { getApiUrl } from "./config.js";
+function resolveApiUrl(endpoint) {
+  if (typeof window !== "undefined" && window.getApiUrl) {
+    return window.getApiUrl(endpoint);
+  }
+  return endpoint;
+}
 
 export async function authFetch(url, options = {}) {
-  const targetUrl = getApiUrl(url);
+  const targetUrl = resolveApiUrl(url);
   console.log("🔐 authFetch called with URL:", targetUrl);
 
   const token = localStorage.getItem("token");

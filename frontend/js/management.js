@@ -30,7 +30,13 @@ document.addEventListener("DOMContentLoaded", () => {
       delete defaultHeaders["Content-Type"];
     }
 
-    const fullUrl = window.getApiUrl ? window.getApiUrl(endpoint) : endpoint;
+    let fullUrl = endpoint;
+    if (typeof window !== "undefined" && window.getApiUrl) {
+      fullUrl = window.getApiUrl(endpoint);
+    } else if (window.location.port === "5500" || window.location.port === "5501" || window.location.protocol === "file:") {
+      const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+      fullUrl = `https://vibeathon-backend-g210.onrender.com${cleanEndpoint}`;
+    }
 
     try {
       const res = await fetch(fullUrl, {
