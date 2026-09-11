@@ -356,13 +356,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (downloadBtn) {
         if (!data.released) {
           downloadBtn.disabled = true;
+          downloadBtn.innerHTML = '<i class="fas fa-lock"></i> <span>NOT YET RELEASED</span>';
           if (downloadStatusChip) {
             downloadStatusChip.innerHTML = '<i class="fas fa-lock"></i> Not yet released by organizers';
             downloadStatusChip.style.borderColor = "rgba(244, 63, 94, 0.4)";
             downloadStatusChip.style.color = "#fb7185";
           }
-        } else if (hackathonStart) {
+        } else if (!hackathonStart) {
+          downloadBtn.disabled = true;
+          downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
+          if (downloadStatusChip) {
+            downloadStatusChip.innerHTML = '<i class="fas fa-clock"></i> Available on session start';
+            downloadStatusChip.style.borderColor = "rgba(234, 179, 8, 0.4)";
+            downloadStatusChip.style.color = "#facc15";
+          }
+        } else {
           downloadBtn.disabled = false;
+          downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
           if (downloadStatusChip) {
             downloadStatusChip.innerHTML = '<i class="fas fa-check-circle"></i> Available for download';
             downloadStatusChip.style.borderColor = "rgba(16, 185, 129, 0.4)";
@@ -375,9 +385,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Initial check & periodic poll every 25 seconds
+  // Initial check & periodic poll every 15 seconds
   checkLivePlatformStatus();
-  setInterval(checkLivePlatformStatus, 25000);
+  setInterval(checkLivePlatformStatus, 15000);
 
   if (downloadBtn) {
     downloadBtn.onclick = async () => {
@@ -390,8 +400,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!res.ok) {
           const errJson = await res.json().catch(() => ({}));
           showToast(errJson.message || "Problem statement not available yet", "error");
-          downloadBtn.disabled = false;
-          downloadBtn.innerHTML = '<i class="fas fa-file-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
+          downloadBtn.disabled = true;
+          downloadBtn.innerHTML = '<i class="fas fa-lock"></i> <span>NOT YET RELEASED</span>';
+          if (downloadStatusChip) {
+            downloadStatusChip.innerHTML = '<i class="fas fa-lock"></i> Not yet released by organizers';
+            downloadStatusChip.style.borderColor = "rgba(244, 63, 94, 0.4)";
+            downloadStatusChip.style.color = "#fb7185";
+          }
           return;
         }
 
@@ -413,7 +428,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("Download error:", err);
         showToast("Failed to download problem statement", "error");
         downloadBtn.disabled = false;
-        downloadBtn.innerHTML = '<i class="fas fa-file-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
+        downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
       }
     };
   }

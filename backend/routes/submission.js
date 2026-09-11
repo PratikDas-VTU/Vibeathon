@@ -185,7 +185,7 @@ router.get("/problem-statement", auth, async (req, res) => {
 
     if (!team.hackathonStart) {
       return res.status(403).json({
-        message: "Hackathon has not started yet"
+        message: "Hackathon has not started yet. Please wait for your timer to begin."
       });
     }
 
@@ -193,26 +193,38 @@ router.get("/problem-statement", auth, async (req, res) => {
     const snap = await db.ref("settings/problemStatement").once("value");
     const val = snap.val() || {};
 
-    if (val.released === false) {
+    if (val.released !== true) {
       return res.status(403).json({
         message: "The problem statement has not yet been released by the organizers."
       });
     }
 
-    const fileName = val.fileName || "Problem Statement.docx";
-    const filePath = path.join(__dirname, "../public", fileName);
+    // 1. If stored in RTDB base64 (survives Render restarts)
+    if (val.fileBase64) {
+      const buf = Buffer.from(val.fileBase64, "base64");
+      const downloadName = val.fileName || "Vibeathon_Problem_Statement.docx";
+      res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+      res.setHeader("Content-Type", val.mimeType || "application/octet-stream");
+      return res.send(buf);
+    }
 
-    const fallbackPath = path.join(__dirname, "../public/Problem Statement.docx");
+    // 2. Check local disk in public directory
+    const publicDir = path.join(__dirname, "../public");
+    let targetFile = null;
+    if (val.storedName && fs.existsSync(path.join(publicDir, val.storedName))) {
+      targetFile = path.join(publicDir, val.storedName);
+    } else if (val.fileName && fs.existsSync(path.join(publicDir, val.fileName))) {
+      targetFile = path.join(publicDir, val.fileName);
+    }
 
-    if (fs.existsSync(filePath)) {
-      return res.download(filePath, fileName);
-    } else if (fs.existsSync(fallbackPath)) {
-      return res.download(fallbackPath, "Vibeathon_Problem_Statement.docx");
-    } else {
+    if (!targetFile || !fs.existsSync(targetFile)) {
       return res.status(404).json({
         message: "Problem statement document has not been uploaded by admin yet. Please check back shortly."
       });
     }
+
+    const downloadName = val.fileName || path.basename(targetFile);
+    return res.download(targetFile, downloadName);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

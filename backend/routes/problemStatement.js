@@ -17,26 +17,26 @@ router.get("/status", async (req, res) => {
     const announcement = settings.announcement || {};
 
     const publicDir = path.join(__dirname, "../public");
-    let fileExists = false;
-    let targetFileName = val.fileName || "Problem_Statement.docx";
+    let hasFile = Boolean(val.fileBase64);
+    let targetFileName = val.fileName || null;
 
-    if (fs.existsSync(path.join(publicDir, targetFileName))) {
-      fileExists = true;
-    } else if (fs.existsSync(publicDir)) {
-      const files = fs.readdirSync(publicDir);
-      const found = files.find(f => f.toLowerCase().startsWith("problem_statement"));
-      if (found) {
-        fileExists = true;
-        targetFileName = found;
+    if (!hasFile) {
+      if (val.storedName && fs.existsSync(path.join(publicDir, val.storedName))) {
+        hasFile = true;
+      } else if (val.fileName && fs.existsSync(path.join(publicDir, val.fileName))) {
+        hasFile = true;
       }
     }
 
+    const isReleased = Boolean(val.released === true);
+
     res.json({
-      released: val.released !== false, // Default to true unless explicitly toggled off
+      released: isReleased,
+      hasFile: hasFile,
       fileName: targetFileName,
       fileSize: val.fileSize || null,
       updatedAt: val.updatedAt || null,
-      available: fileExists,
+      available: Boolean(hasFile && isReleased),
       announcement: announcement.active ? announcement.message : null
     });
   } catch (err) {
@@ -44,7 +44,6 @@ router.get("/status", async (req, res) => {
     res.status(500).json({ released: false, error: err.message });
   }
 });
-
 
 /**
  * GET /api/problem-statement/download
@@ -55,24 +54,30 @@ router.get("/download", async (req, res) => {
     const snap = await db.ref("settings/problemStatement").once("value");
     const val = snap.val() || {};
 
-    if (val.released === false) {
+    if (val.released !== true) {
       return res.status(403).json({ error: "The problem statement has not yet been released by the organizers." });
     }
 
-    const publicDir = path.join(__dirname, "../public");
-    let targetFile = val.fileName ? path.join(publicDir, val.fileName) : null;
+    // 1. If stored in Firebase RTDB (persisted across Render restarts)
+    if (val.fileBase64) {
+      const buf = Buffer.from(val.fileBase64, "base64");
+      const downloadName = val.fileName || "Vibeathon_Problem_Statement.docx";
+      res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+      res.setHeader("Content-Type", val.mimeType || "application/octet-stream");
+      return res.send(buf);
+    }
 
-    if (!targetFile || !fs.existsSync(targetFile)) {
-      // Find fallback in public directory
-      const files = fs.existsSync(publicDir) ? fs.readdirSync(publicDir) : [];
-      const found = files.find(f => f.toLowerCase().startsWith("problem_statement"));
-      if (found) {
-        targetFile = path.join(publicDir, found);
-      }
+    // 2. Check local disk in public directory
+    const publicDir = path.join(__dirname, "../public");
+    let targetFile = null;
+    if (val.storedName && fs.existsSync(path.join(publicDir, val.storedName))) {
+      targetFile = path.join(publicDir, val.storedName);
+    } else if (val.fileName && fs.existsSync(path.join(publicDir, val.fileName))) {
+      targetFile = path.join(publicDir, val.fileName);
     }
 
     if (!targetFile || !fs.existsSync(targetFile)) {
-      return res.status(404).json({ error: "Problem statement document not found on server." });
+      return res.status(404).json({ error: "No problem statement document has been uploaded yet by organizers." });
     }
 
     const downloadName = val.fileName || path.basename(targetFile);

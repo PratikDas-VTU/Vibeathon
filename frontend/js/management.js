@@ -535,11 +535,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Populate problem release switch
     const releaseToggle = document.getElementById("problemReleaseToggle");
     const releaseLabel = document.getElementById("releaseToggleLabel");
-    if (releaseToggle && currentSettings.problemStatement) {
-      const isReleased = currentSettings.problemStatement.released !== false;
+    if (releaseToggle) {
+      const isReleased = Boolean(currentSettings.problemStatement && currentSettings.problemStatement.released === true);
       releaseToggle.checked = isReleased;
       if (releaseLabel) {
-        releaseLabel.textContent = isReleased ? "RELEASED" : "FROZEN / HIDDEN";
+        releaseLabel.textContent = isReleased ? "RELEASED" : "LOCKED / HIDDEN";
         releaseLabel.style.color = isReleased ? "var(--green)" : "var(--rose)";
       }
     }
@@ -595,8 +595,15 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadProblemStatementData() {
     const res = await manageFetch("/api/admin/problem-statement");
     if (!res) return;
-    const data = await res.json();
-    if (mgmtActiveFileName) mgmtActiveFileName.textContent = data.fileName || "Problem Statement.docx";
+    if (mgmtActiveFileName) {
+      if (data.fileName) {
+        mgmtActiveFileName.textContent = data.fileName;
+        mgmtActiveFileName.style.color = "var(--cyan)";
+      } else {
+        mgmtActiveFileName.textContent = "No document uploaded yet";
+        mgmtActiveFileName.style.color = "var(--text-3)";
+      }
+    }
     if (mgmtProblemContext && data.text) mgmtProblemContext.value = data.text;
     loadSettings();
   }

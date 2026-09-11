@@ -614,9 +614,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await adminFetch("/api/admin/problem-statement");
       if (res.ok) {
         const info = await res.json();
-        if (activeFileNameDisplay) activeFileNameDisplay.textContent = info.fileName || "Problem Statement.docx";
-        if (activeFileUpdatedDisplay && info.updatedAt) {
-          activeFileUpdatedDisplay.textContent = "Updated " + new Date(info.updatedAt).toLocaleTimeString();
+        if (activeFileNameDisplay) {
+          if (info.fileName) {
+            activeFileNameDisplay.textContent = info.fileName;
+            activeFileNameDisplay.style.color = "var(--cyan)";
+          } else {
+            activeFileNameDisplay.textContent = "No document uploaded yet";
+            activeFileNameDisplay.style.color = "var(--text-3)";
+          }
+        }
+        if (activeFileUpdatedDisplay) {
+          activeFileUpdatedDisplay.textContent = info.updatedAt ? "Updated " + new Date(info.updatedAt).toLocaleTimeString() : "";
         }
         if (problemContextInput && info.text) {
           problemContextInput.value = info.text;

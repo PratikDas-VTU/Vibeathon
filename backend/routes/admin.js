@@ -131,10 +131,11 @@ router.get("/problem-statement", verifyAdmin, async (req, res) => {
     const snap = await db.ref("settings/problemStatement").once("value");
     const val = snap.val() || {};
     res.json({
-      fileName: val.fileName || "Problem Statement.docx",
+      fileName: val.fileName || null,
       text: val.text || "",
       updatedAt: val.updatedAt || null,
-      fileSize: val.fileSize || null
+      fileSize: val.fileSize || null,
+      released: Boolean(val.released === true)
     });
   } catch (err) {
     console.error("Fetch problem statement error:", err);
@@ -167,15 +168,24 @@ router.post("/problem-statement/upload", verifyAdmin, upload.single("problemFile
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const fileName = req.file.filename;
+    const storedFileName = req.file.filename;
+    const originalFileName = req.file.originalname || storedFileName;
     const fileSize = req.file.size;
     const contextText = req.body.contextText ? req.body.contextText.trim() : null;
 
     const updateData = {
-      fileName: fileName,
+      fileName: originalFileName,
+      storedName: storedFileName,
       fileSize: fileSize,
+      mimeType: req.file.mimetype || "application/octet-stream",
       updatedAt: new Date().toISOString()
     };
+
+    // Store base64 in RTDB if file <= 8MB so Render cold starts/restarts never lose the file!
+    if (fileSize <= 8 * 1024 * 1024 && fs.existsSync(req.file.path)) {
+      const fileBuf = fs.readFileSync(req.file.path);
+      updateData.fileBase64 = fileBuf.toString("base64");
+    }
 
     if (contextText) {
       updateData.text = contextText;
@@ -184,8 +194,8 @@ router.post("/problem-statement/upload", verifyAdmin, upload.single("problemFile
     await db.ref("settings/problemStatement").update(updateData);
 
     res.json({
-      message: "Problem statement document uploaded successfully",
-      fileName,
+      message: "Problem statement document uploaded and synchronized successfully",
+      fileName: originalFileName,
       fileSize
     });
   } catch (err) {
