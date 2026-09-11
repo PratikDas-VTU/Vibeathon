@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Vibeathon | Super Management Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <link rel="stylesheet" href="css/management.css" />
+</head>
+
+<body>
+  <!-- Ambient Deep Cyber Background -->
+  <div class="bg"></div>
+
+  <!-- ================= TOPBAR ================= -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 40 40" width="30" height="30">
+          <defs>
+            <linearGradient id="mgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00f0ff" />
+              <stop offset="100%" stop-color="#ec4899" />
+            </linearGradient>
+          </defs>
+          <polygon points="20,4 34,12 20,20 6,12" fill="url(#mgGrad)" opacity="0.95" />
+          <polygon points="6,12 20,20 20,36 6,28" fill="#8b5cf6" opacity="0.85" />
+          <polygon points="20,20 34,12 34,28 20,36" fill="#00c8ff" opacity="0.75" />
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">VIBEATHON</span>
+        <span class="brand-tag">SUPER MANAGEMENT CONSOLE</span>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <div class="status-badge">
+        <span class="pulse-dot"></span>
+        <span>PRODUCTION DATABASE CONNECTED</span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button id="quickResetAllBtn" class="btn btn-warning btn-sm" title="Instant Reset All Sessions">
+        <i class="fas fa-undo"></i> Reset All Sessions
+      </button>
+      <a href="admin-dashboard.html" class="btn btn-secondary btn-sm" title="Go to Evaluation Dashboard">
+        <i class="fas fa-chart-line"></i> Jury Mission Control
+      </a>
+      <button id="logoutBtn" class="btn btn-danger btn-sm" title="Sign out of Console">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="main-wrapper">
+
+    <!-- METRICS HUD -->
+    <section class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-icon cyan"><i class="fas fa-users"></i></div>
+        <div class="stat-data">
+          <span class="stat-label">TOTAL TEAMS</span>
+          <span class="stat-val" id="statTotalTeams">0</span>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-icon green"><i class="fas fa-satellite-dish"></i></div>
+        <div class="stat-data">
+          <span class="stat-label">ACTIVE SPRINTS</span>
+          <span class="stat-val" id="statActiveTeams">0</span>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-icon violet"><i class="fas fa-cloud-upload-alt"></i></div>
+        <div class="stat-data">
+          <span class="stat-label">SUBMISSIONS</span>
+          <span class="stat-val" id="statSubmissions">0</span>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-icon pink"><i class="fas fa-flask"></i></div>
+        <div class="stat-data">
+          <span class="stat-label">DEMO / SANDBOX</span>
+          <span class="stat-val" id="statDemoTeams">0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="participants">
+        <i class="fas fa-users-cog"></i> Participants & Credentials
+      </button>
+      <button class="tab-btn" data-tab="demo-gen">
+        <i class="fas fa-magic"></i> Demo Generator
+      </button>
+      <button class="tab-btn" data-tab="sessions">
+        <i class="fas fa-clock"></i> Global Session & Timer
+      </button>
+      <button class="tab-btn" data-tab="problem">
+        <i class="fas fa-file-invoice"></i> Problem Statement & AI Rubric
+      </button>
+      <button class="tab-btn" data-tab="admin-cred">
+        <i class="fas fa-user-shield"></i> Admin Credentials
+      </button>
+      <button class="tab-btn" data-tab="logs">
+        <i class="fas fa-stream"></i> Audit Activity Logs
+      </button>
+    </nav>
+
+    <!-- ================= TAB 1: PARTICIPANTS & CREDENTIALS ================= -->
+    <section id="tab-participants" class="tab-panel active">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fas fa-users"></i> Participant Roster & Login Credentials</h2>
+            <p class="card-desc">Edit credentials, emails, and passwords on the fly. Real-time synchronization with Firebase Auth.</p>
+          </div>
+          <button id="addTeamBtn" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> + Add New Team
+          </button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="participantSearch" class="search-input" placeholder="Search by VCC ID, Leader, Email, College..." />
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="refreshTeamsBtn" class="btn btn-secondary btn-sm">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="manage-table">
+            <thead>
+              <tr>
+                <th>VCC ID</th>
+                <th>Leader & College</th>
+                <th>Login Email (M1_Email)</th>
+                <th>Phone / Password</th>
+                <th>Status</th>
+                <th>Deliverables</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teamsTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-2);">
+                  <i class="fas fa-spinner fa-spin"></i> Loading participant roster...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: DEMO GENERATOR ================= -->
+    <section id="tab-demo-gen" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fas fa-flask"></i> Batch Demo Credentials Generator</h2>
+            <p class="card-desc">Instantly provision N test participant accounts with known credentials for testing login, timer, and evaluation flows.</p>
+          </div>
+          <button id="purgeDemoBtn" class="btn btn-danger">
+            <i class="fas fa-trash-alt"></i> Purge All Demo Accounts
+          </button>
+        </div>
+
+        <form id="demoGenForm" class="form-grid" style="margin-bottom: 1.5rem;">
+          <div class="form-group">
+            <label for="demoCount">Number of Demo Teams (N)</label>
+            <input type="number" id="demoCount" class="form-control" value="3" min="1" max="25" required />
+          </div>
+          <div class="form-group">
+            <label for="demoPrefix">ID Prefix</label>
+            <input type="text" id="demoPrefix" class="form-control" value="DEMO" required />
+          </div>
+          <div class="form-group">
+            <label for="demoPassword">Default Password / Phone</label>
+            <input type="text" id="demoPassword" class="form-control" value="demo12345" required />
+          </div>
+          <div class="form-group" style="justify-content: flex-end;">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary" id="generateDemoSubmitBtn">
+              <i class="fas fa-bolt"></i> Generate Demo Credentials
+            </button>
+          </div>
+        </form>
+
+        <div id="demoCredentialsSection" style="display: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--cyan);">
+              <i class="fas fa-key"></i> Active Demo Credentials List
+            </h3>
+            <button id="copyAllDemoBtn" class="btn btn-secondary btn-sm">
+              <i class="far fa-copy"></i> Copy All to Clipboard
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="manage-table">
+              <thead>
+                <tr>
+                  <th>VCC ID</th>
+                  <th>Login Email</th>
+                  <th>Password</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="demoTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: SESSIONS & GLOBAL CONTROLS ================= -->
+    <section id="tab-sessions" class="tab-panel">
+      <!-- Master Reset Card -->
+      <div class="card" style="border-color: rgba(245, 158, 11, 0.4);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color: var(--amber);">
+              <i class="fas fa-exclamation-triangle"></i> Master Hackathon Session Reset
+            </h2>
+            <p class="card-desc">
+              Direct cloud replacement for <code>reset-all-sessions.bat</code>. Resets 2-hour timers, clears lockout flags, and wipes submission URLs across all participating teams simultaneously.
+            </p>
+          </div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <p style="font-size: 0.85rem; color: #fde68a; line-height: 1.6;">
+            <strong>What happens when you click this:</strong><br />
+            1. All 70+ teams have their <code>hackathonStart</code> set to <code>null</code> (timer resets to 2:00:00).<br />
+            2. <code>sessionEnded</code> is set to <code>false</code> (unlocks any locked out participants).<br />
+            3. <code>githubUrl</code> and <code>deploymentUrl</code> are cleared for fresh attempts.<br />
+            4. Participant prompts logged previously are <strong>preserved</strong> for jury audit.
+          </p>
+        </div>
+
+        <button id="triggerResetAllSessionsBtn" class="btn btn-warning">
+          <i class="fas fa-redo-alt"></i> Execute Reset on All 70+ Live Teams
+        </button>
+      </div>
+
+      <!-- Live Broadcast Announcement -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fas fa-bullhorn"></i> Live Participant Broadcast Announcement</h2>
+            <p class="card-desc">Post a real-time banner alert visible on all active participant terminals.</p>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="broadcastMessage">Announcement Message</label>
+          <input type="text" id="broadcastMessage" class="form-control" placeholder="e.g. 📢 30 minutes remaining! Remember to log all AI prompts before final deployment." />
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <button id="postAnnouncementBtn" class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i> Broadcast Alert
+          </button>
+          <button id="clearAnnouncementBtn" class="btn btn-secondary">
+            <i class="fas fa-times-circle"></i> Clear Active Alert
+          </button>
+          <span id="announcementStatus" style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-2);"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: PROBLEM STATEMENT & AI RUBRIC ================= -->
+    <section id="tab-problem" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fas fa-file-invoice"></i> Challenge Document & AI Evaluation Rubric</h2>
+            <p class="card-desc">Manage the document participants download and tune the real-time AI jury evaluation criteria.</p>
+          </div>
+        </div>
+
+        <!-- Document Upload & Release Toggle -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <div style="background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.75rem;">
+              <i class="fas fa-upload"></i> Upload Problem Document
+            </h3>
+            <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 1rem;">
+              Supported: .docx, .pdf, .txt. Active file is served directly to participants.
+            </p>
+
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <input type="file" id="mgmtProblemFileInput" accept=".docx,.pdf,.txt" style="display: none;" />
+              <button type="button" id="mgmtChooseFileBtn" class="btn btn-secondary btn-sm">
+                <i class="fas fa-folder-open"></i> Choose File
+              </button>
+              <span id="mgmtSelectedFileText" style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-2);">No file chosen</span>
+              <button type="button" id="mgmtUploadFileBtn" class="btn btn-primary btn-sm" disabled>
+                <i class="fas fa-cloud-upload-alt"></i> Upload & Deploy
+              </button>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 0.6rem 0.85rem; background: rgba(0,0,0,0.25); border-radius: 6px; font-size: 0.75rem; color: var(--text-2);">
+              <span>Active File: <strong id="mgmtActiveFileName" style="color: var(--cyan);">Problem Statement.docx</strong></span>
+            </div>
+          </div>
+
+          <!-- Release Switch -->
+          <div style="background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--green); margin-bottom: 0.75rem;">
+                <i class="fas fa-lock-open"></i> Release Control for Participants
+              </h3>
+              <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 1rem;">
+                When enabled, the "Download Problem Statement" button on all participant dashboards activates instantly.
+              </p>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 1rem; border-top: 1px solid var(--border);">
+              <span style="font-size: 0.85rem; font-weight: 600;">Participant Download Access:</span>
+              <label class="switch-wrap">
+                <label class="switch">
+                  <input type="checkbox" id="problemReleaseToggle" checked />
+                  <span class="slider"></span>
+                </label>
+                <span id="releaseToggleLabel" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--green);">RELEASED</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Rubric Context Textarea -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--amber);">
+              <i class="fas fa-robot"></i> AI Evaluation System Context & Rubric
+            </h3>
+            <span style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--amber); background: var(--amber-dim); padding: 3px 8px; border-radius: 4px;">LIVE INJECTION</span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.75rem;">
+            Google Gemini evaluates prompts against this challenge background, user workflows, and constraints.
+          </p>
+
+          <textarea id="mgmtProblemContext" class="form-control" rows="8" placeholder="Enter problem statement overview, functional criteria, forbidden shortcuts, and architectural expectations..."></textarea>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+            <button id="saveAiContextBtn" class="btn btn-primary">
+              <i class="fas fa-save"></i> Save & Sync AI Evaluation Context
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: ADMIN CREDENTIALS ================= -->
+    <section id="tab-admin-cred" class="tab-panel">
+      <div class="card" style="max-width: 600px;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fas fa-key"></i> Administrator Account Management</h2>
+            <p class="card-desc">Update master administrator credentials securely.</p>
+          </div>
+        </div>
+
+        <form id="adminPasswordForm">
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label>Admin Username</label>
+            <input type="text" id="currentAdminUserDisplay" class="form-control" value="admin" readonly style="opacity: 0.7;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="newAdminPassword">New Master Password</label>
+            <input type="password" id="newAdminPassword" class="form-control" placeholder="Minimum 6 characters" required />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="confirmAdminPassword">Confirm New Password</label>
+            <input type="password" id="confirmAdminPassword" class="form-control" placeholder="Repeat new password" required />
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="changeAdminPassBtn">
+            <i class="fas fa-shield-alt"></i> Update Master Password
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= TAB 6: AUDIT ACTIVITY LOGS ================= -->
+    <section id="tab-logs" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fas fa-history"></i> Real-Time Platform Audit Trail</h2>
+            <p class="card-desc">Chronological log of administrative actions, credential updates, and session resets.</p>
+          </div>
+          <button id="refreshLogsBtn" class="btn btn-secondary btn-sm">
+            <i class="fas fa-sync-alt"></i> Refresh Logs
+          </button>
+        </div>
+
+        <div class="logs-terminal" id="logsContainer">
+          <div style="color: var(--text-3); text-align: center; padding: 2rem;">
+            <i class="fas fa-spinner fa-spin"></i> Loading activity logs...
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= EDIT PARTICIPANT MODAL ================= -->
+  <div class="modal-overlay" id="editTeamModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fas fa-user-edit" style="color: var(--cyan);"></i>
+          <span>Edit Participant Credentials (<span id="editModalVccId"></span>)</span>
+        </div>
+        <button class="modal-close" id="closeEditModalBtn"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="editTeamForm">
+        <div class="modal-body">
+          <input type="hidden" id="editVccId" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="editLeaderName">Team Leader Name</label>
+              <input type="text" id="editLeaderName" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="editCollege">College / Institute</label>
+              <input type="text" id="editCollege" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="editEmail">Login Email (M1_Email)</label>
+              <input type="email" id="editEmail" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="editPassword">Login Password / Phone</label>
+              <input type="text" id="editPassword" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="editTeamSize">Team Size</label>
+              <input type="number" id="editTeamSize" class="form-control" min="1" max="4" required />
+            </div>
+            <div class="form-group">
+              <label for="editBranch">Department / Branch</label>
+              <input type="text" id="editBranch" class="form-control" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelEditModalBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveTeamChangesBtn">Save & Sync to Firebase</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= ADD NEW TEAM MODAL ================= -->
+  <div class="modal-overlay" id="addTeamModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fas fa-user-plus" style="color: var(--green);"></i>
+          <span>Add New Participant Team</span>
+        </div>
+        <button class="modal-close" id="closeAddModalBtn"><i class="fas fa-times"></i></button>
+      </div>
+      <form id="addTeamForm">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="addVccId">Team ID (e.g. VCC201)</label>
+              <input type="text" id="addVccId" class="form-control" placeholder="VCC..." required />
+            </div>
+            <div class="form-group">
+              <label for="addLeaderName">Team Leader Name</label>
+              <input type="text" id="addLeaderName" class="form-control" placeholder="Full name" required />
+            </div>
+            <div class="form-group">
+              <label for="addEmail">Login Email (M1_Email)</label>
+              <input type="email" id="addEmail" class="form-control" placeholder="team@example.com" required />
+            </div>
+            <div class="form-group">
+              <label for="addPassword">Password / Phone (M1_Phone)</label>
+              <input type="text" id="addPassword" class="form-control" placeholder="Mobile / Password" required />
+            </div>
+            <div class="form-group">
+              <label for="addCollege">College</label>
+              <input type="text" id="addCollege" class="form-control" value="School of Computing" required />
+            </div>
+            <div class="form-group">
+              <label for="addTeamSize">Team Size</label>
+              <input type="number" id="addTeamSize" class="form-control" value="2" min="1" max="4" required />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelAddModalBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="createTeamSubmitBtn">Create & Register</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MASTER RESET CONFIRM MODAL ================= -->
+  <div class="modal-overlay" id="resetConfirmModal">
+    <div class="modal-box" style="max-width: 480px; border-color: rgba(245, 158, 11, 0.5);">
+      <div class="modal-header">
+        <div class="modal-title" style="color: var(--amber);">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>Confirm All Sessions Reset</span>
+        </div>
+        <button class="modal-close" id="closeResetConfirmBtn"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-1);">
+          Are you sure you want to <strong>reset hackathon timers and unlock all teams</strong> across the live production environment?
+        </p>
+        <p style="font-size: 0.8rem; color: var(--text-2); margin-top: 0.75rem;">
+          This directly resets the 2-hour countdown for all 70+ participants in Firebase Realtime Database.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelResetBtn">Cancel</button>
+        <button type="button" class="btn btn-warning" id="confirmExecuteResetBtn">Yes, Reset All Sessions</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/management.js"></script>
+</body>
+
+</html>

@@ -82,6 +82,8 @@ app.use("/api/submission", submissionRoutes);
 app.use("/api/admin", adminAuthRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin", require("./routes/evaluatePrompts"));
+app.use("/api/manage", require("./routes/management"));
+app.use("/api/problem-statement", require("./routes/problemStatement"));
 
 
 /* =====================================================

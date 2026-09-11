@@ -325,26 +325,73 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("Timer start check error:", err);
   }
 
-  if (downloadBtn) {
-    if (hackathonStart) {
-      downloadBtn.disabled = false;
-    } else {
-      downloadBtn.disabled = true;
-    }
+  // ===== PROBLEM STATEMENT & ANNOUNCEMENT SYNCHRONIZATION =====
+  const announcementBanner = document.getElementById("announcementBanner");
+  const announcementText = document.getElementById("announcementText");
+  const downloadStatusChip = document.getElementById("downloadStatusChip");
 
+  let activeProblemFileName = "Problem_Statement.docx";
+
+  async function checkLivePlatformStatus() {
+    try {
+      const statusUrl = window.getApiUrl ? window.getApiUrl("/api/problem-statement/status") : "/api/problem-statement/status";
+      const res = await fetch(statusUrl);
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      // 1. Live Announcements
+      if (announcementBanner && announcementText) {
+        if (data.announcement) {
+          announcementText.textContent = data.announcement;
+          announcementBanner.style.display = "flex";
+        } else {
+          announcementBanner.style.display = "none";
+        }
+      }
+
+      // 2. Problem Statement Release Status
+      if (data.fileName) activeProblemFileName = data.fileName;
+
+      if (downloadBtn) {
+        if (!data.released) {
+          downloadBtn.disabled = true;
+          if (downloadStatusChip) {
+            downloadStatusChip.innerHTML = '<i class="fas fa-lock"></i> Not yet released by organizers';
+            downloadStatusChip.style.borderColor = "rgba(244, 63, 94, 0.4)";
+            downloadStatusChip.style.color = "#fb7185";
+          }
+        } else if (hackathonStart) {
+          downloadBtn.disabled = false;
+          if (downloadStatusChip) {
+            downloadStatusChip.innerHTML = '<i class="fas fa-check-circle"></i> Available for download';
+            downloadStatusChip.style.borderColor = "rgba(16, 185, 129, 0.4)";
+            downloadStatusChip.style.color = "#34d399";
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Platform status sync note:", err);
+    }
+  }
+
+  // Initial check & periodic poll every 25 seconds
+  checkLivePlatformStatus();
+  setInterval(checkLivePlatformStatus, 25000);
+
+  if (downloadBtn) {
     downloadBtn.onclick = async () => {
       try {
         downloadBtn.disabled = true;
-        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>DECRYPTING & DOWNLOADING...</span>';
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>DOWNLOADING...</span>';
 
-        const res = await authFetch(
-          "/api/submission/problem-statement"
-        );
+        const res = await authFetch("/api/submission/problem-statement");
 
         if (!res.ok) {
-          showToast("Problem statement not available yet", "error");
+          const errJson = await res.json().catch(() => ({}));
+          showToast(errJson.message || "Problem statement not available yet", "error");
           downloadBtn.disabled = false;
-          downloadBtn.innerHTML = '<i class="fas fa-file-word"></i> <span>DOWNLOAD CHALLENGE BRIEF (.DOCX)</span>';
+          downloadBtn.innerHTML = '<i class="fas fa-file-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
           return;
         }
 
@@ -353,7 +400,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const a = document.createElement("a");
         a.href = url;
-        a.download = "Vibeathon_Problem_Statement.docx";
+        a.download = activeProblemFileName || "Vibeathon_Problem_Statement.docx";
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -361,15 +408,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         showToast("Problem statement downloaded successfully!", "success");
         downloadBtn.disabled = false;
-        downloadBtn.innerHTML = '<i class="fas fa-check-circle"></i> <span>DOWNLOAD AGAIN (.DOCX)</span>';
+        downloadBtn.innerHTML = '<i class="fas fa-check-circle"></i> <span>DOWNLOAD AGAIN</span>';
       } catch (err) {
         console.error("Download error:", err);
         showToast("Failed to download problem statement", "error");
         downloadBtn.disabled = false;
-        downloadBtn.innerHTML = '<i class="fas fa-file-word"></i> <span>DOWNLOAD CHALLENGE BRIEF (.DOCX)</span>';
+        downloadBtn.innerHTML = '<i class="fas fa-file-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
       }
     };
   }
+
 
   // Active Timer Interval
   timerInterval = setInterval(updateTimerTick, 1000);

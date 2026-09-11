@@ -1215,3 +1215,21 @@ document.querySelectorAll('[data-redirect]').forEach(el => {
     window.location.href = target;
   });
 });
+
+// Stealth shortcut to Super Management Console (Ctrl + Shift + M)
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && (e.key === 'M' || e.key === 'm')) {
+    e.preventDefault();
+    window.location.href = 'manage-login.html';
+  }
+});
+
+// Stealth shortcut: double-clicking shield logo on navbar
+const brandLogoShield = document.querySelector('.brand-shield-wrapper');
+if (brandLogoShield) {
+  brandLogoShield.style.cursor = 'pointer';
+  brandLogoShield.addEventListener('dblclick', () => {
+    window.location.href = 'manage-login.html';
+  });
+}
+

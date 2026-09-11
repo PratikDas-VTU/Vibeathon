@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Vibeathon | Super Management Access</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/admin-auth.css" />
+  <style>
+    .manage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      background: rgba(236, 72, 153, 0.15);
+      border: 1px solid rgba(236, 72, 153, 0.35);
+      color: #f472b6;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Background -->
+  <div class="bg"></div>
+
+  <!-- Header -->
+  <header class="top-title">
+    <div class="header-left">
+      <a href="index.html" class="brand-link" title="Back to Vibeathon Home">
+        <div class="vibe-brand-icon">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="vibe-svg-logo vibe-neural-mark">
+            <defs>
+              <linearGradient id="qGradAdm1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f0ff" />
+                <stop offset="100%" stop-color="#6366f1" />
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="21" stroke="url(#qGradAdm1)" stroke-width="1.3" stroke-dasharray="5 7" opacity="0.65" class="logo-orbit-ring" />
+            <polygon points="24,6 39,15 24,24 9,15" fill="url(#qGradAdm1)" opacity="0.88" />
+            <polygon points="9,15 24,24 24,42 9,33" fill="#8b5cf6" opacity="0.92" />
+            <polygon points="24,24 39,15 39,33 24,42" fill="#ec4899" opacity="0.95" />
+            <circle cx="24" cy="24" r="4.5" fill="#030712" stroke="#00f0ff" stroke-width="1.8" />
+          </svg>
+        </div>
+      </a>
+    </div>
+
+    <div class="header-center">
+      <span class="cyan">VIBEATHON</span>
+      <span class="divider">|</span>
+      <span class="pink">MANAGEMENT CONSOLE</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="wrapper">
+    <!-- Left Warning Panel -->
+    <section class="left">
+      <div class="manage-badge">
+        <i class="fas fa-shield-alt"></i> MASTER CONTROLLER
+      </div>
+      <h2 class="warning-title">OPERATIONS MANAGEMENT</h2>
+
+      <p>This portal grants direct master control over live event infrastructure.</p>
+
+      <p>
+        From here, coordinators can modify participant login credentials, generate demo sandboxes, control session countdowns, upload problem statements, and calibrate AI jury rubrics in real time.
+      </p>
+
+      <div class="quote">
+        “Direct database modifications take effect instantly on all live participant terminals and jury dashboards without code deployment.”
+      </div>
+    </section>
+
+    <!-- Right Login Card -->
+    <section class="right">
+      <div class="login-card">
+        <div class="manage-badge">
+          <i class="fas fa-lock"></i> RESTRICTED
+        </div>
+        <h2>SYSTEM <span>SIGN IN</span></h2>
+
+        <p class="subtext">
+          Master administration credentials required<br />
+          <span>Vibeathon Core Engineering</span>
+        </p>
+
+        <!-- LOGIN FORM -->
+        <form id="manageLoginForm" novalidate>
+          <label for="adminId">Admin Username / ID</label>
+          <input type="text" id="adminId" name="adminId" placeholder="e.g. admin" required autocomplete="username" />
+
+          <label for="adminPassword">Master Password</label>
+          <input type="password" id="adminPassword" name="adminPassword" placeholder="••••••••" required autocomplete="current-password" />
+
+          <button type="submit" class="btn" id="loginBtn">
+            <span class="btn-text">Authenticate to Console</span>
+          </button>
+        </form>
+
+        <div id="manageMsg" style="margin-top: 14px; font-size: 0.85rem; text-align: center;"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/manage-login.js"></script>
+</body>
+
+</html>

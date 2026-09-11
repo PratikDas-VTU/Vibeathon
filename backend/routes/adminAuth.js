@@ -41,8 +41,9 @@ router.post("/login", async (req, res) => {
     // 🔍 Find admin (demo or real)
     let admin = await getAdminByUsername(username.toLowerCase());
 
-    const demoAdminUser = process.env.DEMO_ADMIN_USER || "admin";
-    const demoAdminPass = process.env.DEMO_ADMIN_PASSWORD;
+    const demoAdminUser = (process.env.DEMO_ADMIN_USER || process.env.ADMIN_USERNAME || "admin").toLowerCase();
+    const demoAdminPass = process.env.DEMO_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
+
 
     /**
      * DEMO ADMIN FALLBACK (Enabled only when DEMO_ADMIN_PASSWORD env var is configured)

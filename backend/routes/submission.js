@@ -191,8 +191,15 @@ router.get("/problem-statement", auth, async (req, res) => {
 
     const { db } = require("../firebaseConfig");
     const snap = await db.ref("settings/problemStatement").once("value");
-    const val = snap.val();
-    const fileName = val?.fileName || "Problem Statement.docx";
+    const val = snap.val() || {};
+
+    if (val.released === false) {
+      return res.status(403).json({
+        message: "The problem statement has not yet been released by the organizers."
+      });
+    }
+
+    const fileName = val.fileName || "Problem Statement.docx";
     const filePath = path.join(__dirname, "../public", fileName);
 
     const fallbackPath = path.join(__dirname, "../public/Problem Statement.docx");

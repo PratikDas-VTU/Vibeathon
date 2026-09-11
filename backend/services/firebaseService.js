@@ -251,6 +251,285 @@ async function createCustomToken(uid, claims = {}) {
     }
 }
 
+// ==================== MANAGEMENT & CREDENTIAL OPERATIONS ====================
+
+/**
+ * Update team credentials & data in RTDB and Firebase Auth
+ */
+async function updateTeamCredentials(vccId, updates) {
+    const existing = await getTeamByVccId(vccId);
+    if (!existing) {
+        throw new Error(`Team ${vccId} not found`);
+    }
+
+    const oldEmail = existing.M1_Email;
+    const newEmail = updates.M1_Email || oldEmail;
+    const newPassword = updates.password || updates.M1_Phone;
+
+    // 1. Sync with Firebase Authentication if email or password/phone changed
+    if (newPassword || (newEmail && newEmail !== oldEmail)) {
+        try {
+            let userRecord;
+            try {
+                userRecord = await auth.getUserByEmail(oldEmail);
+            } catch (err) {
+                // User may not exist in Firebase Auth yet, try creating
+                if (err.code === "auth/user-not-found") {
+                    userRecord = await auth.createUser({
+                        email: newEmail,
+                        password: String(newPassword || existing.M1_Phone || "12345678"),
+                        emailVerified: true
+                    });
+                } else {
+                    throw err;
+                }
+            }
+
+            if (userRecord) {
+                const authUpdates = {};
+                if (newEmail && newEmail !== oldEmail) authUpdates.email = newEmail;
+                if (newPassword) authUpdates.password = String(newPassword);
+                if (Object.keys(authUpdates).length > 0) {
+                    await auth.updateUser(userRecord.uid, authUpdates);
+                }
+            }
+        } catch (authErr) {
+            console.warn(`[updateTeamCredentials] Warning during Firebase Auth update for ${vccId}:`, authErr.message);
+        }
+    }
+
+    // 2. Prepare RTDB updates
+    const rtdbUpdates = { ...updates };
+    delete rtdbUpdates.password; // Don't store raw password field if phone is used
+    if (newPassword && !rtdbUpdates.M1_Phone) {
+        rtdbUpdates.M1_Phone = String(newPassword);
+    }
+    rtdbUpdates.updatedAt = new Date().toISOString();
+
+    await db.ref(`teams/${vccId}`).update(rtdbUpdates);
+    return await getTeamByVccId(vccId);
+}
+
+/**
+ * Delete a team from both RTDB and Firebase Auth
+ */
+async function deleteTeam(vccId) {
+    const team = await getTeamByVccId(vccId);
+    if (!team) {
+        throw new Error(`Team ${vccId} not found`);
+    }
+
+    if (team.M1_Email) {
+        try {
+            const userRecord = await auth.getUserByEmail(team.M1_Email);
+            if (userRecord) {
+                await auth.deleteUser(userRecord.uid);
+            }
+        } catch (err) {
+            console.warn(`[deleteTeam] Firebase Auth user delete warning for ${vccId}:`, err.message);
+        }
+    }
+
+    await db.ref(`teams/${vccId}`).remove();
+    return true;
+}
+
+/**
+ * Reset single team hackathon session
+ */
+async function resetSingleTeamSession(vccId) {
+    const updates = {
+        hackathonStart: null,
+        githubUrl: null,
+        deploymentUrl: null,
+        sessionEnded: false,
+        updatedAt: new Date().toISOString()
+    };
+    await db.ref(`teams/${vccId}`).update(updates);
+    return updates;
+}
+
+/**
+ * Reset all teams sessions in production database
+ */
+async function resetAllTeamSessions() {
+    const snapshot = await db.ref("teams").once("value");
+    const teams = snapshot.val() || {};
+    const teamKeys = Object.keys(teams);
+
+    const resetPayload = {
+        hackathonStart: null,
+        githubUrl: null,
+        deploymentUrl: null,
+        sessionEnded: false,
+        updatedAt: new Date().toISOString()
+    };
+
+    let count = 0;
+    for (const vccId of teamKeys) {
+        await db.ref(`teams/${vccId}`).update(resetPayload);
+        count++;
+    }
+
+    return { totalReset: count };
+}
+
+/**
+ * Batch generate N demo teams for testing
+ */
+async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "demo12345") {
+    const createdTeams = [];
+    const safeCount = Math.min(Math.max(1, parseInt(count) || 3), 30); // Max 30 at a time
+
+    for (let i = 1; i <= safeCount; i++) {
+        const numStr = String(100 + i);
+        const vccId = `${prefix}${numStr}`;
+        const email = `demo_${prefix.toLowerCase()}_${numStr}@vibeathon.internal`;
+
+        const teamData = {
+            vccId,
+            teamNo: 9000 + i,
+            teamSize: 2,
+            college: "Vibeathon Sandbox Academy",
+            M1_Name: `Demo Lead ${i}`,
+            M1_Email: email,
+            M1_Phone: defaultPassword,
+            M1_Branch: "AI & Cyber Security",
+            M2_Name: `Demo Builder ${i}`,
+            M2_Email: `builder_${numStr}@vibeathon.internal`,
+            M2_Phone: "9876543210",
+            sessionEnded: false,
+            hackathonStart: null,
+            githubUrl: null,
+            deploymentUrl: null,
+            isDemo: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        // Create in Firebase Auth
+        try {
+            let userRecord;
+            try {
+                userRecord = await auth.getUserByEmail(email);
+                await auth.updateUser(userRecord.uid, { password: defaultPassword });
+            } catch (err) {
+                userRecord = await auth.createUser({
+                    email,
+                    password: defaultPassword,
+                    emailVerified: true
+                });
+            }
+        } catch (authErr) {
+            console.warn(`[generateDemoTeams] Auth warning for ${email}:`, authErr.message);
+        }
+
+        // Save to RTDB
+        await db.ref(`teams/${vccId}`).set(teamData);
+        createdTeams.push({
+            vccId,
+            email,
+            password: defaultPassword,
+            leader: teamData.M1_Name
+        });
+    }
+
+    return createdTeams;
+}
+
+/**
+ * Batch purge all demo teams
+ */
+async function purgeDemoTeams(prefix = "DEMO") {
+    const snapshot = await db.ref("teams").once("value");
+    const teams = snapshot.val() || {};
+    let deletedCount = 0;
+
+    for (const vccId of Object.keys(teams)) {
+        const team = teams[vccId];
+        if (vccId.startsWith(prefix) || team.isDemo === true) {
+            if (team.M1_Email) {
+                try {
+                    const userRecord = await auth.getUserByEmail(team.M1_Email);
+                    if (userRecord) await auth.deleteUser(userRecord.uid);
+                } catch (e) {
+                    // Ignore not found
+                }
+            }
+            await db.ref(`teams/${vccId}`).remove();
+            deletedCount++;
+        }
+    }
+
+    return { deletedCount };
+}
+
+/**
+ * Get platform settings
+ */
+async function getSettings() {
+    const snap = await db.ref("settings").once("value");
+    return snap.val() || {};
+}
+
+/**
+ * Update platform settings
+ */
+async function updateSettings(updates) {
+    updates.updatedAt = new Date().toISOString();
+    await db.ref("settings").update(updates);
+    return await getSettings();
+}
+
+/**
+ * Record system audit log
+ */
+async function logActivity(action, details, adminUser = "Admin") {
+    try {
+        const logRef = db.ref("systemLogs").push();
+        const logEntry = {
+            action,
+            details,
+            adminUser,
+            timestamp: new Date().toISOString()
+        };
+        await logRef.set(logEntry);
+        return { ...logEntry, id: logRef.key };
+    } catch (err) {
+        console.warn("[logActivity] Failed to write log:", err.message);
+    }
+}
+
+/**
+ * Get latest audit logs
+ */
+async function getAuditLogs(limit = 60) {
+    try {
+        const snap = await db.ref("systemLogs")
+            .limitToLast(limit)
+            .once("value");
+        const logsObj = snap.val() || {};
+        return Object.keys(logsObj)
+            .map(id => ({ ...logsObj[id], id }))
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    } catch (err) {
+        console.warn("[getAuditLogs] Failed to fetch logs:", err.message);
+        return [];
+    }
+}
+
+/**
+ * Update Admin Password in Firebase Auth
+ */
+async function updateAdminPassword(username, newPassword) {
+    const admin = await getAdminByUsername(username);
+    const email = admin?.email || `${username}@vibeathon.internal`;
+
+    const userRecord = await auth.getUserByEmail(email);
+    await auth.updateUser(userRecord.uid, { password: newPassword });
+    return true;
+}
+
 module.exports = {
     // Team operations
     getTeamByVccId,
@@ -258,10 +537,23 @@ module.exports = {
     getAllTeams,
     updateTeam,
     createTeam,
+    updateTeamCredentials,
+    deleteTeam,
+    resetSingleTeamSession,
+    resetAllTeamSessions,
+    generateDemoTeams,
+    purgeDemoTeams,
 
     // Admin operations
     getAdminByUsername,
     createAdmin,
+    updateAdminPassword,
+
+    // Settings & Logs
+    getSettings,
+    updateSettings,
+    logActivity,
+    getAuditLogs,
 
     // Prompt operations
     createPrompt,
@@ -279,3 +571,4 @@ module.exports = {
     verifyIdToken,
     createCustomToken
 };
+
