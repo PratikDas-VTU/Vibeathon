@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const { auth, db } = require("../firebaseConfig");
 const verifyAdmin = require("../middleware/verifyAdmin");
 const {
   getAllTeams,
@@ -156,6 +157,170 @@ router.delete("/teams/:vccId", verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error(`Delete team ${req.params.vccId} error:`, err);
     res.status(500).json({ success: false, message: "Failed to delete team: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/import-teams
+ * Batch import teams from parsed CSV / Google Forms responses
+ */
+router.post("/import-teams", verifyAdmin, async (req, res) => {
+  try {
+    const { teams: importedList } = req.body;
+    if (!Array.isArray(importedList) || importedList.length === 0) {
+      return res.status(400).json({ success: false, message: "No teams provided for import." });
+    }
+
+    const results = {
+      total: importedList.length,
+      created: 0,
+      updated: 0,
+      errors: []
+    };
+
+    for (let i = 0; i < importedList.length; i++) {
+      const row = importedList[i];
+      try {
+        const leaderEmail = (row.M1_Email || row.email || row.leaderEmail || "").trim().toLowerCase();
+        let leaderPhone = String(row.M1_Phone || row.phone || row.leaderPhone || "").replace(/[^0-9]/g, "").trim();
+        const leaderName = (row.M1_Name || row.leaderName || row.name || `Team Lead ${i + 1}`).trim();
+        let vccId = (row.VCC_ID || row.vccId || row.teamId || "").trim().toUpperCase();
+
+        if (!vccId) {
+          vccId = `VCC${String(100 + i + 1)}`;
+        }
+
+        if (!leaderEmail) {
+          results.errors.push(`Row ${i + 1}: Skipped (Missing leader email).`);
+          continue;
+        }
+
+        // Ensure phone is at least 6 characters for Firebase Auth password requirement
+        if (!leaderPhone || leaderPhone.length < 6) {
+          leaderPhone = (leaderPhone + "123456").slice(0, 8);
+        }
+
+        const teamData = {
+          vccId: vccId,
+          teamNo: parseInt(row.Team_No || row.teamNo) || (i + 1),
+          teamSize: parseInt(row.Team_Size || row.teamSize) || (row.M2_Name ? 2 : 1),
+          college: (row.M1_College || row.college || "School of Computing").trim(),
+          M1_Name: leaderName,
+          M1_Email: leaderEmail,
+          M1_Phone: leaderPhone,
+          M1_Branch: (row.M1_Branch || row.branch || "Cyber Security").trim(),
+          sessionEnded: false,
+          hackathonStart: null,
+          githubUrl: null,
+          deploymentUrl: null
+        };
+
+        if (row.M2_Name) {
+          teamData.M2_Name = row.M2_Name.trim();
+          teamData.M2_Email = (row.M2_Email || "").trim().toLowerCase();
+          teamData.M2_Phone = String(row.M2_Phone || "").trim();
+          teamData.M2_College = (row.M2_College || teamData.college).trim();
+        }
+        if (row.M3_Name) {
+          teamData.M3_Name = row.M3_Name.trim();
+          teamData.M3_Email = (row.M3_Email || "").trim().toLowerCase();
+          teamData.M3_Phone = String(row.M3_Phone || "").trim();
+          teamData.M3_College = (row.M3_College || teamData.college).trim();
+        }
+        if (row.M4_Name) {
+          teamData.M4_Name = row.M4_Name.trim();
+          teamData.M4_Email = (row.M4_Email || "").trim().toLowerCase();
+          teamData.M4_Phone = String(row.M4_Phone || "").trim();
+          teamData.M4_College = (row.M4_College || teamData.college).trim();
+        }
+
+        // 1. Create or sync in Firebase Auth
+        try {
+          await createTeamUser(teamData.M1_Email, teamData.M1_Phone);
+        } catch (authErr) {
+          if (authErr.code === "auth/email-already-exists") {
+            try {
+              const userRec = await auth.getUserByEmail(teamData.M1_Email);
+              await auth.updateUser(userRec.uid, { password: teamData.M1_Phone });
+            } catch (syncErr) {
+              console.warn("Auth sync notice for", teamData.M1_Email, syncErr.message);
+            }
+          } else {
+            console.warn("Auth creation error for", teamData.M1_Email, authErr.message);
+          }
+        }
+
+        // 2. Save in RTDB
+        const existing = await getTeamByVccId(teamData.vccId);
+        if (existing) {
+          await updateTeamCredentials(teamData.vccId, teamData);
+          results.updated++;
+        } else {
+          await createTeam(teamData);
+          results.created++;
+        }
+
+      } catch (rowErr) {
+        results.errors.push(`Row ${i + 1} (${row.vccId || 'unknown'}): ${rowErr.message}`);
+      }
+    }
+
+    await logActivity(
+      "IMPORT_TEAMS_CSV",
+      `Imported ${results.created} new teams and updated ${results.updated} teams from CSV/Google Forms`,
+      req.admin?.username || "Admin"
+    );
+
+    res.json({
+      success: true,
+      message: `Import complete! Created ${results.created} teams, updated ${results.updated} teams.`,
+      results
+    });
+  } catch (err) {
+    console.error("Batch import error:", err);
+    res.status(500).json({ success: false, message: "Failed to batch import teams: " + err.message });
+  }
+});
+
+/**
+ * DELETE /api/manage/prompts
+ * Clear all test prompts and reset team evaluation stats
+ */
+router.delete("/prompts", verifyAdmin, async (req, res) => {
+  try {
+    const snap = await db.ref("prompts").once("value");
+    const count = snap.numChildren();
+
+    await db.ref("prompts").remove();
+    await db.ref("promptEvaluations").remove();
+
+    // Reset cumulative scores on all teams
+    const teamsSnap = await db.ref("teams").once("value");
+    const teamsObj = teamsSnap.val() || {};
+    const updates = {};
+    Object.keys(teamsObj).forEach(vccId => {
+      updates[`teams/${vccId}/score`] = null;
+      updates[`teams/${vccId}/totalScore`] = null;
+      updates[`teams/${vccId}/promptCount`] = 0;
+    });
+    if (Object.keys(updates).length > 0) {
+      await db.ref().update(updates);
+    }
+
+    await logActivity(
+      "CLEAR_PROMPTS",
+      `Cleared all ${count} test prompts and reset evaluations`,
+      req.admin?.username || "Admin"
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully cleared all ${count} prompts and reset evaluation logs!`,
+      clearedCount: count
+    });
+  } catch (err) {
+    console.error("Clear prompts error:", err);
+    res.status(500).json({ success: false, message: "Failed to clear prompts: " + err.message });
   }
 });
 

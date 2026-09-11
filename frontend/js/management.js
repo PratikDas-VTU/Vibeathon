@@ -780,7 +780,229 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
-  if (refreshLogsBtn) refreshLogsBtn.addEventListener("click", loadAuditLogs);
+  /* =========================================================================
+     GOOGLE FORMS / CSV BATCH IMPORTER
+     ========================================================================= */
+  const importCsvModalBtn = document.getElementById("importCsvModalBtn");
+  const importCsvModal = document.getElementById("importCsvModal");
+  const closeImportCsvBtn = document.getElementById("closeImportCsvBtn");
+  const cancelImportBtn = document.getElementById("cancelImportBtn");
+  const importDropZone = document.getElementById("importDropZone");
+  const importFileInput = document.getElementById("importFileInput");
+  const importRawCsvText = document.getElementById("importRawCsvText");
+  const importPreviewSection = document.getElementById("importPreviewSection");
+  const importPreviewTableBody = document.getElementById("importPreviewTableBody");
+  const importCountBadge = document.getElementById("importCountBadge");
+  const executeImportBtn = document.getElementById("executeImportBtn");
+
+  let parsedImportTeams = [];
+
+  function parseCSV(text) {
+    const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    function splitCSVLine(line) {
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim().replace(/^["']|["']$/g, ""));
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim().replace(/^["']|["']$/g, ""));
+      return result;
+    }
+
+    const rawHeaders = splitCSVLine(lines[0]);
+    const headers = rawHeaders.map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"));
+
+    const teams = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = splitCSVLine(lines[i]);
+      if (values.length === 0 || values.every(v => !v)) continue;
+
+      const rowObj = {};
+      headers.forEach((h, idx) => {
+        rowObj[h] = values[idx] || "";
+      });
+
+      const vccId = rowObj.vcc_id || rowObj.vccid || rowObj.team_id || rowObj.teamid || `VCC${String(100 + i)}`;
+      const teamNo = parseInt(rowObj.team_no || rowObj.teamno) || i;
+      const teamSize = parseInt(rowObj.team_size || rowObj.teamsize) || 2;
+      const college = rowObj.m1_college || rowObj.college || rowObj.college_name || rowObj.institution || "School of Computing";
+      
+      const leaderName = rowObj.m1_name || rowObj.leader_name || rowObj.team_leader || rowObj.name || `Leader ${i}`;
+      const leaderEmail = rowObj.m1_email || rowObj.leader_email || rowObj.email || rowObj.email_address || "";
+      let leaderPhone = String(rowObj.m1_phone || rowObj.leader_phone || rowObj.phone || rowObj.mobile || rowObj.contact || "").replace(/[^0-9]/g, "");
+
+      if (!leaderEmail) continue;
+
+      if (!leaderPhone || leaderPhone.length < 6) {
+        leaderPhone = (leaderPhone + "123456").slice(0, 8);
+      }
+
+      const teamEntry = {
+        VCC_ID: vccId.toUpperCase(),
+        Team_No: teamNo,
+        Team_Size: teamSize,
+        M1_College: college,
+        M1_Name: leaderName,
+        M1_Email: leaderEmail.toLowerCase(),
+        M1_Phone: leaderPhone,
+        M1_Branch: rowObj.m1_branch || rowObj.branch || rowObj.department || "Cyber Security",
+        M2_Name: rowObj.m2_name || rowObj.member_2_name || "",
+        M2_Email: rowObj.m2_email || rowObj.member_2_email || "",
+        M2_Phone: rowObj.m2_phone || rowObj.member_2_phone || "",
+        M2_College: rowObj.m2_college || college,
+        M3_Name: rowObj.m3_name || rowObj.member_3_name || "",
+        M3_Email: rowObj.m3_email || rowObj.member_3_email || "",
+        M3_Phone: rowObj.m3_phone || rowObj.member_3_phone || "",
+        M4_Name: rowObj.m4_name || rowObj.member_4_name || "",
+        M4_Email: rowObj.m4_email || rowObj.member_4_email || "",
+        M4_Phone: rowObj.m4_phone || rowObj.member_4_phone || ""
+      };
+
+      teams.push(teamEntry);
+    }
+
+    return teams;
+  }
+
+  function handleParsedCSV(teams) {
+    parsedImportTeams = teams;
+    if (teams.length > 0) {
+      if (importPreviewSection) importPreviewSection.style.display = "block";
+      if (importCountBadge) importCountBadge.textContent = `${teams.length} teams detected and ready to import!`;
+      if (executeImportBtn) executeImportBtn.disabled = false;
+
+      if (importPreviewTableBody) {
+        importPreviewTableBody.innerHTML = teams.slice(0, 5).map(t => `
+          <tr>
+            <td><strong style="color:var(--cyan);">${escapeHtml(t.VCC_ID)}</strong></td>
+            <td>${escapeHtml(t.M1_Name)}</td>
+            <td style="font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(t.M1_Email)}</td>
+            <td style="font-family:var(--font-mono); font-size:0.75rem; color:var(--green);">${escapeHtml(t.M1_Phone)}</td>
+          </tr>
+        `).join("");
+      }
+    } else {
+      if (importPreviewSection) importPreviewSection.style.display = "none";
+      if (executeImportBtn) executeImportBtn.disabled = true;
+    }
+  }
+
+  if (importCsvModalBtn && importCsvModal) {
+    importCsvModalBtn.addEventListener("click", () => {
+      importCsvModal.classList.add("show");
+    });
+  }
+
+  function closeImportCsv() {
+    if (importCsvModal) importCsvModal.classList.remove("show");
+    if (importRawCsvText) importRawCsvText.value = "";
+    if (importPreviewSection) importPreviewSection.style.display = "none";
+    if (executeImportBtn) executeImportBtn.disabled = true;
+    parsedImportTeams = [];
+  }
+
+  if (closeImportCsvBtn) closeImportCsvBtn.addEventListener("click", closeImportCsv);
+  if (cancelImportBtn) cancelImportBtn.addEventListener("click", closeImportCsv);
+
+  if (importDropZone && importFileInput) {
+    importDropZone.addEventListener("click", () => importFileInput.click());
+    importFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const text = evt.target.result;
+        if (importRawCsvText) importRawCsvText.value = text;
+        const teams = parseCSV(text);
+        handleParsedCSV(teams);
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  if (importRawCsvText) {
+    importRawCsvText.addEventListener("input", () => {
+      const text = importRawCsvText.value;
+      const teams = parseCSV(text);
+      handleParsedCSV(teams);
+    });
+  }
+
+  if (executeImportBtn) {
+    executeImportBtn.addEventListener("click", async () => {
+      if (parsedImportTeams.length === 0) {
+        showToast("No valid team data parsed from CSV", "error");
+        return;
+      }
+
+      executeImportBtn.disabled = true;
+      executeImportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing Teams...';
+
+      try {
+        const res = await manageFetch("/api/manage/import-teams", {
+          method: "POST",
+          body: JSON.stringify({ teams: parsedImportTeams })
+        });
+
+        if (!res) throw new Error("Server did not respond");
+        const data = await res.json();
+
+        if (data.success) {
+          showToast(`✅ ${data.message}`, "success");
+          closeImportCsv();
+          loadParticipants();
+        } else {
+          showToast(data.message || "Failed to import teams", "error");
+        }
+      } catch (err) {
+        console.error("Import error:", err);
+        showToast("Import error: " + err.message, "error");
+      } finally {
+        executeImportBtn.disabled = false;
+        executeImportBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Import & Generate Credentials';
+      }
+    });
+  }
+
+  // Clear All Prompts handler
+  const clearPromptsBtn = document.getElementById("clearPromptsBtn");
+  if (clearPromptsBtn) {
+    clearPromptsBtn.addEventListener("click", async () => {
+      const confirmed = confirm("⚠️ RESET AI PROMPT LOGS?\n\nAre you sure you want to clear all logged AI evaluation prompts from previous tests? The counter will reset to 0 for the official competition start.");
+      if (!confirmed) return;
+
+      clearPromptsBtn.disabled = true;
+      clearPromptsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing Prompts...';
+
+      try {
+        const res = await manageFetch("/api/manage/prompts", { method: "DELETE" });
+        if (!res) return;
+        const data = await res.json();
+        if (data.success) {
+          showToast(`✅ ${data.message}`, "success");
+        } else {
+          showToast(data.message || "Failed to clear prompts", "error");
+        }
+      } catch (err) {
+        showToast("Error clearing prompts: " + err.message, "error");
+      } finally {
+        clearPromptsBtn.disabled = false;
+        clearPromptsBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear All Prompts (Reset to 0)';
+      }
+    });
+  }
 
   // Helper: HTML Escaping
   function escapeHtml(str) {

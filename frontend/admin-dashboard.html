@@ -293,6 +293,25 @@
             <span><i class="fas fa-file-alt" style="color: var(--cyan);"></i> Active File: <strong id="activeFileNameDisplay" style="color: var(--text-3);">No document uploaded yet</strong></span>
             <span id="activeFileUpdatedDisplay" style="color: var(--text-3); font-family: var(--font-mono);"></span>
           </div>
+
+          <!-- Synchronized Release Switch -->
+          <div style="margin-top: 0.85rem; padding: 0.85rem 1rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 0.82rem; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-lock-open"></i> Participant Download Access:
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-2); margin-top: 2px;">
+                Toggle to immediately unlock or freeze problem statement download on all participant dashboards.
+              </div>
+            </div>
+            <label class="switch-wrap" style="display: flex; align-items: center; gap: 8px; margin: 0;">
+              <label class="switch">
+                <input type="checkbox" id="adminProblemReleaseToggle" />
+                <span class="slider"></span>
+              </label>
+              <span id="adminReleaseToggleLabel" style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: var(--rose);">LOCKED</span>
+            </label>
+          </div>
         </div>
 
         <!-- Section 2: Challenge Objectives for AI Evaluation -->

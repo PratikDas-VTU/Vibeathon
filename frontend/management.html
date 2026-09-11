@@ -127,9 +127,17 @@
             <h2 class="card-title"><i class="fas fa-users"></i> Participant Roster & Login Credentials</h2>
             <p class="card-desc">Edit credentials, emails, and passwords on the fly. Real-time synchronization with Firebase Auth.</p>
           </div>
-          <button id="addTeamBtn" class="btn btn-primary">
-            <i class="fas fa-user-plus"></i> + Add New Team
-          </button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button id="importCsvModalBtn" class="btn btn-outline" style="border-color: var(--cyan); color: var(--cyan);">
+              <i class="fas fa-file-import"></i> Import Google Forms CSV
+            </button>
+            <button id="exportCredsBtn" class="btn btn-secondary">
+              <i class="fas fa-file-download"></i> Export Credentials CSV
+            </button>
+            <button id="addTeamBtn" class="btn btn-primary">
+              <i class="fas fa-user-plus"></i> + Add New Team
+            </button>
+          </div>
         </div>
 
         <div class="toolbar">
@@ -282,6 +290,23 @@
             <i class="fas fa-times-circle"></i> Clear Active Alert
           </button>
           <span id="announcementStatus" style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-2);"></span>
+        </div>
+      </div>
+
+      <!-- Clear Test Prompts Card -->
+      <div class="card" style="border-color: rgba(244, 63, 94, 0.4); margin-top: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color: var(--rose);">
+              <i class="fas fa-terminal"></i> Reset / Purge AI Evaluation Prompts
+            </h2>
+            <p class="card-desc">
+              Clear all recorded prompt audit logs and reset the "AI Prompts Logged" counter to 0 for official competition start.
+            </p>
+          </div>
+          <button id="clearPromptsBtn" class="btn btn-danger">
+            <i class="fas fa-trash-alt"></i> Clear All Prompts (Reset to 0)
+          </button>
         </div>
       </div>
     </section>
@@ -541,6 +566,61 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="cancelResetBtn">Cancel</button>
         <button type="button" class="btn btn-warning" id="confirmExecuteResetBtn">Yes, Reset All Sessions</button>
+      </div>
+    </div>
+  <!-- ================= IMPORT GOOGLE FORMS CSV MODAL ================= -->
+  <div class="modal-overlay" id="importCsvModal">
+    <div class="modal-box" style="max-width: 650px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fas fa-file-import" style="color: var(--cyan);"></i>
+          <span>Import Google Forms / CSV Responses</span>
+        </div>
+        <button class="modal-close" id="closeImportCsvBtn"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-2); margin-bottom: 1rem;">
+          Upload your exported Google Forms CSV or sheet containing participant responses. Login credentials will be generated using the Team Leader's (Member 1) email and mobile number.
+        </p>
+
+        <div style="border: 2px dashed var(--border); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; background: rgba(0,0,0,0.15); margin-bottom: 1rem; cursor: pointer;" id="importDropZone">
+          <i class="fas fa-file-csv" style="font-size: 2.2rem; color: var(--cyan); margin-bottom: 0.5rem; display: block;"></i>
+          <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-1);">Click or drag & drop Google Forms CSV file here</span>
+          <p style="font-size: 0.75rem; color: var(--text-3); margin-top: 0.25rem;">Supported columns: Team_No, VCC_ID, M1_Name, M1_Email, M1_Phone, College, etc.</p>
+          <input type="file" id="importFileInput" accept=".csv,text/csv" style="display: none;" />
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-2); margin-bottom: 0.35rem; display: block;">Or Paste CSV Data Directly:</label>
+          <textarea id="importRawCsvText" rows="4" class="form-control" style="font-family: var(--font-mono); font-size: 0.75rem;" placeholder="Team_No,VCC_ID,Team_Size,M1_Name,M1_Email,M1_Phone,M1_College..."></textarea>
+        </div>
+
+        <!-- Preview section -->
+        <div id="importPreviewSection" style="display: none; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.75rem; margin-top: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--green);" id="importCountBadge">0 teams found</span>
+            <span style="font-size: 0.75rem; color: var(--text-3);">Previewing first 5 rows</span>
+          </div>
+          <div style="max-height: 140px; overflow-y: auto;">
+            <table class="manage-table" style="font-size: 0.75rem;">
+              <thead>
+                <tr>
+                  <th>VCC ID</th>
+                  <th>Leader Name</th>
+                  <th>Email</th>
+                  <th>Phone / Password</th>
+                </tr>
+              </thead>
+              <tbody id="importPreviewTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelImportBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="executeImportBtn" disabled>
+          <i class="fas fa-cloud-upload-alt"></i> Import & Generate Credentials
+        </button>
       </div>
     </div>
   </div>

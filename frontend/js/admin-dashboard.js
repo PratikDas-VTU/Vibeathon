@@ -629,10 +629,48 @@ document.addEventListener("DOMContentLoaded", () => {
         if (problemContextInput && info.text) {
           problemContextInput.value = info.text;
         }
+
+        const adminProblemReleaseToggle = document.getElementById("adminProblemReleaseToggle");
+        const adminReleaseToggleLabel = document.getElementById("adminReleaseToggleLabel");
+        if (adminProblemReleaseToggle) {
+          adminProblemReleaseToggle.checked = Boolean(info.released);
+          if (adminReleaseToggleLabel) {
+            adminReleaseToggleLabel.textContent = info.released ? "RELEASED" : "LOCKED";
+            adminReleaseToggleLabel.style.color = info.released ? "var(--green)" : "var(--rose)";
+          }
+        }
       }
     } catch (err) {
       console.warn("Load problem statement info error:", err);
     }
+  }
+
+  const adminProblemReleaseToggle = document.getElementById("adminProblemReleaseToggle");
+  if (adminProblemReleaseToggle) {
+    adminProblemReleaseToggle.addEventListener("change", async () => {
+      const released = adminProblemReleaseToggle.checked;
+      const adminReleaseToggleLabel = document.getElementById("adminReleaseToggleLabel");
+      if (adminReleaseToggleLabel) {
+        adminReleaseToggleLabel.textContent = released ? "RELEASED" : "LOCKED";
+        adminReleaseToggleLabel.style.color = released ? "var(--green)" : "var(--rose)";
+      }
+
+      try {
+        const res = await adminFetch("/api/manage/settings", {
+          method: "PUT",
+          body: JSON.stringify({
+            problemStatement: {
+              released
+            }
+          })
+        });
+        if (res.ok) {
+          alert(`Problem statement access ${released ? "RELEASED to all participants!" : "LOCKED / FROZEN!"}`);
+        }
+      } catch (err) {
+        console.error("Failed to update release status:", err);
+      }
+    });
   }
 
   if (manageProblemBtn && problemModal) {
