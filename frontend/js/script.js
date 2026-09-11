@@ -1224,12 +1224,4 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Stealth shortcut: double-clicking shield logo on navbar
-const brandLogoShield = document.querySelector('.brand-shield-wrapper');
-if (brandLogoShield) {
-  brandLogoShield.style.cursor = 'pointer';
-  brandLogoShield.addEventListener('dblclick', () => {
-    window.location.href = 'manage-login.html';
-  });
-}
 
