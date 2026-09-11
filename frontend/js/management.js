@@ -172,21 +172,55 @@ document.addEventListener("DOMContentLoaded", () => {
       const isLive = Boolean(t.hackathonStart && !isEnded);
       const isDemo = Boolean(t.isDemo || (t.vccId && t.vccId.startsWith("DEMO")));
 
-      let statusBadge = `<span class="status-pill">STANDBY</span>`;
-      if (isDemo) statusBadge = `<span class="status-pill demo"><i class="fas fa-flask"></i> DEMO</span>`;
-      else if (isLive) statusBadge = `<span class="status-pill active"><i class="fas fa-satellite-dish"></i> LIVE</span>`;
-      else if (isEnded) statusBadge = `<span class="status-pill ended"><i class="fas fa-lock"></i> ENDED</span>`;
+      // Live sprint remaining time calculation
+      let remainingStr = "";
+      if (isLive && t.hackathonStart) {
+        const startMs = new Date(t.hackathonStart).getTime();
+        const elapsedSec = Math.floor((Date.now() - startMs) / 1000);
+        const totalSec = 2 * 60 * 60; // 2 hour duration
+        const remSec = Math.max(0, totalSec - elapsedSec);
+        const remH = Math.floor(remSec / 3600);
+        const remM = Math.floor((remSec % 3600) / 60);
+        remainingStr = `${remH}h ${remM}m left`;
+      }
+
+      // Online activity beacon (active in last 4 mins)
+      let isOnline = false;
+      if (t.lastActiveAt) {
+        const diffMs = Date.now() - new Date(t.lastActiveAt).getTime();
+        if (diffMs < 4 * 60 * 1000) isOnline = true;
+      }
+
+      // Status pill determination
+      let statusBadge = "";
+      if (isEnded) {
+        statusBadge = `<span class="status-pill ended"><i class="fas fa-flag-checkered"></i> CONCLUDED</span>`;
+      } else if (isLive) {
+        statusBadge = `<span class="status-pill active"><span class="online-beacon"></span> LIVE SPRINT ${remainingStr ? `(${remainingStr})` : ''}</span>`;
+      } else {
+        statusBadge = `<span class="status-pill standby"><span class="offline-beacon"></span> OFFLINE (Standby)</span>`;
+      }
+
+      if (isDemo) {
+        statusBadge += ` <span class="status-pill demo-tag">DEMO</span>`;
+      }
 
       const hasGithub = Boolean(t.githubUrl);
       const hasDeploy = Boolean(t.deploymentUrl);
       const deliverableSummary = `${hasGithub ? '<i class="fab fa-github" style="color:var(--cyan);" title="GitHub Submitted"></i>' : '<span style="opacity:0.3;">GH</span>'} &nbsp; ${hasDeploy ? '<i class="fas fa-external-link-alt" style="color:var(--green);" title="Live Demo Submitted"></i>' : '<span style="opacity:0.3;">URL</span>'}`;
 
+      const beaconIcon = isOnline 
+        ? `<span class="online-beacon" title="Connected: Active within last 4 minutes" style="margin-right:6px;"></span>`
+        : `<span class="offline-beacon" title="Offline / Idle: No recent activity" style="margin-right:6px;"></span>`;
+
       return `
         <tr>
           <td><span class="vcc-badge">${t.vccId || "—"}</span></td>
           <td>
-            <div style="font-weight: 600; color: var(--text-1);">${escapeHtml(t.M1_Name || "Team Leader")}</div>
-            <div style="font-size: 0.72rem; color: var(--text-3);">${escapeHtml(t.college || "—")}</div>
+            <div style="font-weight: 600; color: var(--text-1); display:flex; align-items:center;">
+              ${beaconIcon} ${escapeHtml(t.M1_Name || "Team Leader")}
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-3); padding-left: 14px;">${escapeHtml(t.college || "—")}</div>
           </td>
           <td>
             <span class="cred-chip"><i class="far fa-envelope"></i> ${escapeHtml(t.M1_Email || "—")}</span>
@@ -781,7 +815,64 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =========================================================================
-     GOOGLE FORMS / CSV BATCH IMPORTER
+     SYSTEM HEALTH & REAL-TIME CONNECTIVITY MONITOR
+     ========================================================================= */
+  const systemHealthBadge = document.getElementById("systemHealthBadge");
+  const systemHealthDot = document.getElementById("systemHealthDot");
+  const systemHealthText = document.getElementById("systemHealthText");
+  const systemLatencyText = document.getElementById("systemLatencyText");
+
+  async function checkSystemHealth() {
+    const t0 = performance.now();
+    try {
+      const healthUrl = window.getApiUrl ? window.getApiUrl("/api/health") : "/api/health";
+      const res = await fetch(healthUrl, { cache: "no-store" });
+      const latency = Math.round(performance.now() - t0);
+
+      if (res.ok) {
+        if (systemHealthDot) {
+          systemHealthDot.style.background = "#10b981";
+          systemHealthDot.classList.add("pulse-dot");
+        }
+        if (systemHealthText) {
+          systemHealthText.textContent = "SYSTEM LIVE";
+          systemHealthText.style.color = "#10b981";
+        }
+        if (systemLatencyText) {
+          systemLatencyText.textContent = `(${latency}ms)`;
+          systemLatencyText.style.color = "#34d399";
+        }
+      } else {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (err) {
+      if (systemHealthDot) {
+        systemHealthDot.style.background = "#f43f5e";
+        systemHealthDot.classList.remove("pulse-dot");
+      }
+      if (systemHealthText) {
+        systemHealthText.textContent = "SYSTEM OFFLINE / RECONNECTING";
+        systemHealthText.style.color = "#fb7185";
+      }
+      if (systemLatencyText) {
+        systemLatencyText.textContent = "(no response)";
+        systemLatencyText.style.color = "#fb7185";
+      }
+    }
+  }
+
+  // Run initial health check & poll every 10 seconds
+  checkSystemHealth();
+  setInterval(checkSystemHealth, 10000);
+  if (systemHealthBadge) {
+    systemHealthBadge.addEventListener("click", () => {
+      if (systemHealthText) systemHealthText.textContent = "PINGING...";
+      checkSystemHealth();
+    });
+  }
+
+  /* =========================================================================
+     ADVANCED GOOGLE FORMS & CSV PARTICIPANT IMPORTER
      ========================================================================= */
   const importCsvModalBtn = document.getElementById("importCsvModalBtn");
   const importCsvModal = document.getElementById("importCsvModal");
@@ -793,9 +884,106 @@ document.addEventListener("DOMContentLoaded", () => {
   const importPreviewSection = document.getElementById("importPreviewSection");
   const importPreviewTableBody = document.getElementById("importPreviewTableBody");
   const importCountBadge = document.getElementById("importCountBadge");
+  const importMappingSummary = document.getElementById("importMappingSummary");
   const executeImportBtn = document.getElementById("executeImportBtn");
+  const importVccPrefix = document.getElementById("importVccPrefix");
+  const importVccStart = document.getElementById("importVccStart");
+  const dropZoneText = document.getElementById("dropZoneText");
+  const importSuccessDownloadSection = document.getElementById("importSuccessDownloadSection");
+  const importSuccessMsg = document.getElementById("importSuccessMsg");
+  const downloadImportedCredsBtn = document.getElementById("downloadImportedCredsBtn");
 
   let parsedImportTeams = [];
+  let lastImportedCredentials = [];
+
+  // Robust phone number sanitizer for Indian & international formats
+  function cleanPhoneNumber(raw) {
+    if (!raw) return "";
+    let digits = String(raw).replace(/[^0-9]/g, "");
+    if (digits.length === 12 && digits.startsWith("91")) {
+      digits = digits.slice(2);
+    } else if (digits.length === 11 && digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+    if (digits.length < 6) {
+      digits = (digits + "123456").slice(0, 8);
+    }
+    return digits;
+  }
+
+  // Intelligent column detector for Google Forms & CSV
+  function detectColumns(headers) {
+    const mapping = {
+      vccId: -1,
+      teamNo: -1,
+      teamSize: -1,
+      m1Name: -1,
+      m1Email: -1,
+      m1Phone: -1,
+      m1College: -1,
+      m1Branch: -1,
+      m2Name: -1,
+      m2Email: -1,
+      m2Phone: -1,
+      m2College: -1,
+      m3Name: -1,
+      m3Email: -1,
+      m3Phone: -1,
+      m4Name: -1,
+      m4Email: -1,
+      m4Phone: -1
+    };
+
+    headers.forEach((raw, idx) => {
+      const h = raw.toLowerCase().trim();
+
+      // Member 4
+      if (/m4|member\s*4/i.test(h)) {
+        if (/email/i.test(h)) mapping.m4Email = idx;
+        else if (/phone|mobile|whatsapp|contact/i.test(h)) mapping.m4Phone = idx;
+        else if (/name/i.test(h)) mapping.m4Name = idx;
+        return;
+      }
+
+      // Member 3
+      if (/m3|member\s*3/i.test(h)) {
+        if (/email/i.test(h)) mapping.m3Email = idx;
+        else if (/phone|mobile|whatsapp|contact/i.test(h)) mapping.m3Phone = idx;
+        else if (/name/i.test(h)) mapping.m3Name = idx;
+        return;
+      }
+
+      // Member 2
+      if (/m2|member\s*2/i.test(h)) {
+        if (/email/i.test(h)) mapping.m2Email = idx;
+        else if (/phone|mobile|whatsapp|contact/i.test(h)) mapping.m2Phone = idx;
+        else if (/college|institution/i.test(h)) mapping.m2College = idx;
+        else if (/name/i.test(h)) mapping.m2Name = idx;
+        return;
+      }
+
+      // Team / Leader / Member 1
+      if (mapping.vccId === -1 && /vcc|team\s*id|team_id/i.test(h)) {
+        mapping.vccId = idx;
+      } else if (mapping.teamNo === -1 && /team\s*no|team_no|s\.?no|sl\.?no/i.test(h)) {
+        mapping.teamNo = idx;
+      } else if (mapping.teamSize === -1 && /team\s*size|team_size|members\s*count/i.test(h)) {
+        mapping.teamSize = idx;
+      } else if (mapping.m1Email === -1 && /email/i.test(h)) {
+        mapping.m1Email = idx;
+      } else if (mapping.m1Phone === -1 && /phone|mobile|whatsapp|contact/i.test(h)) {
+        mapping.m1Phone = idx;
+      } else if (mapping.m1College === -1 && /college|institution|university|campus|school/i.test(h)) {
+        mapping.m1College = idx;
+      } else if (mapping.m1Branch === -1 && /branch|dept|department|stream|course/i.test(h)) {
+        mapping.m1Branch = idx;
+      } else if (mapping.m1Name === -1 && /leader|m1|name/i.test(h)) {
+        mapping.m1Name = idx;
+      }
+    });
+
+    return mapping;
+  }
 
   function parseCSV(text) {
     const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
@@ -821,54 +1009,81 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const rawHeaders = splitCSVLine(lines[0]);
-    const headers = rawHeaders.map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"));
+    const colMap = detectColumns(rawHeaders);
+
+    const prefix = (importVccPrefix ? importVccPrefix.value.trim() : "VCC").toUpperCase() || "VCC";
+    const startNum = parseInt(importVccStart ? importVccStart.value : 101) || 101;
 
     const teams = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = splitCSVLine(lines[i]);
-      if (values.length === 0 || values.every(v => !v)) continue;
+      const vals = splitCSVLine(lines[i]);
+      if (vals.length === 0 || vals.every(v => !v)) continue;
 
-      const rowObj = {};
-      headers.forEach((h, idx) => {
-        rowObj[h] = values[idx] || "";
-      });
+      const getVal = (idx) => (idx !== -1 && vals[idx] !== undefined) ? vals[idx].trim() : "";
 
-      const vccId = rowObj.vcc_id || rowObj.vccid || rowObj.team_id || rowObj.teamid || `VCC${String(100 + i)}`;
-      const teamNo = parseInt(rowObj.team_no || rowObj.teamno) || i;
-      const teamSize = parseInt(rowObj.team_size || rowObj.teamsize) || 2;
-      const college = rowObj.m1_college || rowObj.college || rowObj.college_name || rowObj.institution || "School of Computing";
-      
-      const leaderName = rowObj.m1_name || rowObj.leader_name || rowObj.team_leader || rowObj.name || `Leader ${i}`;
-      const leaderEmail = rowObj.m1_email || rowObj.leader_email || rowObj.email || rowObj.email_address || "";
-      let leaderPhone = String(rowObj.m1_phone || rowObj.leader_phone || rowObj.phone || rowObj.mobile || rowObj.contact || "").replace(/[^0-9]/g, "");
-
+      const leaderEmail = getVal(colMap.m1Email).toLowerCase();
       if (!leaderEmail) continue;
 
-      if (!leaderPhone || leaderPhone.length < 6) {
-        leaderPhone = (leaderPhone + "123456").slice(0, 8);
+      let leaderPhone = cleanPhoneNumber(getVal(colMap.m1Phone));
+      const leaderName = getVal(colMap.m1Name) || `Leader ${i}`;
+      const college = getVal(colMap.m1College) || "School of Computing";
+      const branch = getVal(colMap.m1Branch) || "Cyber Security";
+
+      let vccId = getVal(colMap.vccId).toUpperCase();
+      if (!vccId) {
+        vccId = `${prefix}${startNum + (i - 1)}`;
+      }
+
+      const teamNo = parseInt(getVal(colMap.teamNo)) || i;
+
+      const m2Name = getVal(colMap.m2Name);
+      const m2Email = getVal(colMap.m2Email).toLowerCase();
+      const m2Phone = cleanPhoneNumber(getVal(colMap.m2Phone));
+      const m2College = getVal(colMap.m2College) || college;
+
+      const m3Name = getVal(colMap.m3Name);
+      const m3Email = getVal(colMap.m3Email).toLowerCase();
+      const m3Phone = cleanPhoneNumber(getVal(colMap.m3Phone));
+
+      const m4Name = getVal(colMap.m4Name);
+      const m4Email = getVal(colMap.m4Email).toLowerCase();
+      const m4Phone = cleanPhoneNumber(getVal(colMap.m4Phone));
+
+      let calcSize = parseInt(getVal(colMap.teamSize)) || 1;
+      if (!getVal(colMap.teamSize)) {
+        if (m4Name) calcSize = 4;
+        else if (m3Name) calcSize = 3;
+        else if (m2Name) calcSize = 2;
       }
 
       const teamEntry = {
-        VCC_ID: vccId.toUpperCase(),
+        VCC_ID: vccId,
         Team_No: teamNo,
-        Team_Size: teamSize,
+        Team_Size: calcSize,
         M1_College: college,
         M1_Name: leaderName,
-        M1_Email: leaderEmail.toLowerCase(),
+        M1_Email: leaderEmail,
         M1_Phone: leaderPhone,
-        M1_Branch: rowObj.m1_branch || rowObj.branch || rowObj.department || "Cyber Security",
-        M2_Name: rowObj.m2_name || rowObj.member_2_name || "",
-        M2_Email: rowObj.m2_email || rowObj.member_2_email || "",
-        M2_Phone: rowObj.m2_phone || rowObj.member_2_phone || "",
-        M2_College: rowObj.m2_college || college,
-        M3_Name: rowObj.m3_name || rowObj.member_3_name || "",
-        M3_Email: rowObj.m3_email || rowObj.member_3_email || "",
-        M3_Phone: rowObj.m3_phone || rowObj.member_3_phone || "",
-        M4_Name: rowObj.m4_name || rowObj.member_4_name || "",
-        M4_Email: rowObj.m4_email || rowObj.member_4_email || "",
-        M4_Phone: rowObj.m4_phone || rowObj.member_4_phone || ""
+        M1_Branch: branch
       };
+
+      if (m2Name) {
+        teamEntry.M2_Name = m2Name;
+        teamEntry.M2_Email = m2Email;
+        teamEntry.M2_Phone = m2Phone;
+        teamEntry.M2_College = m2College;
+      }
+      if (m3Name) {
+        teamEntry.M3_Name = m3Name;
+        teamEntry.M3_Email = m3Email;
+        teamEntry.M3_Phone = m3Phone;
+      }
+      if (m4Name) {
+        teamEntry.M4_Name = m4Name;
+        teamEntry.M4_Email = m4Email;
+        teamEntry.M4_Phone = m4Phone;
+      }
 
       teams.push(teamEntry);
     }
@@ -880,16 +1095,21 @@ document.addEventListener("DOMContentLoaded", () => {
     parsedImportTeams = teams;
     if (teams.length > 0) {
       if (importPreviewSection) importPreviewSection.style.display = "block";
-      if (importCountBadge) importCountBadge.textContent = `${teams.length} teams detected and ready to import!`;
+      if (importCountBadge) importCountBadge.textContent = `${teams.length} Teams Ready`;
+      if (importMappingSummary) {
+        importMappingSummary.textContent = `Auto-mapped Email, Phone, Leader & College fields`;
+      }
       if (executeImportBtn) executeImportBtn.disabled = false;
 
       if (importPreviewTableBody) {
-        importPreviewTableBody.innerHTML = teams.slice(0, 5).map(t => `
+        importPreviewTableBody.innerHTML = teams.slice(0, 8).map(t => `
           <tr>
-            <td><strong style="color:var(--cyan);">${escapeHtml(t.VCC_ID)}</strong></td>
-            <td>${escapeHtml(t.M1_Name)}</td>
-            <td style="font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(t.M1_Email)}</td>
-            <td style="font-family:var(--font-mono); font-size:0.75rem; color:var(--green);">${escapeHtml(t.M1_Phone)}</td>
+            <td><strong style="color:var(--cyan); font-family:var(--font-mono);">${escapeHtml(t.VCC_ID)}</strong></td>
+            <td><strong>${escapeHtml(t.M1_Name)}</strong></td>
+            <td><span class="cred-chip">${escapeHtml(t.M1_Email)}</span></td>
+            <td><span class="cred-chip" style="color:var(--green); font-weight:700;">${escapeHtml(t.M1_Phone)}</span></td>
+            <td style="color:var(--text-3);">${escapeHtml(t.M1_College)}</td>
+            <td><span class="vcc-badge">${t.Team_Size} Members</span></td>
           </tr>
         `).join("");
       }
@@ -902,6 +1122,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (importCsvModalBtn && importCsvModal) {
     importCsvModalBtn.addEventListener("click", () => {
       importCsvModal.classList.add("show");
+      if (importSuccessDownloadSection) importSuccessDownloadSection.style.display = "none";
     });
   }
 
@@ -909,7 +1130,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (importCsvModal) importCsvModal.classList.remove("show");
     if (importRawCsvText) importRawCsvText.value = "";
     if (importPreviewSection) importPreviewSection.style.display = "none";
+    if (importSuccessDownloadSection) importSuccessDownloadSection.style.display = "none";
     if (executeImportBtn) executeImportBtn.disabled = true;
+    if (dropZoneText) dropZoneText.textContent = "Click or Drag & Drop Google Forms CSV file here";
     parsedImportTeams = [];
   }
 
@@ -918,9 +1141,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (importDropZone && importFileInput) {
     importDropZone.addEventListener("click", () => importFileInput.click());
+
+    // Drag & Drop visual highlights
+    ['dragenter', 'dragover'].forEach(eventName => {
+      importDropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        importDropZone.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      importDropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        importDropZone.classList.remove('dragover');
+      }, false);
+    });
+
+    importDropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const file = dt.files[0];
+      if (file) {
+        processUploadedFile(file);
+      }
+    });
+
     importFileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (file) {
+        processUploadedFile(file);
+      }
+    });
+
+    function processUploadedFile(file) {
+      if (dropZoneText) dropZoneText.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
       const reader = new FileReader();
       reader.onload = (evt) => {
         const text = evt.target.result;
@@ -929,7 +1184,7 @@ document.addEventListener("DOMContentLoaded", () => {
         handleParsedCSV(teams);
       };
       reader.readAsText(file);
-    });
+    }
   }
 
   if (importRawCsvText) {
@@ -948,7 +1203,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       executeImportBtn.disabled = true;
-      executeImportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing Teams...';
+      executeImportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing Firebase Accounts...';
 
       try {
         const res = await manageFetch("/api/manage/import-teams", {
@@ -961,7 +1216,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (data.success) {
           showToast(`✅ ${data.message}`, "success");
-          closeImportCsv();
+          lastImportedCredentials = data.results?.importedTeams || parsedImportTeams;
+
+          if (importSuccessDownloadSection) {
+            importSuccessDownloadSection.style.display = "block";
+            if (importSuccessMsg) {
+              importSuccessMsg.innerHTML = `<i class="fas fa-check-circle"></i> Successfully Imported ${data.results.created} New Teams & Updated ${data.results.updated} Teams!`;
+            }
+          }
+
           loadParticipants();
         } else {
           showToast(data.message || "Failed to import teams", "error");
@@ -973,6 +1236,32 @@ document.addEventListener("DOMContentLoaded", () => {
         executeImportBtn.disabled = false;
         executeImportBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Import & Generate Credentials';
       }
+    });
+  }
+
+  // Instant Download of Generated Credentials CSV
+  if (downloadImportedCredsBtn) {
+    downloadImportedCredsBtn.addEventListener("click", () => {
+      if (lastImportedCredentials.length === 0) {
+        showToast("No credentials available to export", "error");
+        return;
+      }
+
+      const header = "Team_ID,Leader_Name,Login_Email,Login_Password,College,Team_Size\n";
+      const rows = lastImportedCredentials.map(t => 
+        `"${t.vccId || t.VCC_ID}","${t.leaderName || t.M1_Name}","${t.email || t.M1_Email}","${t.password || t.M1_Phone}","${t.college || t.M1_College || ''}",${t.teamSize || t.Team_Size || 2}`
+      ).join("\n");
+
+      const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Vibeathon_Imported_Credentials_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("Credentials CSV downloaded!", "success");
     });
   }
 

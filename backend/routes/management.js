@@ -175,7 +175,8 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
       total: importedList.length,
       created: 0,
       updated: 0,
-      errors: []
+      errors: [],
+      importedTeams: []
     };
 
     for (let i = 0; i < importedList.length; i++) {
@@ -259,6 +260,15 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
           await createTeam(teamData);
           results.created++;
         }
+
+        results.importedTeams.push({
+          vccId: teamData.vccId,
+          leaderName: teamData.M1_Name,
+          email: teamData.M1_Email,
+          password: teamData.M1_Phone,
+          college: teamData.college,
+          teamSize: teamData.teamSize
+        });
 
       } catch (rowErr) {
         results.errors.push(`Row ${i + 1} (${row.vccId || 'unknown'}): ${rowErr.message}`);

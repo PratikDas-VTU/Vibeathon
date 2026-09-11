@@ -497,29 +497,71 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: var(--radius-full);
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .status-pill.active {
-  background: var(--green-dim);
-  color: var(--green);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.status-pill.standby {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.35);
 }
 
 .status-pill.ended {
-  background: var(--rose-dim);
-  color: var(--rose);
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.4);
 }
 
-.status-pill.demo {
-  background: var(--violet-dim);
-  color: var(--violet);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+.status-pill.demo-tag {
+  background: rgba(139, 92, 246, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  margin-left: 4px;
+  border-radius: 4px;
+}
+
+.online-beacon {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseBeacon 2s infinite;
+}
+
+.offline-beacon {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+@keyframes pulseBeacon {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.dropzone.dragover {
+  border-color: var(--cyan) !important;
+  background: rgba(0, 240, 255, 0.08) !important;
 }
 
 .actions-cell {
