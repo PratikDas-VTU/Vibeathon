@@ -1,0 +1,82 @@
+# =================================================================
+# Vibeathon Production .gitignore
+# Strictly prevents exposure of secrets, PII, and competition dumps
+# =================================================================
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*firebase-service-account*.json
+*service-account*.json
+
+# Participant Data & PII (All real CSVs strictly ignored)
+*.csv
+!backend/teams.sample.csv
+demo_credentials*
+*/demo_credentials*
+
+# Competition Dumps, Prompt Logs & Confidential Materials
+*dump*.txt
+manual_prompts.txt
+*status*.txt
+logo-dataurl.txt
+Problem Statement.docx
+*Problem*Statement*.docx
+public/*.docx
+public/*.pdf
+
+# Documentation with Participant PII
+IMPORT_TEAMS_NOW.md
+DASHBOARD_TEAM_DATA.md
+
+# One-off Admin, Test & Migration Scripts (Internal only)
+backend/addDummyParticipant.js
+backend/addFakePrompts.js
+backend/addFakeSubmissions.js
+backend/addTeam41.js
+backend/adminImportTeams.js
+backend/checkTestTeams.js
+backend/cleanupAuth.js
+backend/cleanupParticipants.js
+backend/clearEvaluations.js
+backend/clearVCC999Evaluation.js
+backend/createAdmins.js
+backend/createDemoParticipants.js
+backend/createDemoParticipants60.js
+backend/deleteAllUsers.js
+backend/generateHashes.js
+backend/importTeamsFromCSV.js
+backend/importTeamsViaCompass.js
+backend/removeFakeSubmissions.js
+backend/removeTestTeams.js
+backend/resetSessionByEmail.js
+backend/resetTeamSession.js
+backend/resetTeamVCC112.js
+backend/testGeminiEval.js
+backend/viewEvaluations.js
+reset-all-sessions.*
+start-frontend.*
+
+# Local Test Files & Vercel Caches
+frontend/test-login-local.html
+.vercel/
+*/.vercel/
+
+# Logs & Diagnostics
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+Desktop.ini

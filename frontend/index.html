@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="AI-ASSISTED VIBEATHON — School of Computing, Cyber Security Department. A high-intensity AI-assisted development sprint where ideas become working products in just a few hours.">
+    <meta name="keywords" content="VIBEATHON, AI-assisted development, School of Computing, Cyber Security, hackathon, 16 September 2026">
+    <title>VIBEATHON | School of Computing — Cyber Security Department</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@600;700;800;900&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Fluid AI Magnetic Cursor (Desktop) -->
+    <div class="custom-cursor-dot" id="cursorDot"></div>
+    <div class="custom-cursor-ring" id="cursorRing"></div>
+
+    <!-- Animated Cyber Canvas Background -->
+    <div class="cyber-background">
+        <canvas id="cyber-canvas"></canvas>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <!-- Header / Navbar (Matches Reference: School of Computing / Cyber Security Department) -->
+    <header class="navbar" id="navbar">
+        <div class="navbar-container">
+            <div class="brand-lockup">
+                <a href="#hero" class="brand-link" aria-label="School of Computing - Cyber Security Department">
+                    <div class="brand-shield-wrapper">
+                        <svg class="school-shield-logo" viewBox="0 0 36 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#1e293b" />
+                                    <stop offset="100%" stop-color="#0a1024" />
+                                </linearGradient>
+                            </defs>
+                            <!-- Shield Outline -->
+                            <path d="M18 2L4 7V17C4 26.5 10 34.5 18 38C26 34.5 32 26.5 32 17V7L18 2Z" 
+                                  fill="url(#shieldGrad)" stroke="#38bdf8" stroke-width="2.4" stroke-linejoin="round" />
+                            <!-- Inner Lock Body -->
+                            <rect x="12" y="19" width="12" height="9.5" rx="2.5" fill="#38bdf8" />
+                            <!-- Lock Shackle -->
+                            <path d="M14.5 19V15.5C14.5 13.5 16 12 18 12C20 12 21.5 13.5 21.5 15.5V19" 
+                                  stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" fill="none" />
+                            <!-- Keyhole -->
+                            <circle cx="18" cy="23" r="1.3" fill="#030712" />
+                            <path d="M18 23.5V26" stroke="#030712" stroke-width="1.3" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                    <div class="brand-text-block">
+                        <span class="brand-college">SCHOOL OF COMPUTING</span>
+                        <span class="brand-dept">CYBER SECURITY DEPARTMENT</span>
+                    </div>
+                </a>
+            </div>
+
+            <nav class="navbar-links">
+                <a href="#hero" class="nav-link active">Home<span class="nav-dot"></span></a>
+                <a href="#highlights" class="nav-link">About</a>
+                <a href="#timeline" class="nav-link">Timeline</a>
+                <a href="#rules" class="nav-link">Rules</a>
+                <a href="#faq" class="nav-link">FAQs</a>
+            </nav>
+
+            <div class="nav-actions">
+                <div class="nav-dropdown">
+                    <a href="participant-login.html" class="btn btn-nav-enter" id="enterVibeBtn">
+                        <span>Enter the Vibeathon</span>
+                        <span class="btn-arrow">→</span>
+                    </a>
+                    <div class="dropdown-menu" id="loginDropdown">
+                        <a class="dropdown-item" href="participant-login.html">Participant Arena Login</a>
+                        <a class="dropdown-item admin-link" href="admin-login.html">Admin & Jury Portal</a>
+                    </div>
+                </div>
+
+                <!-- Mobile Menu Toggle -->
+                <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Navigation Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="#hero" class="mobile-nav-link">Home</a>
+        <a href="#highlights" class="mobile-nav-link">About</a>
+        <a href="#timeline" class="mobile-nav-link">Timeline</a>
+        <a href="#rules" class="mobile-nav-link">Rules</a>
+        <a href="#faq" class="mobile-nav-link">FAQs</a>
+        <a href="admin-login.html" class="mobile-nav-link admin-link">Admin Console</a>
+        <a href="participant-login.html" class="mobile-nav-link mobile-nav-cta">Enter the Vibeathon →</a>
+    </div>
+
+    <!-- Hero Section (Matches Uploaded Reference Design) -->
+    <section class="hero" id="hero">
+        <!-- Ambient Glowing Aura Orbs -->
+        <div class="hero-aurora-glow"></div>
+
+        <!-- Corner Watermark Markings (From Reference) -->
+        <div class="hero-watermark wm-top-right">
+            <span>PEOPLE</span>
+            <span>SECURE</span>
+            <span>IDEAS</span>
+            <span>TOMORROW</span>
+        </div>
+
+        <div class="hero-watermark wm-bottom-left">
+            <span>SECURE</span>
+            <span>SOLVE</span>
+            <span>CREATE</span>
+            <span>TOGETHER</span>
+        </div>
+
+        <div class="hero-watermark wm-bottom-right">
+            <span class="wm-line"></span>
+            <div class="wm-text-group">
+                <span>MORE THAN A HACKATHON</span>
+                <span>A SAFER TOMORROW</span>
+            </div>
+        </div>
+
+        <div class="hero-container">
+            <!-- Hero Left Column -->
+            <div class="hero-left-col">
+                <div class="hero-pill-breadcrumb">
+                    <span class="pill-pulse-beacon"></span>
+                    IDEAS &nbsp;×&nbsp; AI &nbsp;×&nbsp; CYBERSECURITY &nbsp;×&nbsp; IMPACT
+                </div>
+
+                <div class="hero-dept-badge">
+                    <span class="dept-main">SCHOOL OF COMPUTING</span>
+                    <span class="dept-slash">//</span>
+                    <span class="dept-sub">CYBER SECURITY DEPARTMENT</span>
+                </div>
+
+                <h1 class="hero-title-main">
+                    <span class="title-row-gradient">VIBEATHON<span class="title-cursor"></span></span>
+                </h1>
+
+                <div class="hero-tagline-motto">
+                    <span>BUILD</span>
+                    <span class="motto-dot">•</span>
+                    <span>SHIP</span>
+                    <span class="motto-dot">•</span>
+                    <span>VIBE</span>
+                </div>
+
+                <p class="hero-desc-clean">
+                    A high-intensity AI-assisted development sprint where ideas become working products — in just a few hours.
+                </p>
+
+                <!-- Quick Chips Row -->
+                <div class="hero-chips-row">
+                    <div class="chip-item">
+                        <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span>16 SEPTEMBER 2026</span>
+                    </div>
+                    <div class="chip-item">
+                        <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>2 – 3 HOURS</span>
+                    </div>
+                    <div class="chip-item">
+                        <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>60+ BUILDERS</span>
+                    </div>
+                </div>
+
+                <!-- Action Button Row -->
+                <div class="hero-btn-row">
+                    <a href="participant-login.html" class="btn btn-hero-primary">
+                        <span>Enter the Vibeathon</span>
+                        <span class="btn-arrow">→</span>
+                    </a>
+                    <a href="#highlights" class="btn btn-hero-secondary">
+                        <span>Explore the Event</span>
+                        <span class="btn-down-arrow">↓</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Hero Right Column (3D Isometric Cyber AI Pedestal & Cards) -->
+            <div class="hero-right-col">
+                <div class="hero-iso-wrapper">
+                    <!-- Top-Left Floating Card: AI Engine Ready -->
+                    <div class="hero-floating-card card-ai-engine">
+                        <div class="card-status-head">
+                            <span class="engine-live-dot"></span>
+                            <span class="engine-title">AI ENGINE READY</span>
+                        </div>
+                        <ul class="engine-checklist">
+                            <li class="check-item done"><span class="arr">→</span> Generating ideas...</li>
+                            <li class="check-item done"><span class="arr">→</span> Analysing problem...</li>
+                            <li class="check-item done"><span class="arr">→</span> Building solution...</li>
+                            <li class="check-item ready"><span class="arr">→</span> Deployment ready <span class="chk">✓</span></li>
+                        </ul>
+                    </div>
+
+                    <!-- Top-Right Floating Card: Event Status -->
+                    <div class="hero-floating-card card-event-status">
+                        <div class="status-top-lbl">EVENT STATUS</div>
+                        <div class="status-reg-pill">
+                            <span class="green-live-dot"></span>
+                            <span>REGISTRATION OPEN</span>
+                        </div>
+                        <div class="status-meta-list">
+                            <div class="meta-row"><span class="meta-ico">📅</span> <span>16 SEP 2026</span></div>
+                            <div class="meta-row"><span class="meta-ico">⏱</span> <span>2 - 3 HOURS</span></div>
+                            <div class="meta-row"><span class="meta-ico">👥</span> <span>60+ PARTICIPANTS</span></div>
+                        </div>
+                        <div class="status-foot-note">LET'S BUILD A SAFER DIGITAL TOMORROW</div>
+                    </div>
+
+                    <!-- Orbiting Satellite Badges -->
+                    <div class="sat-badge sat-ideas">
+                        <span class="sat-ico">🧠</span>
+                        <div class="sat-txt">
+                            <span class="sat-main">PROMPT</span>
+                            <span class="sat-sub">IDEAS</span>
+                        </div>
+                    </div>
+
+                    <div class="sat-badge sat-build">
+                        <span class="sat-code-ico">&lt;/&gt;</span>
+                        <div class="sat-txt">
+                            <span class="sat-main">BUILD</span>
+                            <span class="sat-sub">FASTER</span>
+                        </div>
+                    </div>
+
+                    <div class="sat-badge sat-impact">
+                        <span class="sat-bar-ico">
+                            <span class="b-bar b1"></span>
+                            <span class="b-bar b2"></span>
+                            <span class="b-bar b3"></span>
+                        </span>
+                        <div class="sat-txt">
+                            <span class="sat-main">REAL</span>
+                            <span class="sat-sub">IMPACT</span>
+                        </div>
+                    </div>
+
+                    <!-- Handwritten Script Watermark (Reference: "Same Tools, Bigger Possibilities") -->
+                    <div class="hero-script-watermark">
+                        <span>Same</span><br>
+                        <span class="script-indent">Tools,</span><br>
+                        <span>Bigger</span><br>
+                        <span class="script-indent">Possibilities</span>
+                    </div>
+
+                    <!-- Central 3D Isometric Cyber AI Pedestal Composition -->
+                    <div class="iso-pedestal-stage">
+                        <svg class="iso-cyber-svg" viewBox="0 0 600 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <!-- Multi-stop Laser & Facet Gradients -->
+                                <linearGradient id="neonLaser" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#00f0ff" />
+                                    <stop offset="50%" stop-color="#3b82f6" />
+                                    <stop offset="100%" stop-color="#a855f7" />
+                                </linearGradient>
+                                <linearGradient id="pedTier1Top" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#122044" stop-opacity="0.95" />
+                                    <stop offset="50%" stop-color="#0b142c" stop-opacity="0.95" />
+                                    <stop offset="100%" stop-color="#050a16" stop-opacity="0.95" />
+                                </linearGradient>
+                                <linearGradient id="pedTier1SideL" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#09132a" />
+                                    <stop offset="100%" stop-color="#040713" />
+                                </linearGradient>
+                                <linearGradient id="pedTier1SideR" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#0e1b38" />
+                                    <stop offset="100%" stop-color="#050918" />
+                                </linearGradient>
+                                <linearGradient id="pedTier2Top" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#162750" stop-opacity="0.95" />
+                                    <stop offset="100%" stop-color="#091329" stop-opacity="0.95" />
+                                </linearGradient>
+                                <linearGradient id="pedTier3Top" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#1a2f62" stop-opacity="0.98" />
+                                    <stop offset="100%" stop-color="#0d1836" stop-opacity="0.98" />
+                                </linearGradient>
+                                <linearGradient id="cubeGlowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.32" />
+                                    <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.52" />
+                                </linearGradient>
+                                <linearGradient id="cubeFacetLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#0a1a3c" stop-opacity="0.88" />
+                                    <stop offset="100%" stop-color="#060c1c" stop-opacity="0.92" />
+                                </linearGradient>
+                                <linearGradient id="cubeFacetRight" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#141a46" stop-opacity="0.88" />
+                                    <stop offset="100%" stop-color="#090a22" stop-opacity="0.92" />
+                                </linearGradient>
+                                <linearGradient id="aiChipSurfaceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#4f46e5" />
+                                    <stop offset="45%" stop-color="#3b82f6" />
+                                    <stop offset="100%" stop-color="#00f0ff" />
+                                </linearGradient>
+                                <linearGradient id="aiInnerCoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#1e1b4b" />
+                                    <stop offset="100%" stop-color="#0f172a" />
+                                </linearGradient>
+                                <linearGradient id="shieldBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#0c1a3e" />
+                                    <stop offset="100%" stop-color="#040918" />
+                                </linearGradient>
+                                <linearGradient id="beamColumnGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.35" />
+                                    <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.05" />
+                                </linearGradient>
+                                <linearGradient id="laserBeamTop" x1="0%" y1="100%" x2="0%" y2="0%">
+                                    <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.9" />
+                                    <stop offset="100%" stop-color="#a855f7" stop-opacity="0.2" />
+                                </linearGradient>
+
+                                <!-- Cyber Glow Filters -->
+                                <filter id="laserGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3.5" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
+                                <filter id="chipGlow" x="-35%" y="-35%" width="170%" height="170%">
+                                    <feGaussianBlur stdDeviation="12" result="glow" />
+                                    <feComposite in="SourceGraphic" in2="glow" operator="over" />
+                                </filter>
+                                <filter id="ambientFloorGlow" x="-30%" y="-30%" width="160%" height="160%">
+                                    <feGaussianBlur stdDeviation="15" result="blur" />
+                                </filter>
+                            </defs>
+
+                            <!-- ================= 1. HOLOGRAPHIC EMITTER FLOOR ================= -->
+                            <!-- Ambient Ground Glow Disks -->
+                            <ellipse cx="300" cy="385" rx="230" ry="70" fill="rgba(0, 240, 255, 0.16)" filter="url(#ambientFloorGlow)" />
+                            <ellipse cx="300" cy="385" rx="140" ry="42" fill="rgba(139, 92, 246, 0.2)" filter="url(#ambientFloorGlow)" />
+
+                            <!-- Concentric Ground Reticle Rings -->
+                            <ellipse cx="300" cy="385" rx="236" ry="74" stroke="url(#neonLaser)" stroke-width="1.6" stroke-dasharray="14 8 4 8" opacity="0.65" class="iso-orbit-spin-1" />
+                            <ellipse cx="300" cy="385" rx="180" ry="56" stroke="rgba(0, 240, 255, 0.3)" stroke-width="1.2" stroke-dasharray="6 6" />
+                            <ellipse cx="300" cy="385" rx="120" ry="38" stroke="rgba(168, 85, 247, 0.35)" stroke-width="1" />
+
+                            <!-- Compass Matrix Ticks -->
+                            <line x1="64" y1="385" x2="80" y2="385" stroke="#00f0ff" stroke-width="2" opacity="0.7" />
+                            <line x1="520" y1="385" x2="536" y2="385" stroke="#00f0ff" stroke-width="2" opacity="0.7" />
+                            <circle cx="72" cy="385" r="3" fill="#00f0ff" class="iso-node-pulse" />
+                            <circle cx="528" cy="385" r="3" fill="#a855f7" class="iso-node-pulse" />
+
+                            <!-- ================= 2. TIER 1: BASE PLATFORM ================= -->
+                            <!-- Tier 1 Top Surface Diamond -->
+                            <polygon points="300,240 480,310 300,380 120,310" fill="url(#pedTier1Top)" stroke="url(#neonLaser)" stroke-width="2" />
+                            <!-- Specular Inset Rim Highlight -->
+                            <polygon points="300,246 470,311 300,374 130,311" fill="none" stroke="rgba(0, 240, 255, 0.3)" stroke-width="1" />
+
+                            <!-- Circuit Board Bus Lines on Tier 1 Top -->
+                            <path d="M155,307 L215,330 L215,312 L245,300" stroke="rgba(0, 240, 255, 0.55)" stroke-width="1.2" fill="none" />
+                            <circle cx="245" cy="300" r="2.5" fill="#00f0ff" />
+                            <circle cx="155" cy="307" r="2" fill="#00f0ff" />
+
+                            <path d="M445,307 L385,330 L385,312 L355,300" stroke="rgba(168, 85, 247, 0.55)" stroke-width="1.2" fill="none" />
+                            <circle cx="355" cy="300" r="2.5" fill="#c084fc" />
+                            <circle cx="445" cy="307" r="2" fill="#c084fc" />
+
+                            <!-- Tier 1 Left Facet (Slope: +7/18 = +0.388889) -->
+                            <polygon points="120,310 300,380 300,416 120,346" fill="url(#pedTier1SideL)" stroke="rgba(0, 240, 255, 0.5)" stroke-width="1.2" />
+                            <!-- Tier 1 Right Facet (Slope: -7/18 = -0.388889) -->
+                            <polygon points="300,380 480,310 480,346 300,416" fill="url(#pedTier1SideR)" stroke="rgba(168, 85, 247, 0.5)" stroke-width="1.2" />
+
+                            <!-- Perfectly Aligned Isometric Inset Plate: 01 // IDEAS -->
+                            <!-- Badge parallelogram strictly inside facet (x from 150 to 270, height 22px, margins: 30px sides, 7px top/bottom) -->
+                            <polygon points="150,328.7 270,375.3 270,397.3 150,350.7" fill="rgba(0, 240, 255, 0.12)" stroke="rgba(0, 240, 255, 0.5)" stroke-width="1" />
+                            <!-- Telemetry text using true isometric vertical-stem skew -->
+                            <g transform="matrix(1, 0.388889, 0, 1, 0, 0)">
+                                <circle cx="168" cy="285.3" r="2.8" fill="#00f0ff" class="iso-node-pulse" />
+                                <text x="176" y="289" fill="#00f0ff" font-family="'JetBrains Mono', 'Space Grotesk', monospace" font-weight="800" font-size="11" letter-spacing="1.5">01 // IDEAS</text>
+                            </g>
+
+                            <!-- Perfectly Aligned Isometric Inset Plate: 02 // SECURITY -->
+                            <!-- Badge parallelogram strictly inside facet (x from 330 to 450, height 22px, margins: 30px sides, 7px top/bottom) -->
+                            <polygon points="330,375.3 450,328.7 450,350.7 330,397.3" fill="rgba(56, 189, 248, 0.12)" stroke="rgba(56, 189, 248, 0.5)" stroke-width="1" />
+                            <g transform="matrix(1, -0.388889, 0, 1, 0, 0)">
+                                <circle cx="348" cy="515" r="2.8" fill="#38bdf8" class="iso-node-pulse" />
+                                <text x="356" y="518.7" fill="#38bdf8" font-family="'JetBrains Mono', 'Space Grotesk', monospace" font-weight="800" font-size="11" letter-spacing="1.2">02 // SECURITY</text>
+                            </g>
+
+                            <!-- ================= 3. TIER 2: INTERMEDIATE STEPPER ================= -->
+                            <!-- Tier 2 Top Surface Diamond -->
+                            <polygon points="300,215 444,271 300,327 156,271" fill="url(#pedTier2Top)" stroke="#38bdf8" stroke-width="1.8" filter="url(#laserGlow)" />
+                            <!-- Specular Inset Rim -->
+                            <polygon points="300,221 434,271 300,321 166,271" fill="none" stroke="rgba(56, 189, 248, 0.35)" stroke-width="1" />
+
+                            <!-- Side Facets (Height 22px) -->
+                            <polygon points="156,271 300,327 300,349 156,293" fill="#091124" opacity="0.95" stroke="rgba(0, 240, 255, 0.35)" stroke-width="1" />
+                            <polygon points="300,327 444,271 444,293 300,349" fill="#0e1a36" opacity="0.95" stroke="rgba(168, 85, 247, 0.35)" stroke-width="1" />
+
+                            <!-- Tier 2 Left Facet Inset Badge: AI // SPRINT -->
+                            <polygon points="172,279.2 284,322.8 284,338.8 172,295.2" fill="rgba(0, 240, 255, 0.1)" stroke="rgba(0, 240, 255, 0.4)" stroke-width="1" />
+                            <g transform="matrix(1, 0.388889, 0, 1, 0, 0)">
+                                <circle cx="185" cy="224.2" r="2.5" fill="#00f0ff" class="iso-node-pulse" />
+                                <text x="193" y="227.7" fill="#00f0ff" font-family="'JetBrains Mono', 'Space Grotesk', monospace" font-weight="800" font-size="9.5" letter-spacing="1.2">AI // SPRINT</text>
+                            </g>
+
+                            <!-- Tier 2 Right Facet Inset Badge: 03 // INNOVATION -->
+                            <polygon points="316,322.8 428,279.2 428,295.2 316,338.8" fill="rgba(168, 85, 247, 0.12)" stroke="rgba(168, 85, 247, 0.45)" stroke-width="1" />
+                            <g transform="matrix(1, -0.388889, 0, 1, 0, 0)">
+                                <circle cx="328" cy="453.8" r="2.5" fill="#c084fc" class="iso-node-pulse" />
+                                <text x="336" y="457.3" fill="#c084fc" font-family="'JetBrains Mono', 'Space Grotesk', monospace" font-weight="800" font-size="9.5" letter-spacing="1.2">03 // INNOVATION</text>
+                            </g>
+
+                            <!-- ================= 4. TIER 3: UPPER PRISM STAGE ================= -->
+                            <polygon points="300,196 400,235 300,274 200,235" fill="url(#pedTier3Top)" stroke="#00f0ff" stroke-width="2" />
+                            <polygon points="200,235 300,274 300,290 200,251" fill="#0a1329" stroke="rgba(0, 240, 255, 0.4)" stroke-width="1" />
+                            <polygon points="300,274 400,235 400,251 300,290" fill="#122044" stroke="rgba(139, 92, 246, 0.4)" stroke-width="1" />
+
+                            <!-- Central Holographic Emitter Pad on Tier 3 -->
+                            <polygon points="300,206 375,235 300,264 225,235" fill="rgba(0, 240, 255, 0.15)" stroke="rgba(0, 240, 255, 0.7)" stroke-width="1.5" />
+                            <ellipse cx="300" cy="235" rx="42" ry="16" fill="rgba(0, 240, 255, 0.25)" filter="url(#laserGlow)" />
+
+                            <!-- ================= 5. HOLOGRAPHIC GLASS CUBE & QUANTUM SECURITY SHIELD ================= -->
+                            <!-- Upward Light Pillars from Tier 3 to Cube Vertices -->
+                            <line x1="245" y1="240" x2="245" y2="190" stroke="#00f0ff" stroke-width="1.8" opacity="0.85" />
+                            <line x1="355" y1="240" x2="355" y2="190" stroke="#8b5cf6" stroke-width="1.8" opacity="0.85" />
+                            <line x1="300" y1="265" x2="300" y2="215" stroke="url(#neonLaser)" stroke-width="2.2" opacity="0.95" />
+
+                            <!-- Back Internal View of Cube -->
+                            <polygon points="300,165 355,190 300,215 245,190" fill="url(#cubeGlowGrad)" stroke="#38bdf8" stroke-width="1.2" opacity="0.75" />
+
+                            <!-- Internal Volumetric Shield Core Glow -->
+                            <ellipse cx="300" cy="216" rx="34" ry="24" fill="rgba(0, 240, 255, 0.35)" filter="url(#laserGlow)" />
+
+                            <!-- Multi-Layered Cyber Security Shield Core (Dead Center at 300, 216) -->
+                            <g class="iso-shield-group">
+                                <!-- Outer Shield Silhouette -->
+                                <path d="M300 192 L284 200 V214 C284 227 292 235 300 238 C308 235 316 227 316 214 V200 L300 192 Z" 
+                                      fill="url(#shieldBodyGrad)" stroke="#00f0ff" stroke-width="2.2" filter="url(#laserGlow)" />
+                                <!-- Inner Shield Contour Bevel -->
+                                <path d="M300 196 L287 202 V213 C287 223 293 230 300 233 C307 230 313 223 313 213 V202 L300 196 Z" 
+                                      fill="none" stroke="rgba(0, 240, 255, 0.55)" stroke-width="1" />
+                                <!-- Security Padlock -->
+                                <rect x="294" y="213" width="12" height="9" rx="2" fill="#00f0ff" />
+                                <path d="M296 213 V209.5 C296 207.3 297.8 205.5 300 205.5 C302.2 205.5 304 207.3 304 209.5 V213" 
+                                      stroke="#00f0ff" stroke-width="2" fill="none" stroke-linecap="round" />
+                                <!-- Keyhole -->
+                                <circle cx="300" cy="216.5" r="1.3" fill="#030712" />
+                                <path d="M300 217 V219.5" stroke="#030712" stroke-width="1.3" stroke-linecap="round" />
+                                <!-- Rotating Shield Reticle Ring -->
+                                <circle cx="300" cy="215" r="26" stroke="rgba(0, 240, 255, 0.4)" stroke-width="1" stroke-dasharray="5 4" class="iso-orbit-spin-1" />
+                            </g>
+
+                            <!-- Front-Left Glass Facet -->
+                            <polygon points="245,190 300,215 300,265 245,240" fill="url(#cubeFacetLeft)" stroke="#00f0ff" stroke-width="1.6" opacity="0.88" />
+                            <!-- Front-Right Glass Facet -->
+                            <polygon points="300,215 355,190 355,240 300,265" fill="url(#cubeFacetRight)" stroke="#8b5cf6" stroke-width="1.6" opacity="0.9" />
+
+                            <!-- Specular Edge Glints -->
+                            <line x1="245" y1="190" x2="300" y2="215" stroke="rgba(255, 255, 255, 0.65)" stroke-width="1.2" />
+                            <line x1="300" y1="215" x2="300" y2="265" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.5" />
+
+                            <!-- ================= 6. FLOATING AI MICROPROCESSOR CORE ================= -->
+                            <!-- Translucent Projection Column -->
+                            <line x1="300" y1="144" x2="300" y2="165" stroke="#00f0ff" stroke-width="2" stroke-dasharray="3 3" opacity="0.85" />
+                            <line x1="268" y1="129" x2="270" y2="175" stroke="rgba(0, 240, 255, 0.4)" stroke-width="1.2" stroke-dasharray="2 4" />
+                            <line x1="332" y1="129" x2="330" y2="175" stroke="rgba(168, 85, 247, 0.4)" stroke-width="1.2" stroke-dasharray="2 4" />
+
+                            <g class="iso-floating-chip">
+                                <!-- Glowing Aura Behind Chip -->
+                                <ellipse cx="300" cy="114" rx="75" ry="32" fill="rgba(0, 240, 255, 0.32)" filter="url(#chipGlow)" />
+                                <ellipse cx="300" cy="114" rx="50" ry="22" fill="rgba(139, 92, 246, 0.42)" filter="url(#chipGlow)" />
+
+                                <!-- Chip Body: Lower Bevel Facets (Thickness 12px) -->
+                                <polygon points="235,114 300,144 300,156 235,126" fill="#121a36" stroke="rgba(0, 240, 255, 0.45)" stroke-width="1" />
+                                <polygon points="300,144 365,114 365,126 300,156" fill="#0d142c" stroke="rgba(168, 85, 247, 0.45)" stroke-width="1" />
+
+                                <!-- Mathematically Aligned Gold & Cyan Contact Pins on Bevels -->
+                                <!-- Left Bevel Pins (slope: +30/65) -->
+                                <circle cx="248" cy="126" r="2.2" fill="#fbbf24" stroke="#00f0ff" stroke-width="0.8" />
+                                <circle cx="261" cy="132" r="2.2" fill="#fbbf24" stroke="#00f0ff" stroke-width="0.8" />
+                                <circle cx="274" cy="138" r="2.2" fill="#fbbf24" stroke="#00f0ff" stroke-width="0.8" />
+                                <circle cx="287" cy="144" r="2.2" fill="#fbbf24" stroke="#00f0ff" stroke-width="0.8" />
+
+                                <!-- Right Bevel Pins (slope: -30/65, exact horizontal match to left pins) -->
+                                <circle cx="313" cy="144" r="2.2" fill="#fbbf24" stroke="#a855f7" stroke-width="0.8" />
+                                <circle cx="326" cy="138" r="2.2" fill="#fbbf24" stroke="#a855f7" stroke-width="0.8" />
+                                <circle cx="339" cy="132" r="2.2" fill="#fbbf24" stroke="#a855f7" stroke-width="0.8" />
+                                <circle cx="352" cy="126" r="2.2" fill="#fbbf24" stroke="#a855f7" stroke-width="0.8" />
+
+                                <!-- Chip Isometric Top Polygon Diamond -->
+                                <polygon points="300,84 365,114 300,144 235,114" fill="url(#aiChipSurfaceGrad)" stroke="#00f0ff" stroke-width="2.2" filter="url(#laserGlow)" />
+
+                                <!-- Neural Bus Circuit Lines on Chip Face -->
+                                <path d="M255,114 L278,114 L288,106" stroke="rgba(255, 255, 255, 0.6)" stroke-width="1.2" fill="none" />
+                                <circle cx="278" cy="114" r="1.8" fill="#ffffff" />
+                                <path d="M345,114 L322,114 L312,122" stroke="rgba(255, 255, 255, 0.6)" stroke-width="1.2" fill="none" />
+                                <circle cx="322" cy="114" r="1.8" fill="#ffffff" />
+                                <path d="M300,95 L300,104" stroke="rgba(255, 255, 255, 0.5)" stroke-width="1.2" fill="none" />
+                                <path d="M300,133 L300,124" stroke="rgba(255, 255, 255, 0.5)" stroke-width="1.2" fill="none" />
+
+                                <!-- Inner Silicon Core Prism -->
+                                <polygon points="300,96 342,114 300,132 258,114" fill="url(#aiInnerCoreGrad)" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1" />
+
+                                <!-- Mathematically Dead-Centered AI Glyph Typography -->
+                                <text x="300" y="115" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="26" letter-spacing="1">AI</text>
+                            </g>
+
+                            <!-- Stratospheric Laser Beam -->
+                            <line x1="300" y1="84" x2="300" y2="35" stroke="url(#laserBeamTop)" stroke-width="2.2" stroke-linecap="round" opacity="0.9" />
+                            <circle cx="300" cy="33" r="4.5" fill="#00f0ff" class="iso-node-pulse" />
+
+                            <!-- ================= 7. ORBITING SYNAPSE HALO RINGS ================= -->
+                            <!-- Mid Synapse Orbit Ring -->
+                            <ellipse cx="300" cy="274" rx="236" ry="88" stroke="url(#neonLaser)" stroke-width="1.8" stroke-dasharray="8 6" opacity="0.65" class="iso-orbit-spin-1" />
+                            <circle cx="175" cy="235" r="4.5" fill="#00f0ff" class="iso-node-pulse" />
+                            <circle cx="435" cy="315" r="5" fill="#a855f7" class="iso-node-pulse" />
+
+                            <!-- Upper Core Orbit Ring -->
+                            <ellipse cx="300" cy="165" rx="145" ry="52" stroke="url(#neonLaser)" stroke-width="1.4" stroke-dasharray="6 6" opacity="0.5" class="iso-orbit-spin-1" />
+                            <circle cx="210" cy="145" r="3.5" fill="#38bdf8" class="iso-node-pulse" />
+                            <circle cx="390" cy="185" r="4" fill="#ec4899" class="iso-node-pulse" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hero Bottom Bento Stat Deck (Matching Reference: 3 Cards + Scroll to Discover) -->
+        <div class="hero-bottom-deck">
+            <div class="bento-stat-container">
+                <!-- Card 1: 02 - 03 HOURS -->
+                <div class="bento-card">
+                    <div class="bento-ico-circle ico-lightning">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                    </div>
+                    <div class="bento-content">
+                        <div class="bento-val-row">
+                            <span class="bento-num">02 – 03</span>
+                            <span class="bento-unit">HOURS</span>
+                        </div>
+                        <div class="bento-sub">DEVELOPMENT SPRINT</div>
+                    </div>
+                </div>
+
+                <!-- Card 2: 60+ BUILDERS -->
+                <div class="bento-card">
+                    <div class="bento-ico-circle ico-community">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div class="bento-content">
+                        <div class="bento-val-row">
+                            <span class="bento-num">60+</span>
+                            <span class="bento-unit">BUILDERS</span>
+                        </div>
+                        <div class="bento-sub">ONE INTENSE SESSION</div>
+                    </div>
+                </div>
+
+                <!-- Card 3: AI ASSISTED -->
+                <div class="bento-card">
+                    <div class="bento-ico-circle ico-ai">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                            <path d="M12 2L14.4 7.6L20 10L14.4 12.4L12 18L9.6 12.4L4 10L9.6 7.6L12 2Z"></path>
+                        </svg>
+                    </div>
+                    <div class="bento-content">
+                        <div class="bento-val-row">
+                            <span class="bento-num">AI</span>
+                            <span class="bento-unit">ASSISTED</span>
+                        </div>
+                        <div class="bento-sub">BUILD WITH YOUR TOOLS</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scroll to Discover Mouse Indicator -->
+            <div class="hero-scroll-indicator">
+                <span class="scroll-txt">SCROLL TO DISCOVER</span>
+                <div class="mouse-icon">
+                    <div class="mouse-wheel-dot"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Platform Architecture & Submission Flow -->
+    <section class="highlights" id="highlights">
+        <div class="section-container">
+            <h2 class="section-title" data-aos="fade-up">Platform Submission & Evaluation Architecture</h2>
+            <p class="section-subtitle" data-aos="fade-up">A precision-engineered hackathon workflow: real-time prompt logging, immutable timestamping, GitHub repos, and live deployment verification.</p>
+            
+            <div class="highlights-grid">
+                <!-- Card 1: AI Prompt Logging -->
+                <div class="highlight-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="card-meta">
+                        <span class="meta-tag">STAGE 01</span>
+                        <span class="meta-status status-active">LIVE LOGGING</span>
+                    </div>
+                    <div class="highlight-header-row">
+                        <div class="highlight-icon-svg">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="4 17 10 11 4 5"></polyline>
+                                <line x1="12" y1="19" x2="20" y2="19"></line>
+                            </svg>
+                        </div>
+                        <h3 class="highlight-title">AI Tool & Prompt Submission</h3>
+                    </div>
+                    <p class="highlight-description">
+                        Participants can leverage any frontier AI model—including Claude 3.7, GPT-4o, Cursor, v0, or Gemini. Every query and prompt is logged directly into the platform to construct an auditable prompt history.
+                    </p>
+                    <div class="card-terminal-preview">
+                        <div class="terminal-header">
+                            <div class="t-dots">
+                                <span class="t-dot dot-red"></span>
+                                <span class="t-dot dot-yellow"></span>
+                                <span class="t-dot dot-green"></span>
+                            </div>
+                            <span class="t-filename">prompt_telemetry.log</span>
+                        </div>
+                        <div class="preview-line"><span class="t-cyan">ai_model:</span> <span class="t-str">"claude-3-7-sonnet"</span></div>
+                        <div class="preview-line"><span class="t-cyan">prompt_text:</span> <span class="t-str">"Build responsive real-time data grid..."</span></div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Immutable Timestamp Recording -->
+                <div class="highlight-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="card-meta">
+                        <span class="meta-tag">STAGE 02</span>
+                        <span class="meta-status status-verified">AUDIT TRAIL</span>
+                    </div>
+                    <div class="highlight-header-row">
+                        <div class="highlight-icon-svg">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <h3 class="highlight-title">Precision Timestamp Recording</h3>
+                    </div>
+                    <p class="highlight-description">
+                        The moment each prompt is submitted, the platform cryptographically stamps an immutable UTC timestamp. Evaluators audit iterative prompt pacing, strategic decomposition, and development velocity.
+                    </p>
+                    <div class="card-terminal-preview">
+                        <div class="terminal-header">
+                            <div class="t-dots">
+                                <span class="t-dot dot-red"></span>
+                                <span class="t-dot dot-yellow"></span>
+                                <span class="t-dot dot-green"></span>
+                            </div>
+                            <span class="t-filename">audit_timestamp.json</span>
+                        </div>
+                        <div class="preview-line"><span class="t-emerald">timestamp:</span> <span class="t-num">1789551738420</span></div>
+                        <div class="preview-line"><span class="t-emerald">utc_logged:</span> <span class="t-str">"2026-09-16T09:42:18.420Z"</span></div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Dual Submission Handshake -->
+                <div class="highlight-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="card-meta">
+                        <span class="meta-tag">STAGE 03</span>
+                        <span class="meta-status status-pipeline">DUAL ARTIFACT</span>
+                    </div>
+                    <div class="highlight-header-row">
+                        <div class="highlight-icon-svg">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="6" y1="3" x2="6" y2="15"></line>
+                                <circle cx="18" cy="6" r="3"></circle>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <path d="M18 9a9 9 0 0 1-9 9"></path>
+                            </svg>
+                        </div>
+                        <h3 class="highlight-title">GitHub Repo & Live Deployment</h3>
+                    </div>
+                    <p class="highlight-description">
+                        Submissions require two verifiable proof points: a clean GitHub repository containing complete source code, plus a live production deployment URL hosted on Vercel, Netlify, or Cloudflare Pages.
+                    </p>
+                    <div class="card-terminal-preview">
+                        <div class="terminal-header">
+                            <div class="t-dots">
+                                <span class="t-dot dot-red"></span>
+                                <span class="t-dot dot-yellow"></span>
+                                <span class="t-dot dot-green"></span>
+                            </div>
+                            <span class="t-filename">artifacts_verified.env</span>
+                        </div>
+                        <div class="preview-line"><span class="t-violet">github:</span> <span class="t-str">"github.com/team/ai-mvp"</span></div>
+                        <div class="preview-line"><span class="t-violet">deploy:</span> <span class="t-str">"https://ai-mvp.vercel.app"</span></div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Autonomous Gemini Grading -->
+                <div class="highlight-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="card-meta">
+                        <span class="meta-tag">STAGE 04</span>
+                        <span class="meta-status status-eval">AI JURY ENGINE</span>
+                    </div>
+                    <div class="highlight-header-row">
+                        <div class="highlight-icon-svg">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                        </div>
+                        <h3 class="highlight-title">Gemini 2.5 Flash Autonomous Scoring</h3>
+                    </div>
+                    <p class="highlight-description">
+                        An autonomous Gemini evaluation agent scores prompt depth, constraint handling, problem statement alignment, and execution completeness across 5 rigorous criteria for transparent ranking.
+                    </p>
+                    <div class="card-terminal-preview">
+                        <div class="terminal-header">
+                            <div class="t-dots">
+                                <span class="t-dot dot-red"></span>
+                                <span class="t-dot dot-yellow"></span>
+                                <span class="t-dot dot-green"></span>
+                            </div>
+                            <span class="t-filename">gemini_jury_eval.telemetry</span>
+                        </div>
+                        <div class="preview-line"><span class="t-pink">eval_status:</span> <span class="t-str">"SCORED // 5 CRITERIA"</span></div>
+                        <div class="preview-line"><span class="t-pink">telemetry:</span> <span class="t-str">"SYNCED_TO_LEADERBOARD"</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Event Timeline Section -->
+    <section class="timeline" id="timeline">
+        <div class="section-container">
+            <div class="section-header text-center" data-aos="fade-up">
+                <span class="section-badge"><i class="fas fa-satellite-dish"></i> EXECUTION PROTOCOL</span>
+                <h2 class="section-title">Event <span class="gradient-text">Timeline</span></h2>
+                <p class="section-subtitle">16th September 2026 • 3-Hour Rapid AI Prototyping & Pitch Pipeline</p>
+            </div>
+
+            <div class="timeline-wrapper">
+                <!-- Glowing central fiber-optic spine -->
+                <div class="timeline-spine">
+                    <div class="timeline-spine-glow"></div>
+                    <div class="timeline-spine-pulse"></div>
+                    <div class="timeline-spine-cap top"></div>
+                    <div class="timeline-spine-cap bottom"></div>
+                </div>
+
+                <!-- Phase 01: Inauguration -->
+                <div class="timeline-item is-left phase-cyan" data-aos="fade-right">
+                    <div class="timeline-marker marker-cyan">
+                        <div class="timeline-marker-aura"></div>
+                        <div class="timeline-marker-inner">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                    </div>
+                    <div class="timeline-connector">
+                        <span class="connector-line"></span>
+                        <span class="connector-dot"></span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="t-card-header">
+                            <span class="t-phase-tag phase-cyan">
+                                <span class="t-phase-dot"></span>
+                                PHASE 01 // KICKOFF
+                            </span>
+                            <span class="t-time-badge">
+                                <i class="far fa-clock"></i> 09:00 – 09:15 AM
+                                <span class="t-duration">15 MIN</span>
+                            </span>
+                        </div>
+                        <h3 class="timeline-title">System Boot & Inauguration</h3>
+                        <p class="timeline-description">
+                            Official opening ceremony, welcome address by department leadership, and live unsealing of challenge statements, API keys, and evaluation benchmarks.
+                        </p>
+                        <div class="t-milestone-list">
+                            <span class="t-milestone-chip"><i class="fas fa-check-circle"></i> Opening Keynote</span>
+                            <span class="t-milestone-chip"><i class="fas fa-check-circle"></i> Problem Statements Revealed</span>
+                            <span class="t-milestone-chip"><i class="fas fa-check-circle"></i> Sandbox & Repo Setup</span>
+                        </div>
+                        <div class="t-card-footer">
+                            <span class="t-status-label"><i class="fas fa-circle-notch fa-spin"></i> PROTOCOL INCEPTION</span>
+                            <span class="t-badge-telemetry">STAGE 1/4</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 02: Development Sprint -->
+                <div class="timeline-item is-right phase-blue" data-aos="fade-left">
+                    <div class="timeline-marker marker-blue">
+                        <div class="timeline-marker-aura"></div>
+                        <div class="timeline-marker-inner">
+                            <i class="fas fa-code"></i>
+                        </div>
+                    </div>
+                    <div class="timeline-connector">
+                        <span class="connector-line"></span>
+                        <span class="connector-dot"></span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="t-card-header">
+                            <span class="t-phase-tag phase-blue">
+                                <span class="t-phase-dot"></span>
+                                PHASE 02 // SPRINT
+                            </span>
+                            <span class="t-time-badge">
+                                <i class="far fa-clock"></i> 09:15 – 11:15 AM
+                                <span class="t-duration">120 MIN</span>
+                            </span>
+                        </div>
+                        <h3 class="timeline-title">Intense AI Development Sprint</h3>
+                        <p class="timeline-description">
+                            2 hours of non-stop, high-velocity engineering. Brainstorm, design, and build functional AI-powered web platforms leveraging modern stacks and LLM APIs.
+                        </p>
+                        <div class="t-milestone-list">
+                            <span class="t-milestone-chip"><i class="fas fa-microchip"></i> High-Velocity Build Sprint</span>
+                            <span class="t-milestone-chip"><i class="fas fa-robot"></i> AI & LLM Copilot Workflow</span>
+                            <span class="t-milestone-chip"><i class="fas fa-life-ring"></i> Mentor Telemetry & Support</span>
+                        </div>
+                        <div class="t-card-footer">
+                            <span class="t-status-label"><i class="fas fa-fire"></i> CORE EXECUTION PHASE</span>
+                            <span class="t-badge-telemetry">STAGE 2/4</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 03: Evaluation & Winners -->
+                <div class="timeline-item is-left phase-violet" data-aos="fade-right">
+                    <div class="timeline-marker marker-violet">
+                        <div class="timeline-marker-aura"></div>
+                        <div class="timeline-marker-inner">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                    </div>
+                    <div class="timeline-connector">
+                        <span class="connector-line"></span>
+                        <span class="connector-dot"></span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="t-card-header">
+                            <span class="t-phase-tag phase-violet">
+                                <span class="t-phase-dot"></span>
+                                PHASE 03 // JURY AUDIT
+                            </span>
+                            <span class="t-time-badge">
+                                <i class="far fa-clock"></i> 11:15 – 12:00 PM
+                                <span class="t-duration">45 MIN</span>
+                            </span>
+                        </div>
+                        <h3 class="timeline-title">Jury Evaluation & Winner Reveal</h3>
+                        <p class="timeline-description">
+                            Teams pitch live working prototypes to distinguished industry judges. Projects are audited for innovation, prompt engineering, code quality, and UI execution.
+                        </p>
+                        <div class="t-milestone-list">
+                            <span class="t-milestone-chip"><i class="fas fa-desktop"></i> Live Project Demos & Pitches</span>
+                            <span class="t-milestone-chip"><i class="fas fa-star"></i> Multi-Criteria Rubric Scoring</span>
+                            <span class="t-milestone-chip"><i class="fas fa-medal"></i> Podium Winner Announcement</span>
+                        </div>
+                        <div class="t-card-footer">
+                            <span class="t-status-label"><i class="fas fa-gavel"></i> BENCHMARK ASSESSMENT</span>
+                            <span class="t-badge-telemetry">STAGE 3/4</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 04: Event Close -->
+                <div class="timeline-item is-right phase-emerald" data-aos="fade-left">
+                    <div class="timeline-marker marker-emerald">
+                        <div class="timeline-marker-aura"></div>
+                        <div class="timeline-marker-inner">
+                            <i class="fas fa-flag-checkered"></i>
+                        </div>
+                    </div>
+                    <div class="timeline-connector">
+                        <span class="connector-line"></span>
+                        <span class="connector-dot"></span>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="t-card-header">
+                            <span class="t-phase-tag phase-emerald">
+                                <span class="t-phase-dot"></span>
+                                PHASE 04 // CONCLAVE
+                            </span>
+                            <span class="t-time-badge">
+                                <i class="far fa-clock"></i> 12:00 PM onwards
+                                <span class="t-duration">FINALE</span>
+                            </span>
+                        </div>
+                        <h3 class="timeline-title">Conclave Close & Certifications</h3>
+                        <p class="timeline-description">
+                            Official conclusion of VIBEATHON 2026. Felicitation of champions, award distribution, verified digital certificates for all attendees, and builder networking.
+                        </p>
+                        <div class="t-milestone-list">
+                            <span class="t-milestone-chip"><i class="fas fa-award"></i> Trophy & Cash Prize Awards</span>
+                            <span class="t-milestone-chip"><i class="fas fa-certificate"></i> Verified Certificates for All</span>
+                            <span class="t-milestone-chip"><i class="fas fa-users"></i> Networking & High Tea</span>
+                        </div>
+                        <div class="t-card-footer">
+                            <span class="t-status-label"><i class="fas fa-check-double"></i> MISSION COMPLETE</span>
+                            <span class="t-badge-telemetry">STAGE 4/4</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rules Section -->
+    <section class="rules" id="rules">
+        <div class="section-container">
+            <h2 class="section-title" data-aos="fade-up">Rules & Guidelines</h2>
+            <p class="section-subtitle" data-aos="fade-up">Please read carefully and follow all rules</p>
+
+            <div class="rules-container">
+
+                <div class="rule-item" data-aos="fade-up" data-aos-delay="100">
+                    <div class="rule-header">
+                        <span class="rule-number">01</span>
+                        <h3 class="rule-title">GitHub Repository Policy</h3>
+                        <button class="rule-toggle">+</button>
+                    </div>
+                    <div class="rule-content">
+                        <p>
+                            A new GitHub repository must be created only after entering the college campus.
+                            All development work must be pushed to the repository strictly during the competition
+                            period.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" data-aos="fade-up" data-aos-delay="200">
+                    <div class="rule-header">
+                        <span class="rule-number">02</span>
+                        <h3 class="rule-title">Pre-written Code Prohibition</h3>
+                        <button class="rule-toggle">+</button>
+                    </div>
+                    <div class="rule-content">
+                        <p>
+                            Pre-written or previously developed projects are strictly prohibited.
+                            Only code written during the event duration will be considered for evaluation.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" data-aos="fade-up" data-aos-delay="300">
+                    <div class="rule-header">
+                        <span class="rule-number">03</span>
+                        <h3 class="rule-title">Competition Time Window</h3>
+                        <button class="rule-toggle">+</button>
+                    </div>
+                    <div class="rule-content">
+                        <p>
+                            The competition will run for a fixed development duration.
+                            Coding must begin only after the official start announcement by the organizers.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" data-aos="fade-up" data-aos-delay="400">
+                    <div class="rule-header">
+                        <span class="rule-number">04</span>
+                        <h3 class="rule-title">Final Submission Requirements</h3>
+                        <button class="rule-toggle">+</button>
+                    </div>
+                    <div class="rule-content">
+                        <p>
+                            The final submission must be a working AI-based web application or web dashboard
+                            that runs either locally or directly in a web browser.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" data-aos="fade-up" data-aos-delay="500">
+                    <div class="rule-header">
+                        <span class="rule-number">05</span>
+                        <h3 class="rule-title">Technology Stack Freedom</h3>
+                        <button class="rule-toggle">+</button>
+                    </div>
+                    <div class="rule-content">
+                        <p>
+                            Teams are free to use any web technology stack including
+                            HTML, CSS, JavaScript, React, Flask, Node.js, or similar technologies
+                            to implement their solution.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" data-aos="fade-up" data-aos-delay="600">
+                    <div class="rule-header">
+                        <span class="rule-number">06</span>
+                        <h3 class="rule-title">Fair Play & Collaboration Policy</h3>
+                        <button class="rule-toggle">+</button>
+                    </div>
+                    <div class="rule-content">
+                        <p>
+                            Cross-team collaboration, code sharing, or idea exchange between teams
+                            is strictly prohibited and will result in disqualification.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="rule-item" data-aos="fade-up" data-aos-delay="700">
+                    <div class="rule-header">
+                        <span class="rule-number">07</span>
+                        <h3 class="rule-title">Innovation & Conduct</h3>
+                        <button class="rule-toggle">+</button>
+                    </div>
+                    <div class="rule-content">
+                        <p>
+                            Teams are encouraged to focus on innovation, creativity, and practical problem-solving
+                            rather than purely theoretical solutions. Any form of malpractice or rule violation
+                            will lead to immediate disqualification, and the judges’ decision will be final.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Frequently Asked Questions Section (Matching Navbar Link) -->
+    <section class="faq" id="faq">
+        <div class="section-container">
+            <h2 class="section-title" data-aos="fade-up">Frequently Asked Questions</h2>
+            <p class="section-subtitle" data-aos="fade-up">Everything you need to know about participating in the AI-Assisted Vibeathon</p>
+
+            <div class="faq-container">
+                <div class="faq-item" data-aos="fade-up" data-aos-delay="100">
+                    <div class="faq-header">
+                        <span class="faq-number">Q1</span>
+                        <h3 class="faq-title">What is the AI-Assisted Vibeathon 2026?</h3>
+                        <button class="faq-toggle">+</button>
+                    </div>
+                    <div class="faq-content">
+                        <p>
+                            Organized by the School of Computing — Cyber Security Department, the Vibeathon is an intense, fast-paced sprint on <strong>16 September 2026</strong>. Builders utilize next-generation AI tools to transform concepts into production-grade, secure applications in just 2 to 3 hours.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-item" data-aos="fade-up" data-aos-delay="200">
+                    <div class="faq-header">
+                        <span class="faq-number">Q2</span>
+                        <h3 class="faq-title">Which AI tools and models are permitted?</h3>
+                        <button class="faq-toggle">+</button>
+                    </div>
+                    <div class="faq-content">
+                        <p>
+                            Participants are empowered to use any AI coding assistants and LLMs including GitHub Copilot, Cursor, ChatGPT, Claude, Gemini 2.5, v0, Bolt, and open-source models. All queries and prompt logs must be submitted to the platform for telemetry evaluation.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-item" data-aos="fade-up" data-aos-delay="300">
+                    <div class="faq-header">
+                        <span class="faq-number">Q3</span>
+                        <h3 class="faq-title">How does prompt logging and immutable timestamping work?</h3>
+                        <button class="faq-toggle">+</button>
+                    </div>
+                    <div class="faq-content">
+                        <p>
+                            Each team has access to the Participant Arena where prompts are logged in real-time. Every prompt entry receives an immutable cryptographic timestamp. The platform automatically assesses prompt engineering depth, context retention, and problem-solving trajectory.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-item" data-aos="fade-up" data-aos-delay="400">
+                    <div class="faq-header">
+                        <span class="faq-number">Q4</span>
+                        <h3 class="faq-title">What are the final deliverables required for submission?</h3>
+                        <button class="faq-toggle">+</button>
+                    </div>
+                    <div class="faq-content">
+                        <p>
+                            Teams must submit:
+                            <br>1. A public GitHub repository created strictly during the competition on campus with transparent commit history.
+                            <br>2. A live deployed application URL (Vercel, Render, Netlify, Cloudflare Pages, etc.) or verified localhost prototype.
+                            <br>3. Full session AI prompt logs.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-item" data-aos="fade-up" data-aos-delay="500">
+                    <div class="faq-header">
+                        <span class="faq-number">Q5</span>
+                        <h3 class="faq-title">How will projects be scored by the jury?</h3>
+                        <button class="faq-toggle">+</button>
+                    </div>
+                    <div class="faq-content">
+                        <p>
+                            Submissions undergo dual evaluation: automated prompt telemetry scoring powered by Gemini 2.5 Flash, combined with a comprehensive expert jury audit evaluating Functional Completeness, Cyber Security safeguards, UI/UX polish, and AI prompt mastery.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Login & Register Section -->
+    <section class="login-register" id="login-register">
+        <div class="section-container">
+            <h2 class="section-title" data-aos="fade-up">Get Started</h2>
+            <div class="login-register-grid">
+                <!-- <div class="lr-card" data-aos="fade-right" id="admin-login">
+                    <div class="lr-icon">🔐</div>
+                    <h3 class="lr-title">Admin Login</h3>
+                    <p class="lr-description">Access the admin dashboard to manage events, participants, and submissions</p>
+                    <button class="btn btn-primary">Admin Access</button>
+                </div> -->
+
+                <div class="lr-card" data-aos="fade-up" id="participant-login">
+                    <div class="lr-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="lr-title">Participant Login</h3>
+                    <p class="lr-description">Login to your participant account to view assigned challenges, log prompts, and submit repositories.</p>
+                    <button class="btn btn-primary" data-redirect="participant-login.html">
+                        Participant Access
+                    </button>
+                </div>
+
+                <div class="lr-card lr-card-featured" data-aos="fade-left" id="adminPortal">
+                    <div class="lr-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
+
+                    <h3 class="lr-title">Admin & Jury Portal</h3>
+
+                    <p class="lr-description">
+                        Real-time telemetry, automated Gemini 2.5 Flash prompt audits, live leaderboard rankings, and submission verification for authorized evaluators.
+                    </p>
+
+                    <button class="btn btn-cta" data-redirect="admin-login.html"
+                        aria-label="Access Admin Console">
+                        Access Admin Console
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h3 class="footer-title">VIBEATHON 2026</h3>
+                    <p class="footer-description">A national-level AI-assisted development hackathon testing prompt engineering, speed, and real-time execution.</p>
+                </div>
+
+                <div class="footer-section">
+                    <h4 class="footer-heading">Quick Links</h4>
+                    <ul class="footer-links">
+                        <li><a href="#hero">About</a></li>
+                        <li><a href="#highlights">Architecture</a></li>
+                        <li><a href="#timeline">Timeline</a></li>
+                        <li><a href="#rules">Rules</a></li>
+                        <li><a href="#faq">FAQs</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4 class="footer-heading">Get Started</h4>
+                    <ul class="footer-links">
+                        <li><a href="admin-login.html">Admin Login</a></li>
+                        <li><a href="participant-login.html">Participant Login</a></li>
+                        <li><a href="#hero">Platform Overview</a></li>
+                        <li><a href="#rules">Rules & Evaluation</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4 class="footer-heading">Event Info</h4>
+                    <ul class="footer-info">
+                        <li><span class="info-tag-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> 16 September 2026</li>
+                        <li><span class="info-tag-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span> 09:00 AM - 12:00 PM</li>
+                        <li><span class="info-tag-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span> Innovation Tech Campus</li>
+                        <li><span class="info-tag-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></span> National Level</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p class="footer-copyright">© 2026 VIBEATHON – All Rights Reserved</p>
+                <button class="back-to-top" id="backToTop">
+                    <span class="back-to-top-icon">↑</span>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/script.js"></script>
+</body>
+
+</html>

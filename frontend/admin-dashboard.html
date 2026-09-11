@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Vibeathon 2026 � Admin Mission Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- Inter & JetBrains Mono Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <link rel="stylesheet" href="css/admin-dashboard.css" />
+</head>
+
+<body>
+
+  <!-- Ambient Neural Grid Background -->
+  <div class="bg"></div>
+
+  <!-- ===== TOP NAVIGATION BAR ===== -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <a href="index.html" class="brand-link" title="Return to Overview">
+        <div class="brand-logo">
+          <svg viewBox="0 0 40 40" width="30" height="30">
+            <defs>
+              <linearGradient id="qGradA1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f0ff" />
+                <stop offset="100%" stop-color="#6366f1" />
+              </linearGradient>
+            </defs>
+            <polygon points="20,4 34,12 20,20 6,12" fill="url(#qGradA1)" opacity="0.95" />
+            <polygon points="6,12 20,20 20,36 6,28" fill="#8b5cf6" opacity="0.85" />
+            <polygon points="20,20 34,12 34,28 20,36" fill="#00c8ff" opacity="0.75" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">VIBEATHON</span>
+          <span class="brand-tag">ADMIN 2.0</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="topbar-center">
+      <div class="admin-pill">
+        <span class="status-dot"></span>
+        <span class="admin-pill-text">EVALUATION MISSION CONTROL</span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button id="logoutBtn" class="btn-logout" title="Sign out of Admin Panel">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== MAIN CONTENT CONTAINER ===== -->
+  <main class="page-content">
+
+    <!-- ===== METRICS HUD ROW ===== -->
+    <section class="metrics-grid">
+      <!-- Metric 1: Total Registrations -->
+      <div class="metric-card">
+        <div class="metric-icon cyan">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">TOTAL TEAMS</span>
+          <span class="metric-val" id="totalTeams">0</span>
+        </div>
+        <span class="metric-badge">ROSTER</span>
+      </div>
+
+      <!-- Metric 2: Active Sprints -->
+      <div class="metric-card">
+        <div class="metric-icon green">
+          <i class="fas fa-satellite-dish"></i>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">ACTIVE SPRINTS</span>
+          <span class="metric-val" id="activeTeams">0</span>
+        </div>
+        <span class="metric-badge live"><span class="pulse-dot"></span> LIVE</span>
+      </div>
+
+      <!-- Metric 3: Total Submissions -->
+      <div class="metric-card">
+        <div class="metric-icon violet">
+          <i class="fas fa-cloud-upload-alt"></i>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">SUBMISSIONS</span>
+          <span class="metric-val" id="totalSubmissions">0</span>
+        </div>
+        <span class="metric-badge">DELIVERABLES</span>
+      </div>
+
+      <!-- Metric 4: Total Prompts Logged -->
+      <div class="metric-card">
+        <div class="metric-icon amber">
+          <i class="fas fa-terminal"></i>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">AI PROMPTS LOGGED</span>
+          <span class="metric-val" id="totalPrompts">0</span>
+        </div>
+        <span class="metric-badge">AUDIT</span>
+      </div>
+    </section>
+
+    <!-- ===== LEADERBOARD / TEAMS PANEL ===== -->
+    <section class="panel-card">
+
+      <!-- TOOLBAR: Title, Search, Filters, Actions -->
+      <div class="panel-toolbar">
+        <div class="toolbar-title-group">
+          <h2 class="panel-title">Participating Teams & Submissions</h2>
+          <p class="panel-desc">Real-time telemetry, deliverable verification, and AI jury evaluations</p>
+        </div>
+
+        <div class="toolbar-actions">
+          <!-- Search Input -->
+          <div class="search-wrap">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Search team, leader, college..." class="search-input" />
+          </div>
+
+          <!-- Rank Filter -->
+          <div class="select-wrap">
+            <i class="fas fa-filter select-icon"></i>
+            <select id="rankFilter" class="filter-select">
+              <option value="time" selected>Least Completion Time</option>
+              <option value="ai-score">Best AI Score</option>
+              <option value="prompts">Fewest Prompts</option>
+              <option value="most-prompts">Most Prompts Logged</option>
+              <option value="balanced">Balanced Metric</option>
+              <option value="none">Show All (Default Order)</option>
+            </select>
+          </div>
+
+          <!-- Export CSV -->
+          <button id="exportBtn" class="btn-tool" title="Export team metrics to CSV">
+            <i class="fas fa-file-export"></i> Export CSV
+          </button>
+
+          <!-- Problem Statement Manager -->
+          <button id="manageProblemBtn" class="btn-tool" title="Upload challenge document and edit evaluation criteria">
+            <i class="fas fa-file-upload"></i> Problem Statement
+          </button>
+
+          <!-- Run AI Evaluation -->
+          <button id="evaluateAI" class="btn-primary" title="Trigger Gemini automated prompt evaluation">
+            <i class="fas fa-robot"></i> Run AI Evaluation
+          </button>
+        </div>
+      </div>
+
+      <!-- TEAMS TABLE -->
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th style="width: 70px;">Rank</th>
+              <th style="width: 120px;">Team ID</th>
+              <th>Team Leader & College</th>
+              <th style="width: 140px;">Status</th>
+              <th style="width: 170px;">Deliverables</th>
+              <th style="width: 110px;">Prompts</th>
+              <th style="width: 120px;">AI Score</th>
+              <th style="width: 110px; text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="teamTable">
+            <tr>
+              <td colspan="8" class="table-loading">
+                <i class="fas fa-spinner fa-spin"></i> Loading participant telemetry...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Hidden compatibility element for fastest team -->
+      <span id="fastestTeam" style="display: none;">�</span>
+
+    </section>
+
+  </main>
+
+  <!-- ===== TEAM DETAILS MODAL ===== -->
+  <div class="modal-overlay" id="teamModal">
+    <div class="modal-box modal-lg">
+      
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-wrap cyan">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <div>
+            <h2 id="modalTeamTitle">Team Details</h2>
+            <p class="modal-subtitle">Comprehensive team telemetry and AI audit logs</p>
+          </div>
+        </div>
+        <button id="closeModal" class="modal-close-btn" title="Close modal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-scroll-body">
+        <!-- Team Profile Overview -->
+        <div id="teamInfo" class="modal-section-box"></div>
+
+        <!-- Quick Metrics -->
+        <div id="teamStats" class="modal-stats-grid"></div>
+
+        <!-- Submitted Prompts Section -->
+        <div class="modal-prompts-section">
+          <div class="prompts-header-bar">
+            <div class="prompts-title-wrap">
+              <i class="fas fa-terminal"></i>
+              <h3>Logged AI Prompts</h3>
+            </div>
+            <span class="prompts-count-badge" id="modalPromptCount">0 Prompts</span>
+          </div>
+
+          <!-- Container for Prompt Cards -->
+          <div id="promptTable" class="prompt-cards-container">
+            <!-- Populated dynamically with expandable cards -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="closeModalBottom" class="btn-secondary">
+          Close Window
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  
+  <!-- ===== PROBLEM STATEMENT MANAGER MODAL ===== -->
+  <div class="modal-overlay" id="problemModal">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-wrap cyan">
+            <i class="fas fa-file-invoice"></i>
+          </div>
+          <div>
+            <h2>Problem Statement & AI Evaluation Rubric</h2>
+            <p class="modal-subtitle">Upload participant challenge document & synchronize AI evaluation context</p>
+          </div>
+        </div>
+        <button id="closeProblemModal" class="modal-close-btn" title="Close modal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-scroll-body">
+        <!-- Section 1: Active Document Upload -->
+        <div class="modal-section-box">
+          <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-1); display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-cloud-upload-alt" style="color: var(--cyan);"></i> 1. Upload Challenge Document
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.85rem;">
+            Participants download this file when clicking "Download Problem Statement" on their dashboard. Supported: .docx, .pdf, .txt (Max 25MB).
+          </p>
+
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <input type="file" id="problemFileInput" accept=".docx,.pdf,.txt" style="display: none;" />
+            <button type="button" id="chooseFileBtn" class="btn-tool" style="cursor: pointer;">
+              <i class="fas fa-folder-open"></i> Choose File
+            </button>
+            <span id="selectedFileName" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-2);">No file selected</span>
+            <button type="button" id="uploadFileBtn" class="btn-primary" style="padding: 0.55rem 1.1rem; font-size: 0.8rem;" disabled>
+              <i class="fas fa-upload"></i> Upload & Deploy
+            </button>
+          </div>
+
+          <div id="currentDocStatus" style="margin-top: 0.85rem; padding: 0.6rem 0.85rem; background: rgba(0,0,0,0.25); border-radius: 8px; font-size: 0.76rem; color: var(--text-2); display: flex; align-items: center; justify-content: space-between;">
+            <span><i class="fas fa-check-circle" style="color: var(--green);"></i> Active File: <strong id="activeFileNameDisplay" style="color: var(--cyan);">Problem Statement.docx</strong></span>
+            <span id="activeFileUpdatedDisplay" style="color: var(--text-3); font-family: var(--font-mono);"></span>
+          </div>
+        </div>
+
+        <!-- Section 2: Challenge Objectives for AI Evaluation -->
+        <div class="modal-section-box">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--text-1); display: flex; align-items: center; gap: 8px;">
+              <i class="fas fa-robot" style="color: var(--amber);"></i> 2. AI Evaluation Challenge Context
+            </h3>
+            <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--amber); background: var(--amber-dim); padding: 2px 7px; border-radius: 5px;">LIVE INJECTION</span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.75rem;">
+            Gemini reads this text to judge whether participant prompts demonstrate proper requirements comprehension, role constraints, and technical depth.
+          </p>
+
+          <textarea id="problemContextInput" rows="7" style="width: 100%; padding: 0.85rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--text-1); font-family: var(--font-main); font-size: 0.85rem; line-height: 1.6; resize: vertical;" placeholder="Paste challenge description, user roles, core workflows, and system constraints here..."></textarea>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 0.75rem;">
+            <button type="button" id="saveContextBtn" class="btn-primary" style="padding: 0.55rem 1.15rem; font-size: 0.8rem;">
+              <i class="fas fa-save"></i> Save Context for AI Evaluator
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="closeProblemModalBottom" class="btn-secondary">Close Window</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LOGOUT CONFIRMATION MODAL ===== -->
+  <div id="logoutConfirm" class="modal-overlay">
+    <div class="modal-box modal-sm">
+      <div class="modal-icon-wrap rose">
+        <i class="fas fa-sign-out-alt"></i>
+      </div>
+      <h2>Confirm Logout</h2>
+      <p class="modal-text">Are you sure you want to log out of the Vibeathon Admin Control Center?</p>
+      <div class="modal-btn-row">
+        <button id="cancelLogout" class="btn-secondary">Cancel</button>
+        <button id="confirmLogout" class="btn-danger">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="admin-footer">
+    <span>Vibeathon 2026 � Evaluation Mission Control</span>
+    <span class="footer-badge"><i class="fas fa-lock"></i> Verified Admin Session</span>
+  </footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/admin-dashboard.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Vibeathon 2026 � Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <link rel="stylesheet" href="css/participant-dashboard.css" />
+</head>
+
+<body>
+
+  <div class="bg"></div>
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 40 40" width="28" height="28">
+          <defs>
+            <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00f0ff" />
+              <stop offset="100%" stop-color="#6366f1" />
+            </linearGradient>
+          </defs>
+          <polygon points="20,4 34,12 20,20 6,12" fill="url(#lg1)" opacity="0.95" />
+          <polygon points="6,12 20,20 20,36 6,28" fill="#8b5cf6" opacity="0.85" />
+          <polygon points="20,20 34,12 34,28 20,36" fill="#00c8ff" opacity="0.75" />
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">VIBEATHON</span>
+        <span class="brand-tag">2.0</span>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <div class="timer-block">
+        <i class="fas fa-hourglass-half timer-icon"></i>
+        <div>
+          <div class="timer-label">TIME REMAINING</div>
+          <div id="timer" class="timer-digits">--:--:--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <span class="team-chip" id="headerTeamId">TEAM �</span>
+      <button id="endSession" class="btn-end">
+        <i class="fas fa-lock"></i> End Session
+      </button>
+      <button id="logoutBtn" class="btn-logout">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="page-content">
+
+    <div class="status-strip">
+      <div class="strip-item">
+        <span class="strip-label">Team ID</span>
+        <span class="strip-val" id="teamId">�</span>
+        <button class="copy-btn" id="copyTeamIdBtn" title="Copy"><i class="far fa-copy"></i></button>
+      </div>
+      <div class="strip-divider"></div>
+      <div class="strip-item">
+        <span class="strip-label">Status</span>
+        <span class="strip-val live-dot" id="arenaStatus">ACTIVE</span>
+      </div>
+      <div class="strip-divider"></div>
+      <div class="strip-item">
+        <span class="strip-label">Submissions</span>
+        <span class="strip-val" id="artifactSummary">0 / 2</span>
+        <span class="dot-pair">
+          <span class="sdot" id="dotGithub" title="GitHub"></span>
+          <span class="sdot" id="dotDeploy" title="Deployment"></span>
+        </span>
+      </div>
+      <div class="strip-divider"></div>
+      <div class="strip-item">
+        <span class="strip-label">AI Prompts</span>
+        <span class="strip-val" id="promptCount">0</span>
+      </div>
+    </div>
+
+    <div class="grid-layout">
+
+      <div class="col-main">
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="card-icon cyan-bg"><i class="fas fa-file-alt"></i></div>
+              <div>
+                <h2 class="card-title">Problem Statement</h2>
+                <p class="card-desc">Download your challenge brief</p>
+              </div>
+            </div>
+          </div>
+          <p class="card-body-text">
+            The problem statement is available as soon as your session begins. Download the document and build your solution around the objectives.
+          </p>
+          <div class="card-action-row">
+            <button id="downloadProblem" class="btn-primary" disabled>
+              <i class="fas fa-download"></i> Download Problem Statement
+            </button>
+            <span class="badge-live" id="downloadStatusChip">
+              <i class="fas fa-clock"></i> Available on session start
+            </span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="card-icon violet-bg"><i class="fas fa-upload"></i></div>
+              <div>
+                <h2 class="card-title">Submit Deliverables</h2>
+                <p class="card-desc">GitHub repo + live deployment link</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-row-head">
+              <label class="field-label" for="githubUrl">
+                <i class="fab fa-github"></i> GitHub Repository URL
+              </label>
+              <span id="githubStatus" class="status pending">Not submitted</span>
+            </div>
+            <div class="input-row">
+              <input type="url" id="githubUrl" placeholder="https://github.com/you/your-project" class="text-input" />
+              <button id="submitGithub" class="btn-save">Save</button>
+            </div>
+            <p id="githubError" class="field-error"></p>
+            <div id="githubLinkContainer" class="preview-row" style="display: none;">
+              <a id="githubPreviewLink" href="#" target="_blank" rel="noopener" class="preview-link">
+                <i class="fas fa-external-link-alt"></i> View Repository
+              </a>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-row-head">
+              <label class="field-label" for="deploymentUrl">
+                <i class="fas fa-globe"></i> Live Deployment URL
+              </label>
+              <span id="deploymentStatus" class="status pending">Not submitted</span>
+            </div>
+            <div class="input-row">
+              <input type="url" id="deploymentUrl" placeholder="https://your-project.vercel.app" class="text-input" disabled />
+              <button id="submitDeployment" class="btn-save" disabled>Save</button>
+            </div>
+            <p id="deployError" class="field-error"></p>
+            <div id="deployLinkContainer" class="preview-row" style="display: none;">
+              <a id="deployPreviewLink" href="#" target="_blank" rel="noopener" class="preview-link">
+                <i class="fas fa-external-link-alt"></i> View Deployment
+              </a>
+            </div>
+          </div>
+
+          <div class="info-note">
+            <i class="fas fa-info-circle"></i>
+            Submit both a GitHub repository and a live deployment link before ending your session.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="card-icon green-bg"><i class="fas fa-users"></i></div>
+              <div>
+                <h2 class="card-title">Team Members</h2>
+                <p class="card-desc">Size: <strong id="teamSize">�</strong></p>
+              </div>
+            </div>
+          </div>
+          <ul id="teamMembersList" class="member-list"></ul>
+        </div>
+
+      </div>
+
+      <div class="col-side">
+
+        <div class="card card-accent">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="card-icon amber-bg"><i class="fas fa-robot"></i></div>
+              <div>
+                <h2 class="card-title">AI Prompt Logger</h2>
+                <p class="card-desc">Log every prompt you send to an AI tool</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-pills">
+            <button type="button" class="ai-pill" data-model="Google Gemini 2.5">Gemini 2.5</button>
+            <button type="button" class="ai-pill" data-model="Claude 3.5 Sonnet">Claude 3.5</button>
+            <button type="button" class="ai-pill" data-model="ChatGPT (GPT-4o)">GPT-4o</button>
+            <button type="button" class="ai-pill" data-model="Cursor / Copilot">Cursor</button>
+            <button type="button" class="ai-pill" data-model="v0 by Vercel">v0.dev</button>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="aiNameInput">
+              <i class="fas fa-robot"></i> AI Tool / Model Name
+            </label>
+            <input type="text" id="aiNameInput" list="aiToolsList" placeholder="e.g. Gemini 2.5, Claude 3.5, GPT-4o�" class="text-input" />
+            <datalist id="aiToolsList"></datalist>
+          </div>
+
+          <div class="field-group">
+            <div class="field-row-head">
+              <label class="field-label" for="promptInput">
+                <i class="fas fa-comment-alt"></i> Prompt Text
+              </label>
+              <span class="char-count" id="promptCharCount">0 chars</span>
+            </div>
+            <textarea id="promptInput" rows="5" placeholder="Paste the exact prompt you gave to the AI tool�"></textarea>
+          </div>
+
+          <div class="console-footer">
+            <span class="kbd-hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to submit</span>
+            <button id="submitPrompt" class="btn-primary">
+              <i class="fas fa-paper-plane"></i> Log Prompt
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-left">
+              <div class="card-icon cyan-bg"><i class="fas fa-list"></i></div>
+              <div>
+                <h2 class="card-title">Prompt History</h2>
+                <p class="card-desc">All prompts recorded this session</p>
+              </div>
+            </div>
+            <span class="badge-count" id="promptFeedCount">0 logged</span>
+          </div>
+
+          <div id="emptyPromptState" class="empty-state">
+            <i class="fas fa-terminal empty-icon"></i>
+            <p class="empty-title">No prompts logged yet</p>
+            <p class="empty-sub">Start logging your AI prompts above � they are scored by the jury.</p>
+          </div>
+
+          <div id="promptTable" class="prompt-list"></div>
+
+          <p class="table-footer">
+            <i class="fas fa-shield-alt"></i> Prompts are timestamped and sent for jury evaluation.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <div id="sessionModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-icon-wrap success"><i class="fas fa-check-circle"></i></div>
+      <h2>Session Complete!</h2>
+      <p class="modal-text">Your submissions and AI prompt logs are locked and sent for evaluation. Great work!</p>
+      <div class="modal-stats">
+        <div class="modal-stat-item">
+          <span class="ms-label">Evaluation Engine</span>
+          <span class="ms-val">Gemini 2.5 Flash</span>
+        </div>
+        <div class="modal-stat-item">
+          <span class="ms-label">Status</span>
+          <span class="ms-val green-text">Audit Ready</span>
+        </div>
+      </div>
+      <button class="btn-primary full-width" onclick="location.href='index.html'">
+        <i class="fas fa-home"></i> Back to Home
+      </button>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-icon-wrap danger"><i class="fas fa-exclamation-triangle"></i></div>
+      <h2>End Session?</h2>
+      <p class="modal-text">This will permanently lock your GitHub repo, deployment link, and all AI prompt logs. Are you sure?</p>
+      <div class="modal-btn-row">
+        <button id="cancelEnd" class="btn-secondary">Keep Building</button>
+        <button id="confirmEnd" class="btn-danger">Yes, End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+  <div id="timeWarning" class="time-warning" style="display: none;"></div>
+
+  <script type="module" src="js/participant-auth-guard.js"></script>
+  <script type="module" src="js/participant-dashboard.js"></script>
+
+</body>
+
+</html>

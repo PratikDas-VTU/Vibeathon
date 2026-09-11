@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://vibeathon-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/public/:path*",
+      "destination": "https://vibeathon-backend.onrender.com/public/:path*"
+    }
+  ]
+}

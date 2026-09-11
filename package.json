@@ -1,0 +1,11 @@
+{
+  "name": "vibeathon-platform",
+  "version": "2.0.0",
+  "description": "Vibeathon 2.0 Hackathon Platform Monorepo",
+  "private": true,
+  "scripts": {
+    "start": "node backend/server.js",
+    "backend": "npm --prefix backend start",
+    "dev": "npm --prefix backend run dev"
+  }
+}

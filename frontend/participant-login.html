@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Vibeathon | Participant Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/participant.css" />
+</head>
+
+<body>
+
+  <!-- Ambient Deep Space Light -->
+  <div class="bg"></div>
+  <div class="bg-glow"></div>
+
+  <!-- ================= TOP HEADER ================= -->
+  <header class="top-title">
+    <div class="header-left">
+      <a href="index.html" class="brand-link" title="Back to Vibeathon Home">
+        <div class="vibe-brand-icon">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="vibe-svg-logo vibe-neural-mark">
+            <defs>
+              <linearGradient id="qGradAuth1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f0ff" />
+                <stop offset="100%" stop-color="#6366f1" />
+              </linearGradient>
+              <linearGradient id="qGradAuth2" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#8b5cf6" />
+                <stop offset="100%" stop-color="#ec4899" />
+              </linearGradient>
+              <linearGradient id="qGradAuth3" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ec4899" />
+                <stop offset="50%" stop-color="#00f0ff" />
+                <stop offset="100%" stop-color="#10b981" />
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="21" stroke="url(#qGradAuth1)" stroke-width="1.3" stroke-dasharray="5 7" opacity="0.65" class="logo-orbit-ring" />
+            <polygon points="24,6 39,15 24,24 9,15" fill="url(#qGradAuth1)" opacity="0.88" />
+            <polygon points="9,15 24,24 24,42 9,33" fill="url(#qGradAuth2)" opacity="0.92" />
+            <polygon points="24,24 39,15 39,33 24,42" fill="url(#qGradAuth3)" opacity="0.95" />
+            <line x1="24" y1="6" x2="24" y2="42" stroke="#ffffff" stroke-width="1" opacity="0.45" />
+            <line x1="9" y1="15" x2="39" y2="33" stroke="#ffffff" stroke-width="0.8" opacity="0.3" />
+            <line x1="9" y1="33" x2="39" y2="15" stroke="#ffffff" stroke-width="0.8" opacity="0.3" />
+            <circle cx="24" cy="24" r="4.5" fill="#030712" stroke="#00f0ff" stroke-width="1.8" />
+            <circle cx="24" cy="24" r="2" fill="#00f0ff" class="logo-core-pulse" />
+            <circle cx="24" cy="6" r="2" fill="#00f0ff" />
+            <circle cx="39" cy="15" r="2" fill="#a855f7" />
+            <circle cx="39" cy="33" r="2" fill="#ec4899" />
+            <circle cx="24" cy="42" r="2" fill="#10b981" />
+            <circle cx="9" cy="33" r="2" fill="#6366f1" />
+            <circle cx="9" cy="15" r="2" fill="#38bdf8" />
+          </svg>
+        </div>
+        <div class="brand-text-block">
+          <span class="brand-title">VIBEATHON <span class="brand-ver">2.0</span></span>
+          <span class="brand-subtitle">National AI Hackathon</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="header-right">
+      <button id="toggleRules" class="rules-btn" title="View official hackathon rules">
+        <i class="fas fa-book-open"></i>
+        <span>Rules & Guidelines</span>
+      </button>
+
+      <a href="index.html" class="nav-back-link">
+        <i class="fas fa-arrow-left"></i>
+        <span>Overview</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ================= MAIN AUTH WRAPPER ================= -->
+  <main class="wrapper">
+    <div class="auth-container">
+
+      <!-- Centered Modern Login Card -->
+      <div class="login-card">
+        <div class="card-header">
+          <div class="portal-badge">
+            <span class="pulse-dot"></span>
+            <span>PARTICIPANT SPRINT PORTAL</span>
+          </div>
+          <h2>Team <span>Sign In</span></h2>
+          <p class="subtext">Enter your registered credentials to launch the live hackathon workspace</p>
+        </div>
+
+        <form id="participantForm">
+          <div class="form-group">
+            <label for="email">
+              <i class="fas fa-envelope"></i>
+              <span>Registered Team Email</span>
+            </label>
+            <div class="input-wrap">
+              <input id="email" type="email" placeholder="e.g. demo1@test.com" required autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">
+              <i class="fas fa-lock"></i>
+              <span>Access Password</span>
+            </label>
+            <div class="input-wrap">
+              <input id="password" type="password" placeholder="••••••••" required autocomplete="current-password" />
+            </div>
+          </div>
+
+          <button type="submit" id="loginBtn" class="submit-btn">
+            <span>ENTER DASHBOARD</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </form>
+
+        <div id="loginMessage" class="login-message"></div>
+
+        <!-- Participant Sign-In Helper -->
+        <div class="demo-credentials-callout">
+          <div class="demo-icon"><i class="fas fa-info-circle"></i></div>
+          <div class="demo-text">
+            <strong>Participant Access:</strong>
+            <span>Sign in with your registered team leader email and contact phone number.</span>
+          </div>
+        </div>
+
+        <div class="card-footer-info">
+          <i class="fas fa-shield-halved"></i>
+          <span>Secure Tokenized Auth • 2-Hour Countdown Starts on Entry</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ================= RULES MODAL OVERLAY ================= -->
+  <section id="rules" class="rules hidden">
+    <div class="rules-modal-overlay">
+      <div class="rules-modal-card">
+        <div class="rules-modal-header">
+          <div class="rules-title-group">
+            <span class="rules-modal-badge"><i class="fas fa-shield-alt"></i> ARENA POLICY</span>
+            <h2 class="rules-title">Hackathon Rules & Guidelines</h2>
+            <p class="rules-subtitle">Please read carefully before starting your development sprint</p>
+          </div>
+          <button type="button" id="closeRulesModal" class="rules-close-btn" title="Close Rules">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="rules-container">
+
+          <!-- RULE 01 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">01</span>
+              <h3>GitHub Repository Policy</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              A new GitHub repository must be created only after entering the competition. All code and commits must be pushed strictly during the active sprint window.
+            </div>
+          </div>
+
+          <!-- RULE 02 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">02</span>
+              <h3>Pre-written Code Prohibition</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              Pre-written or previously developed proprietary projects are strictly prohibited. Open-source libraries, packages, and frameworks are fully permitted.
+            </div>
+          </div>
+
+          <!-- RULE 03 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">03</span>
+              <h3>Competition Time Window</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              The competition runs for exactly 2 hours (120 minutes). The sprint timer begins counting down upon accessing the dashboard. Submissions lock at 00:00:00.
+            </div>
+          </div>
+
+          <!-- RULE 04 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">04</span>
+              <h3>Final Submission Requirements</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              The final deliverable must be a functional web application with both an accessible public GitHub repository URL and a live deployed cloud URL (e.g. Vercel, Netlify).
+            </div>
+          </div>
+
+          <!-- RULE 05 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">05</span>
+              <h3>Technology Stack Freedom</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              Teams have complete freedom over tech stack choices: React, Vue, Svelte, Next.js, Flask, FastAPI, Node.js, Express, Tailwind, or vanilla modern JavaScript.
+            </div>
+          </div>
+
+          <!-- RULE 06 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">06</span>
+              <h3>AI Prompts Transparency Audit</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              Teams are required to log all prompts given to AI assistants (Gemini, Claude, GPT-4o, Cursor) in the dashboard prompt console. Prompts are scored for craftsmanship and AI synergy.
+            </div>
+          </div>
+
+          <!-- RULE 07 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">07</span>
+              <h3>Fair Play & Integrity</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              Cross-team collusion, plagiarism, or malicious tampering will lead to immediate disqualification. All members must be registered in the official team roster.
+            </div>
+          </div>
+
+          <!-- RULE 08 -->
+          <div class="rule-item">
+            <div class="rule-header">
+              <span class="rule-number">08</span>
+              <h3>Judges' Decision is Final</h3>
+              <button class="rule-toggle" aria-label="Toggle rule">−</button>
+            </div>
+            <div class="rule-content open">
+              Evaluation will be conducted by the official jury panel using a multi-criteria rubric (Technical Complexity, UI/UX Craftsmanship, Innovation, and AI Prompt Engineering).
+            </div>
+          </div>
+
+        </div>
+
+        <div class="rules-modal-footer">
+          <button type="button" id="dismissRulesBtn" class="dismiss-rules-btn">
+            <span>I Understand & Agree</span>
+            <i class="fas fa-check"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="participant-footer">
+    <div class="footer-inner">
+      <span>VIBEATHON 2026 • PARTICIPANT ARENA</span>
+      <span class="divider">/</span>
+      <span>SECURE HACKATHON ACCESS</span>
+      <span class="divider">/</span>
+      <span>VIT CHENNAI</span>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/participants.js"></script>
+</body>
+
+</html>

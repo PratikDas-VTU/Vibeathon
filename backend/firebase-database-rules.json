@@ -1,0 +1,34 @@
+{
+    "rules": {
+        ".read": false,
+        ".write": false,
+        "teams": {
+            "$vccId": {
+                ".read": "auth != null",
+                ".write": "auth != null && (auth.token.vccId == $vccId || auth.token.role == 'admin')",
+                ".validate": "newData.hasChildren(['vccId', 'teamNo', 'teamSize', 'M1_Name', 'M1_Email', 'M1_Phone'])"
+            }
+        },
+        "admins": {
+            ".read": "auth != null && auth.token.role == 'admin'",
+            ".write": "auth != null && auth.token.role == 'admin'",
+            "$adminId": {
+                ".validate": "newData.hasChildren(['username', 'email', 'role'])"
+            }
+        },
+        "prompts": {
+            ".read": "auth != null",
+            "$promptId": {
+                ".write": "auth != null && (!data.exists() || auth.token.role == 'admin')",
+                ".validate": "newData.hasChildren(['vccId', 'aiTool', 'promptText', 'submittedAt'])"
+            }
+        },
+        "promptEvaluations": {
+            ".read": "auth != null",
+            ".write": "auth != null && auth.token.role == 'admin'",
+            "$evaluationId": {
+                ".validate": "newData.hasChildren(['promptId', 'vccId', 'aiScore', 'aiFeedback'])"
+            }
+        }
+    }
+}
