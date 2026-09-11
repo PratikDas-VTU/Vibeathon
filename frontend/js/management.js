@@ -61,6 +61,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 3. Toast Notifications
   function showToast(message, type = "info") {
+    if (window.showToast && window.showToast !== showToast) {
+      window.showToast(message, type);
+      return;
+    }
     const container = document.getElementById("toastContainer");
     if (!container) return;
 
@@ -338,7 +342,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Single Team Reset
   window.resetTeamSessionSingle = async (vccId) => {
-    if (!confirm(`Reset session and 2-hour countdown for Team ${vccId}?`)) return;
+    const confirmed = await window.showConfirmDialog({
+      title: "Reset Team Countdown",
+      message: `Reset session and 2-hour countdown for Team ${vccId}?`,
+      details: "This unlocks their dashboard terminal and restarts their 2-hour timer back to 2:00:00.",
+      type: "warning",
+      confirmText: "Reset Countdown",
+      icon: "fas fa-history"
+    });
+    if (!confirmed) return;
 
     const res = await manageFetch(`/api/manage/teams/${vccId}/reset`, { method: "POST" });
     if (res && res.ok) {
@@ -349,7 +361,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Single Team Delete
   window.deleteTeamSingle = async (vccId) => {
-    if (!confirm(`Are you sure you want to completely delete Team ${vccId}? This removes their login account and database records.`)) return;
+    const confirmed = await window.showConfirmDialog({
+      title: "Delete Team Account",
+      message: `Are you sure you want to completely delete Team ${vccId}?`,
+      details: "This removes their login credentials, team roster, and all database records. This action cannot be undone.",
+      type: "danger",
+      confirmText: "Delete Team",
+      icon: "fas fa-trash-alt"
+    });
+    if (!confirmed) return;
 
     const res = await manageFetch(`/api/manage/teams/${vccId}`, { method: "DELETE" });
     if (res && res.ok) {
@@ -493,7 +513,15 @@ document.addEventListener("DOMContentLoaded", () => {
   if (purgeDemoBtn) {
     purgeDemoBtn.addEventListener("click", async () => {
       const prefix = document.getElementById("demoPrefix").value.trim() || "DEMO";
-      if (!confirm(`Delete all test accounts with prefix "${prefix}"? Real participants will NOT be affected.`)) return;
+      const confirmed = await window.showConfirmDialog({
+        title: "Purge Demo Accounts",
+        message: `Delete all demo accounts with prefix "${prefix}"?`,
+        details: "Real registered participant accounts will NOT be affected. This will purge demo testing credentials from the database.",
+        type: "danger",
+        confirmText: "Purge Demo Accounts",
+        icon: "fas fa-trash-alt"
+      });
+      if (!confirmed) return;
 
       const res = await manageFetch(`/api/manage/demo-credentials?prefix=${prefix}`, { method: "DELETE" });
       if (res && res.ok) {
@@ -1269,7 +1297,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearPromptsBtn = document.getElementById("clearPromptsBtn");
   if (clearPromptsBtn) {
     clearPromptsBtn.addEventListener("click", async () => {
-      const confirmed = confirm("⚠️ RESET AI PROMPT LOGS?\n\nAre you sure you want to clear all logged AI evaluation prompts from previous tests? The counter will reset to 0 for the official competition start.");
+      const confirmed = await window.showConfirmDialog({
+        title: "Reset AI Prompt Telemetry",
+        message: "Clear all logged AI evaluation prompts from previous tests?",
+        details: "The prompt counter will reset to 0 for the official competition start. Use this right before the event kicks off.",
+        type: "danger",
+        confirmText: "Purge All Prompts (Reset to 0)",
+        icon: "fas fa-trash-alt"
+      });
       if (!confirmed) return;
 
       clearPromptsBtn.disabled = true;

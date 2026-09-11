@@ -665,7 +665,7 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         });
         if (res.ok) {
-          alert(`Problem statement access ${released ? "RELEASED to all participants!" : "LOCKED / FROZEN!"}`);
+          window.showToast(`Problem statement access ${released ? "RELEASED to all participants!" : "LOCKED / FROZEN!"}`, released ? "success" : "info");
         }
       } catch (err) {
         console.error("Failed to update release status:", err);
@@ -712,7 +712,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (uploadFileBtn && problemFileInput) {
     uploadFileBtn.addEventListener("click", async () => {
       const file = problemFileInput.files[0];
-      if (!file) return alert("Please select a document file to upload.");
+      if (!file) return window.showToast("Please select a document file to upload.", "warning");
 
       const formData = new FormData();
       formData.append("problemFile", file);
@@ -741,14 +741,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const data = await res.json();
-        alert("✅ " + (data.message || "Problem statement document uploaded successfully!"));
+        window.showToast(data.message || "Problem statement document uploaded successfully!", "success");
         problemFileInput.value = "";
         if (selectedFileName) selectedFileName.textContent = "No file selected";
         await loadProblemStatementInfo();
 
       } catch (err) {
         console.error("Upload error:", err);
-        alert("❌ Error uploading problem statement: " + err.message);
+        window.showToast("Error uploading problem statement: " + err.message, "error");
       } finally {
         uploadFileBtn.disabled = false;
         uploadFileBtn.innerHTML = '<i class="fas fa-upload"></i> Upload & Deploy';
@@ -759,7 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (saveContextBtn && problemContextInput) {
     saveContextBtn.addEventListener("click", async () => {
       const text = problemContextInput.value.trim();
-      if (!text) return alert("Please enter challenge description or constraints text.");
+      if (!text) return window.showToast("Please enter challenge description or constraints text.", "warning");
 
       saveContextBtn.disabled = true;
       saveContextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -771,11 +771,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         if (!res.ok) throw new Error("Failed to save context: " + res.status);
-        alert("✅ AI Evaluation challenge context updated! All subsequent evaluations will use this rubric.");
+        window.showToast("AI Evaluation challenge context updated! All subsequent evaluations will use this rubric.", "success");
 
       } catch (err) {
         console.error("Save context error:", err);
-        alert("❌ Error saving context: " + err.message);
+        window.showToast("Error saving context: " + err.message, "error");
       } finally {
         saveContextBtn.disabled = false;
         saveContextBtn.innerHTML = '<i class="fas fa-save"></i> Save Context for AI Evaluator';
@@ -787,7 +787,7 @@ document.addEventListener("DOMContentLoaded", () => {
      EXPORT TO CSV
      ========================== */
   function exportToCSV(rows, filename = "vibeathon_admin_telemetry.csv") {
-    if (!rows.length) return alert("No team data to export.");
+    if (!rows.length) return window.showToast("No team data to export.", "info");
 
     const csv = [
       Object.keys(rows[0]).join(","),
@@ -834,7 +834,7 @@ document.addEventListener("DOMContentLoaded", () => {
         exportToCSV(rows);
       } catch (err) {
         console.error("Export error:", err);
-        alert("Failed to export telemetry data.");
+        window.showToast("Failed to export telemetry data.", "error");
       }
     });
   }
@@ -844,9 +844,15 @@ document.addEventListener("DOMContentLoaded", () => {
      ========================== */
   if (evaluateAIBtn) {
     evaluateAIBtn.addEventListener("click", async () => {
-      if (!confirm("Run Gemini AI evaluation across all submitted prompts? This will score prompt complexity, intent, and relevance.")) {
-        return;
-      }
+      const confirmed = await window.showConfirmDialog({
+        title: "Run Gemini AI Evaluation",
+        message: "Run Gemini AI evaluation across all submitted prompts?",
+        details: "Gemini AI will score prompt complexity, intent, and relevance across all teams and update the telemetry leaderboard.",
+        type: "info",
+        confirmText: "Start Evaluation",
+        icon: "fas fa-robot"
+      });
+      if (!confirmed) return;
 
       evaluateAIBtn.disabled = true;
       evaluateAIBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Evaluating...';
@@ -864,19 +870,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const data = await res.json();
         const r = data.results || {};
-        alert(
-          `✅ Gemini AI Evaluation Complete!\n\n` +
-          `Total Teams Evaluated: ${r.evaluated || 0}\n` +
-          `Skipped: ${r.skipped || 0}\n` +
-          `Failed: ${r.failed || 0}`
-        );
+        await window.showAlertDialog({
+          title: "Gemini AI Evaluation Complete",
+          message: "Prompt grading completed successfully across all teams.",
+          details: `Total Teams Evaluated: ${r.evaluated || 0}\nSkipped: ${r.skipped || 0}\nFailed: ${r.failed || 0}`,
+          type: "success",
+          buttonText: "View Leaderboard",
+          icon: "fas fa-check-circle"
+        });
 
         await fetchEvaluations();
         renderDashboard();
 
       } catch (err) {
         console.error("AI evaluation failed:", err);
-        alert(`AI Evaluation Notice: ${err.message}\n\nCheck server logs or API key configuration.`);
+        await window.showAlertDialog({
+          title: "AI Evaluation Notice",
+          message: "AI evaluation encountered an issue: " + err.message,
+          details: "Check server logs or verify your Gemini API key configuration in Render environment variables.",
+          type: "error",
+          buttonText: "Dismiss",
+          icon: "fas fa-exclamation-circle"
+        });
       } finally {
         evaluateAIBtn.disabled = false;
         evaluateAIBtn.innerHTML = '<i class="fas fa-robot"></i> Run AI Evaluation';
