@@ -1,10 +1,18 @@
 const axios = require("axios");
 const { db } = require("../firebaseConfig");
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-if (!GEMINI_API_KEY) {
-  console.warn("⚠️ Warning: GEMINI_API_KEY is not set in environment variables.");
+// Collect all configured Gemini API keys (supports comma-separated list or singular key)
+const geminiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "")
+  .split(",")
+  .map(k => k.trim())
+  .filter(Boolean);
+
+if (geminiKeys.length === 0) {
+  console.warn("⚠️ Warning: No Gemini API keys found in GEMINI_API_KEYS or GEMINI_API_KEY.");
+} else {
+  console.log(`🔑 Loaded ${geminiKeys.length} Gemini API key(s) with automatic failover.`);
 }
+
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 // Default problem statement fallback if none uploaded by admin
@@ -35,52 +43,69 @@ async function getProblemStatementContext() {
 }
 
 /**
- * Call Gemini API using Interactions API or generateContent
+ * Call Gemini API with automatic key rotation and failover across multiple keys
  */
 async function callGemini(fullPrompt) {
-  // 1. Try Interactions API
-  try {
-    const interactionsUrl = `https://generativelanguage.googleapis.com/v1beta/interactions?key=${GEMINI_API_KEY}`;
-    const response = await axios.post(
-      interactionsUrl,
-      {
-        model: GEMINI_MODEL,
-        input: fullPrompt
-      },
-      {
-        headers: { "Content-Type": "application/json" },
-        timeout: 20000
-      }
-    );
+  const keysToTry = geminiKeys.length > 0 ? [...geminiKeys] : [""];
+  let lastError = null;
 
-    if (response.data?.outputs && response.data.outputs[0]?.text) {
-      return response.data.outputs[0].text;
+  for (let i = 0; i < keysToTry.length; i++) {
+    const currentKey = keysToTry[i];
+    try {
+      // 1. Try Interactions API
+      try {
+        const interactionsUrl = `https://generativelanguage.googleapis.com/v1beta/interactions?key=${currentKey}`;
+        const response = await axios.post(
+          interactionsUrl,
+          {
+            model: GEMINI_MODEL,
+            input: fullPrompt
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: 20000
+          }
+        );
+
+        if (response.data?.outputs && response.data.outputs[0]?.text) {
+          return response.data.outputs[0].text;
+        }
+        if (response.data?.output) {
+          return typeof response.data.output === "string" ? response.data.output : JSON.stringify(response.data.output);
+        }
+      } catch (err) {
+        // Fallback to generateContent
+      }
+
+      // 2. Fallback to generateContent
+      const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${currentKey}`;
+      const response = await axios.post(
+        generateUrl,
+        {
+          contents: [
+            {
+              parts: [{ text: fullPrompt }]
+            }
+          ]
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+          timeout: 20000
+        }
+      );
+
+      return response.data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } catch (err) {
+      lastError = err;
+      const status = err.response?.status;
+      console.warn(`⚠️ Gemini API call failed on key #${i + 1}${status ? ` (HTTP ${status})` : ""}: ${err.message}`);
+      if (i < keysToTry.length - 1) {
+        console.log(`🔄 Automatically failing over to next Gemini API key...`);
+      }
     }
-    if (response.data?.output) {
-      return typeof response.data.output === "string" ? response.data.output : JSON.stringify(response.data.output);
-    }
-  } catch (err) {
-    // Fallback to generateContent
   }
 
-  // 2. Fallback to generateContent
-  const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const response = await axios.post(
-    generateUrl,
-    {
-      contents: [
-        {
-          parts: [{ text: fullPrompt }]
-        }
-      ]
-    },
-    {
-      headers: { "Content-Type": "application/json" },
-      timeout: 20000
-    }
-  );
-
-  return response.data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  throw lastError || new Error("All configured Gemini API keys failed.");
 }
 
 /**
