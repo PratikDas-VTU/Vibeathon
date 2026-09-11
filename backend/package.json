@@ -10,15 +10,19 @@
   "author": "Pratik Das",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/vertexai": "^1.10.0",
+    "@google-cloud/vertexai": "^1.12.0",
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.5",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.0",
     "dotenv": "^17.2.4",
     "express": "^5.2.1",
-    "firebase-admin": "^13.0.2",
+    "firebase-admin": "^13.10.0",
+    "gcp-metadata": "^9.0.3",
+    "google-auth-library": "^11.0.2",
+    "jose": "^6.2.12",
     "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.1.0",
     "multer": "^2.3.0"
   },
   "devDependencies": {

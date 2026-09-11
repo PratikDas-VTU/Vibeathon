@@ -420,12 +420,21 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
                     emailVerified: true
                 });
             }
+
+            if (userRecord) {
+                await auth.setCustomUserClaims(userRecord.uid, {
+                    vccId,
+                    teamNo: teamData.teamNo,
+                    role: "participant"
+                });
+            }
         } catch (authErr) {
             console.warn(`[generateDemoTeams] Auth warning for ${email}:`, authErr.message);
         }
 
         // Save to RTDB
         await db.ref(`teams/${vccId}`).set(teamData);
+
         createdTeams.push({
             vccId,
             email,

@@ -2,6 +2,11 @@ function resolveApiUrl(endpoint) {
   if (typeof window !== "undefined" && window.getApiUrl) {
     return window.getApiUrl(endpoint);
   }
+  // Fallback for VS Code Live Server (port 5500/5501)
+  if (typeof window !== "undefined" && (window.location.port === "5500" || window.location.port === "5501" || window.location.protocol === "file:")) {
+    const clean = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    return `https://vibeathon-backend-g210.onrender.com${clean}`;
+  }
   return endpoint;
 }
 
