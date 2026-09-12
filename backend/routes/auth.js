@@ -1,55 +1,139 @@
 const express = require("express");
 const axios = require("axios");
 const { auth } = require("../firebaseConfig");
-const { getTeamByEmail } = require("../services/firebaseService");
+const { getTeamByEmail, getTeamById } = require("../services/firebaseService");
 
 const router = express.Router();
 
-// Firebase Web API Key (read securely from environment variables)
-const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
-if (!FIREBASE_API_KEY) {
-  console.warn("⚠️ Warning: FIREBASE_WEB_API_KEY is not set in environment variables.");
-}
+// Firebase Web API Key with production fallback
+const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || "AIzaSyDDYX61344lv5bOHf6oBv1Z0Udl8S7C3Oc";
 
 /**
  * POST /api/auth/login
  * body: { email, password }
- * email = M1_Email
- * password = M1_Phone
+ * email = M1_Email OR Team ID (e.g. DEMO101, TEAM101)
+ * password = M1_Phone or default password
  */
 router.post("/login", async (req, res) => {
-  const email = (req.body.email || "").trim().toLowerCase();
+  const inputIdentifier = (req.body.email || req.body.identifier || req.body.teamId || "").trim();
   const password = (req.body.password || "").trim();
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required." });
+  if (!inputIdentifier || !password) {
+    return res.status(400).json({ error: "Email or Team ID and password are required." });
+  }
+
+  let email = inputIdentifier.toLowerCase();
+  let targetTeam = null;
+
+  // 1. Support direct login with Team ID (e.g. "DEMO101", "TEAM105") without "@"
+  if (!email.includes("@")) {
+    targetTeam = await getTeamById(inputIdentifier.toUpperCase());
+    if (targetTeam && (targetTeam.M1_Email || targetTeam.email)) {
+      email = (targetTeam.M1_Email || targetTeam.email).toLowerCase();
+    } else {
+      return res.status(401).json({ error: "Team ID not found in records." });
+    }
   }
 
   try {
-    // Sign in with Firebase Authentication REST API
-    const signInResponse = await axios.post(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
-      {
-        email: email,
-        password: password,
-        returnSecureToken: true
-      }
-    );
+    // 2. Sign in with Firebase Authentication REST API
+    let idToken = null;
+    let authFailed = false;
+    let authErrorMessage = "";
 
-    // Get the Firebase ID token (contains custom claims)
-    const idToken = signInResponse.data.idToken;
-
-    // Verify and decode the token to get custom claims
-    const decodedToken = await auth.verifyIdToken(idToken);
-
-    // Get team data from database
-    const team = await getTeamByEmail(email);
-
-    if (!team) {
-      return res.status(401).json({ error: "Team not found in records." });
+    try {
+      const signInResponse = await axios.post(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+        {
+          email: email,
+          password: password,
+          returnSecureToken: true
+        }
+      );
+      idToken = signInResponse.data.idToken;
+    } catch (authErr) {
+      authFailed = true;
+      authErrorMessage = authErr.response?.data?.error?.message || authErr.message;
     }
 
-    const teamId = team.teamId || team.id || team.vccId;
+    // 3. Fallback: If Firebase Auth sign-in failed, check RTDB records
+    if (authFailed) {
+      if (!targetTeam) {
+        targetTeam = await getTeamByEmail(email);
+      }
+
+      // If credentials match RTDB record, auto-synchronize Firebase Auth on the fly
+      if (targetTeam && (targetTeam.M1_Phone === password || targetTeam.password === password)) {
+        try {
+          let userRecord;
+          try {
+            userRecord = await auth.getUserByEmail(email);
+            await auth.updateUser(userRecord.uid, { password });
+          } catch (getErr) {
+            userRecord = await auth.createUser({
+              email,
+              password,
+              emailVerified: true
+            });
+          }
+
+          const teamId = targetTeam.teamId || targetTeam.id || targetTeam.vccId;
+          await auth.setCustomUserClaims(userRecord.uid, {
+            id: teamId,
+            teamId,
+            vccId: teamId,
+            teamNo: targetTeam.teamNo,
+            role: "participant"
+          });
+
+          // Re-attempt sign-in
+          const retrySignIn = await axios.post(
+            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+            {
+              email: email,
+              password: password,
+              returnSecureToken: true
+            }
+          );
+          idToken = retrySignIn.data.idToken;
+          authFailed = false;
+        } catch (syncErr) {
+          console.warn("[Login Auto-Sync Warning]:", syncErr.message);
+        }
+      }
+    }
+
+    // 4. Handle persistent auth failures gracefully
+    if (authFailed || !idToken) {
+      if (
+        authErrorMessage.includes("INVALID_PASSWORD") ||
+        authErrorMessage.includes("EMAIL_NOT_FOUND") ||
+        authErrorMessage.includes("INVALID_LOGIN_CREDENTIALS")
+      ) {
+        return res.status(401).json({ error: "Invalid email/Team ID or password." });
+      }
+      if (authErrorMessage.includes("TOO_MANY_ATTEMPTS_TRY_LATER")) {
+        return res.status(429).json({ error: "Too many failed attempts. Please try again in a few minutes." });
+      }
+      if (authErrorMessage.includes("USER_DISABLED")) {
+        return res.status(403).json({ error: "This participant account has been disabled." });
+      }
+      if (authErrorMessage.includes("INVALID_EMAIL")) {
+        return res.status(400).json({ error: "Invalid email format. You can also sign in with your Team ID (e.g. DEMO101)." });
+      }
+      return res.status(401).json({ error: "Invalid credentials. Please verify your email and password." });
+    }
+
+    // 5. Get team data from database
+    if (!targetTeam) {
+      targetTeam = await getTeamByEmail(email);
+    }
+
+    if (!targetTeam) {
+      return res.status(401).json({ error: "Team record not found." });
+    }
+
+    const teamId = targetTeam.teamId || targetTeam.id || targetTeam.vccId;
 
     res.json({
       token: idToken,
@@ -57,37 +141,14 @@ router.post("/login", async (req, res) => {
         id: teamId,
         teamId: teamId,
         vccId: teamId,
-        teamNo: team.teamNo,
-        teamSize: team.teamSize,
-        sessionEnded: team.sessionEnded ?? false
+        teamNo: targetTeam.teamNo,
+        teamSize: targetTeam.teamSize,
+        sessionEnded: targetTeam.sessionEnded ?? false
       }
     });
   } catch (err) {
-    console.error("LOGIN ERROR:", err.response?.data?.error?.message || err.message);
-
-    // Handle Firebase Auth errors
-    if (err.response?.data?.error?.message) {
-      const errorMessage = err.response.data.error.message;
-      if (
-        errorMessage.includes("INVALID_PASSWORD") ||
-        errorMessage.includes("EMAIL_NOT_FOUND") ||
-        errorMessage.includes("INVALID_LOGIN_CREDENTIALS")
-      ) {
-        return res.status(401).json({ error: "Invalid email or password." });
-      }
-      if (errorMessage.includes("TOO_MANY_ATTEMPTS_TRY_LATER")) {
-        return res.status(429).json({ error: "Too many failed attempts. Please try again later." });
-      }
-      if (errorMessage.includes("USER_DISABLED")) {
-        return res.status(403).json({ error: "This participant account has been disabled." });
-      }
-      if (errorMessage.includes("INVALID_EMAIL")) {
-        return res.status(400).json({ error: "Invalid email address format." });
-      }
-      return res.status(401).json({ error: "Invalid login credentials." });
-    }
-
-    res.status(500).json({ error: "Server error. Please try again later." });
+    console.error("LOGIN UNHANDLED ERROR:", err.response?.data?.error?.message || err.message);
+    res.status(500).json({ error: "Authentication service temporarily busy. Please try again." });
   }
 });
 

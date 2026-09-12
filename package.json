@@ -3,9 +3,28 @@
   "version": "2.0.0",
   "description": "Vibeathon 2.0 Hackathon Platform Monorepo",
   "private": true,
+  "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
+    "build": "npm --prefix backend install",
+    "postinstall": "npm --prefix backend install",
     "backend": "npm --prefix backend start",
     "dev": "npm --prefix backend run dev"
+  },
+  "dependencies": {
+    "@google-cloud/vertexai": "^1.12.0",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.13.5",
+    "cors": "^2.8.6",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "firebase-admin": "^13.10.0",
+    "gcp-metadata": "^9.0.3",
+    "google-auth-library": "^11.0.2",
+    "jose": "^6.2.12",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.1.0",
+    "multer": "^2.3.0"
   }
 }

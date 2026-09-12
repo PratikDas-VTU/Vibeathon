@@ -37,6 +37,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const btn = document.getElementById("loginBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>SIGNING IN...</span> <i class="fas fa-spinner fa-spin"></i>';
+    }
+
     try {
       const loginUrl = window.getApiUrl ? window.getApiUrl("/api/auth/login") : "/api/auth/login";
       const res = await fetch(
@@ -50,10 +56,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       );
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        message.textContent = data.error || "Login failed.";
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>ENTER DASHBOARD</span> <i class="fas fa-arrow-right"></i>';
+        }
+        message.textContent = data.error || data.message || "Invalid Team ID/Email or password.";
         message.classList.add("error");
         return;
       }
@@ -63,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ===================== */
       localStorage.setItem("token", data.token);
 
-      message.textContent = "Login successful. Redirecting...";
+      message.textContent = "Login successful. Redirecting to workspace...";
       message.classList.add("success");
 
       /* =====================
@@ -75,6 +85,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     } catch (err) {
       console.error("Login error:", err);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>ENTER DASHBOARD</span> <i class="fas fa-arrow-right"></i>';
+      }
       if (!navigator.onLine) {
         message.textContent = "No internet connection detected. Please connect to Wi-Fi / Internet and try again.";
       } else {
