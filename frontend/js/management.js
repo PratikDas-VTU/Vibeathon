@@ -139,10 +139,28 @@ document.addEventListener("DOMContentLoaded", () => {
       allTeamsData = data.teams;
       updateStats(allTeamsData);
       renderTeams(allTeamsData);
+      syncDemoCredentialsList();
     } else {
       if (teamsTableBody) {
         teamsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--rose);">Failed to load teams: ${data.message || "Unknown error"}</td></tr>`;
       }
+    }
+  }
+
+  function syncDemoCredentialsList() {
+    if (!allTeamsData) return;
+    const demoTeams = allTeamsData.filter(t => t.isDemo === true || (t.vccId && t.vccId.toUpperCase().startsWith("DEMO")));
+    if (demoTeams.length > 0) {
+      activeDemoList = demoTeams.map(t => ({
+        vccId: t.vccId,
+        email: t.M1_Email,
+        password: t.M1_Phone || "demo12345",
+        leader: t.M1_Name
+      })).sort((a, b) => (a.vccId || "").localeCompare(b.vccId || "", undefined, { numeric: true }));
+      renderDemoList(activeDemoList);
+    } else {
+      activeDemoList = [];
+      if (demoCredentialsSection) demoCredentialsSection.style.display = "none";
     }
   }
 
@@ -471,10 +489,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res && res.ok) {
         const data = await res.json();
-        activeDemoList = data.demoTeams || [];
-        showToast(`Provisioned ${activeDemoList.length} demo accounts!`, "success");
-        renderDemoList(activeDemoList);
-        loadParticipants();
+        showToast(`Provisioned ${data.demoTeams?.length || 0} demo accounts!`, "success");
+        await loadParticipants();
       }
     });
   }

@@ -381,21 +381,63 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
     const createdTeams = [];
     const safeCount = Math.min(Math.max(1, parseInt(count) || 3), 30); // Max 30 at a time
 
+    // Fetch existing teams to calculate highest existing demo ID and team number
+    const snapshot = await db.ref("teams").once("value");
+    const existingTeams = snapshot.val() || {};
+
+    let maxNum = 100;
+    let maxTeamNo = 9000;
+    let maxLeadIndex = 0;
+
+    const prefixUpper = (prefix || "DEMO").toUpperCase();
+    const prefixRegex = new RegExp(`^${prefixUpper}(\\d+)$`, "i");
+
+    for (const vccId of Object.keys(existingTeams)) {
+        const team = existingTeams[vccId];
+        const match = vccId.match(prefixRegex);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num > maxNum) {
+                maxNum = num;
+            }
+        }
+        if (team && (team.isDemo === true || vccId.toUpperCase().startsWith(prefixUpper))) {
+            if (team.teamNo && !isNaN(team.teamNo) && team.teamNo > maxTeamNo) {
+                maxTeamNo = team.teamNo;
+            }
+            if (team.M1_Name) {
+                const leadMatch = team.M1_Name.match(/Demo\s+Lead\s+(\d+)/i);
+                if (leadMatch) {
+                    const leadNum = parseInt(leadMatch[1], 10);
+                    if (!isNaN(leadNum) && leadNum > maxLeadIndex) {
+                        maxLeadIndex = leadNum;
+                    }
+                }
+            }
+        }
+    }
+
+    if (maxNum > 100 && maxLeadIndex < (maxNum - 100)) {
+        maxLeadIndex = maxNum - 100;
+    }
+
     for (let i = 1; i <= safeCount; i++) {
-        const numStr = String(100 + i);
-        const vccId = `${prefix}${numStr}`;
-        const email = `demo_${prefix.toLowerCase()}_${numStr}@vibeathon.internal`;
+        const currentNum = maxNum + i;
+        const numStr = String(currentNum);
+        const vccId = `${prefixUpper}${numStr}`;
+        const email = `demo_${prefixUpper.toLowerCase()}_${numStr}@vibeathon.internal`;
+        const leadIndex = maxLeadIndex + i;
 
         const teamData = {
             vccId,
-            teamNo: 9000 + i,
+            teamNo: maxTeamNo + i,
             teamSize: 2,
             college: "Vibeathon Sandbox Academy",
-            M1_Name: `Demo Lead ${i}`,
+            M1_Name: `Demo Lead ${leadIndex}`,
             M1_Email: email,
             M1_Phone: defaultPassword,
             M1_Branch: "AI & Cyber Security",
-            M2_Name: `Demo Builder ${i}`,
+            M2_Name: `Demo Builder ${leadIndex}`,
             M2_Email: `builder_${numStr}@vibeathon.internal`,
             M2_Phone: "9876543210",
             sessionEnded: false,
