@@ -504,14 +504,14 @@ button:disabled {
 }
 
 /* Column Width Bounds to Prevent Table Overflow */
-.manage-table .col-id { width: 85px; white-space: nowrap; }
-.manage-table .col-leader { max-width: 170px; }
-.manage-table .col-email { max-width: 190px; }
-.manage-table .col-phone { width: 110px; white-space: nowrap; }
-.manage-table .col-status { width: 145px; white-space: nowrap; }
-.manage-table .col-deliv { width: 105px; text-align: center; white-space: nowrap; }
-.manage-table .col-score { width: 75px; text-align: center; white-space: nowrap; }
-.manage-table .col-actions { width: 155px; text-align: right; white-space: nowrap; }
+.manage-table .col-id { width: 90px; white-space: nowrap; }
+.manage-table .col-leader { min-width: 140px; }
+.manage-table .col-email { min-width: 160px; }
+.manage-table .col-phone { width: 115px; white-space: nowrap; }
+.manage-table .col-status { width: 155px; white-space: nowrap; }
+.manage-table .col-deliv { width: 110px; text-align: center; white-space: nowrap; }
+.manage-table .col-score { width: 85px; min-width: 85px; text-align: center; white-space: nowrap; }
+.manage-table .col-actions { min-width: 185px; width: 190px; text-align: right; white-space: nowrap; }
 
 /* Deliverables Clickable Chips */
 .deliv-wrap {
@@ -717,10 +717,16 @@ button:disabled {
 }
 
 .actions-cell {
-  display: flex;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.actions-wrap {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   justify-content: flex-end;
+  white-space: nowrap;
 }
 
 /* ================= FORM CONTROLS ================= */

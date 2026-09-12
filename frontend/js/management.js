@@ -281,15 +281,17 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="col-deliv">${deliverableSummary}</td>
           <td class="col-score">${aiScoreBadge}</td>
           <td class="col-actions actions-cell">
-            <button class="btn btn-secondary btn-sm" onclick="window.openEditTeamModal('${teamId}')" title="Edit Credentials">
-              <i class="fas fa-edit"></i> Edit
-            </button>
-            <button class="btn btn-warning btn-sm" onclick="window.resetTeamSessionSingle('${teamId}')" title="Reset Timer / Session">
-              <i class="fas fa-undo"></i> Reset
-            </button>
-            <button class="btn btn-danger btn-sm" onclick="window.deleteTeamSingle('${teamId}')" title="Delete Team">
-              <i class="fas fa-trash"></i>
-            </button>
+            <div class="actions-wrap">
+              <button class="btn btn-secondary btn-sm" onclick="window.openEditTeamModal('${teamId}')" title="Edit Credentials">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="btn btn-warning btn-sm" onclick="window.resetTeamSessionSingle('${teamId}')" title="Reset Timer / Session">
+                <i class="fas fa-undo"></i> Reset
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="window.deleteTeamSingle('${teamId}')" title="Delete Team">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
           </td>
         </tr>
       `;
