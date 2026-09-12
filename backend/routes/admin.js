@@ -4,6 +4,7 @@ const verifyAdmin = require("../middleware/verifyAdmin");
 const {
   getAllTeams,
   getAllPrompts,
+  getPromptsByTeamId,
   getPromptsByVccId,
   createPromptEvaluation,
   getAllPromptEvaluations,
@@ -70,12 +71,13 @@ router.get("/prompts", verifyAdmin, async (req, res) => {
 /* ==================================================
    GET TEAM-SPECIFIC PROMPT ANALYTICS (ADMIN)
    ================================================== */
-router.get("/teams/:vccId/prompts", verifyAdmin, async (req, res) => {
+router.get(["/teams/:id/prompts", "/teams/:vccId/prompts"], verifyAdmin, async (req, res) => {
   try {
-    const { vccId } = req.params;
+    const teamId = req.params.id || req.params.vccId;
 
     // Fetch all prompts for this team
-    const prompts = await getPromptsByVccId(vccId);
+    const fetchPrompts = getPromptsByTeamId || getPromptsByVccId;
+    const prompts = await fetchPrompts(teamId);
 
     // Analytics
     const totalPrompts = prompts.length;
@@ -87,7 +89,9 @@ router.get("/teams/:vccId/prompts", verifyAdmin, async (req, res) => {
     const uniqueAIs = Array.from(uniqueAIsSet);
 
     res.json({
-      vccId,
+      id: teamId,
+      teamId,
+      vccId: teamId,
       totalPrompts,
       uniqueAICount: uniqueAIs.length,
       uniqueAIs,

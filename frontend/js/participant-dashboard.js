@@ -95,10 +95,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const teamData = await res.json();
     team = teamData;
-    VCC_ID = team.vccId;
+    TEAM_ID = team.teamId || team.id || team.vccId;
+    VCC_ID = TEAM_ID;
     sessionEnded = team.sessionEnded === true;
 
-    console.log("✅ Team loaded successfully:", VCC_ID);
+    console.log("✅ Team loaded successfully:", TEAM_ID);
 
   } catch (error) {
     console.error("❌ TEAM LOAD ERROR:", error);
@@ -140,18 +141,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const teamIdEl = document.getElementById("teamId");
   const teamSizeEl = document.getElementById("teamSize");
 
-  if (headerTeamEl) headerTeamEl.textContent = VCC_ID || "TEAM";
-  if (teamIdEl) teamIdEl.textContent = VCC_ID || "—";
+  if (headerTeamEl) headerTeamEl.textContent = TEAM_ID || "TEAM";
+  if (teamIdEl) teamIdEl.textContent = TEAM_ID || "—";
   if (teamSizeEl) teamSizeEl.textContent = `${team.teamSize || 1} BUILDER${team.teamSize > 1 ? "S" : ""}`;
 
   // Copy Team ID functionality
   if (copyTeamIdBtn) {
     copyTeamIdBtn.onclick = () => {
-      if (VCC_ID) {
-        navigator.clipboard.writeText(VCC_ID).then(() => {
-          showToast(`Team ID ${VCC_ID} copied to clipboard!`, "success");
+      if (TEAM_ID) {
+        navigator.clipboard.writeText(TEAM_ID).then(() => {
+          showToast(`Team ID ${TEAM_ID} copied to clipboard!`, "success");
         }).catch(() => {
-          showToast(`Team ID: ${VCC_ID}`, "info");
+          showToast(`Team ID: ${TEAM_ID}`, "info");
         });
       }
     };
@@ -304,7 +305,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Check if we have a locally cached start time for this team to render immediately
-  const cachedStart = localStorage.getItem("hackathonStart_" + VCC_ID);
+  const cachedStart = localStorage.getItem("hackathonStart_" + TEAM_ID);
   if (cachedStart) {
     hackathonStart = new Date(cachedStart).getTime();
     updateTimerTick();
@@ -318,7 +319,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const startData = await startRes.json();
     if (startData && startData.hackathonStart) {
       hackathonStart = new Date(startData.hackathonStart).getTime();
-      localStorage.setItem("hackathonStart_" + VCC_ID, startData.hackathonStart);
+      localStorage.setItem("hackathonStart_" + TEAM_ID, startData.hackathonStart);
       updateTimerTick();
     }
   } catch (err) {

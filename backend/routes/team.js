@@ -1,6 +1,6 @@
 const express = require("express");
 const auth = require("../middleware/auth");
-const { getTeamByVccId } = require("../services/firebaseService");
+const { getTeamById, getTeamByVccId } = require("../services/firebaseService");
 
 const router = express.Router();
 
@@ -10,14 +10,20 @@ const router = express.Router();
  */
 router.get("/me", auth, async (req, res) => {
   try {
-    const team = await getTeamByVccId(req.team.vccId);
+    const teamLookup = getTeamById || getTeamByVccId;
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const team = await teamLookup(teamId);
 
     if (!team) {
       return res.status(404).json({ error: "Team not found" });
     }
 
+    const tId = team.teamId || team.id || team.vccId;
+
     res.json({
-      vccId: team.vccId,
+      id: tId,
+      teamId: tId,
+      vccId: tId,
       teamNo: team.teamNo,
       teamSize: team.teamSize,
       members: team.members,

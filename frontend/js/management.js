@@ -149,14 +149,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function syncDemoCredentialsList() {
     if (!allTeamsData) return;
-    const demoTeams = allTeamsData.filter(t => t.isDemo === true || (t.vccId && t.vccId.toUpperCase().startsWith("DEMO")));
+    const demoTeams = allTeamsData.filter(t => t.isDemo === true || ((t.id || t.teamId || t.vccId) && (t.id || t.teamId || t.vccId).toUpperCase().startsWith("DEMO")));
     if (demoTeams.length > 0) {
-      activeDemoList = demoTeams.map(t => ({
-        vccId: t.vccId,
-        email: t.M1_Email,
-        password: t.M1_Phone || "demo12345",
-        leader: t.M1_Name
-      })).sort((a, b) => (a.vccId || "").localeCompare(b.vccId || "", undefined, { numeric: true }));
+      activeDemoList = demoTeams.map(t => {
+        const teamId = t.id || t.teamId || t.vccId;
+        return {
+          id: teamId,
+          teamId: teamId,
+          vccId: teamId,
+          email: t.M1_Email,
+          password: t.M1_Phone || "demo12345",
+          leader: t.M1_Name
+        };
+      }).sort((a, b) => (a.id || a.teamId || "").localeCompare(b.id || b.teamId || "", undefined, { numeric: true }));
       renderDemoList(activeDemoList);
     } else {
       activeDemoList = [];
@@ -168,7 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const total = teams.length;
     const active = teams.filter(t => t.hackathonStart && !t.sessionEnded).length;
     const submitted = teams.filter(t => t.githubUrl || t.deploymentUrl).length;
-    const demo = teams.filter(t => t.isDemo || (t.vccId && t.vccId.startsWith("DEMO"))).length;
+    const demo = teams.filter(t => t.isDemo || ((t.id || t.teamId || t.vccId) && (t.id || t.teamId || t.vccId).toUpperCase().startsWith("DEMO"))).length;
 
     const statTotal = document.getElementById("statTotalTeams");
     const statActive = document.getElementById("statActiveTeams");
@@ -190,9 +195,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     teamsTableBody.innerHTML = teams.map(t => {
+      const teamId = t.id || t.teamId || t.vccId || "—";
       const isEnded = Boolean(t.sessionEnded);
       const isLive = Boolean(t.hackathonStart && !isEnded);
-      const isDemo = Boolean(t.isDemo || (t.vccId && t.vccId.startsWith("DEMO")));
+      const isDemo = Boolean(t.isDemo || (teamId && teamId.startsWith("DEMO")));
 
       // Live sprint remaining time calculation
       let remainingStr = "";
@@ -237,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       return `
         <tr>
-          <td><span class="vcc-badge">${t.vccId || "—"}</span></td>
+          <td><span class="team-badge">${teamId}</span></td>
           <td>
             <div style="font-weight: 600; color: var(--text-1); display:flex; align-items:center;">
               ${beaconIcon} ${escapeHtml(t.M1_Name || "Team Leader")}
@@ -253,13 +259,13 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${statusBadge}</td>
           <td>${deliverableSummary}</td>
           <td class="actions-cell">
-            <button class="btn btn-secondary btn-sm" onclick="window.openEditTeamModal('${t.vccId}')" title="Edit Credentials">
+            <button class="btn btn-secondary btn-sm" onclick="window.openEditTeamModal('${teamId}')" title="Edit Credentials">
               <i class="fas fa-edit"></i> Edit
             </button>
-            <button class="btn btn-warning btn-sm" onclick="window.resetTeamSessionSingle('${t.vccId}')" title="Reset Timer / Session">
+            <button class="btn btn-warning btn-sm" onclick="window.resetTeamSessionSingle('${teamId}')" title="Reset Timer / Session">
               <i class="fas fa-undo"></i> Reset
             </button>
-            <button class="btn btn-danger btn-sm" onclick="window.deleteTeamSingle('${t.vccId}')" title="Delete Team">
+            <button class="btn btn-danger btn-sm" onclick="window.deleteTeamSingle('${teamId}')" title="Delete Team">
               <i class="fas fa-trash"></i>
             </button>
           </td>
@@ -276,13 +282,16 @@ document.addEventListener("DOMContentLoaded", () => {
         renderTeams(allTeamsData);
         return;
       }
-      const filtered = allTeamsData.filter(t => 
-        (t.vccId && t.vccId.toLowerCase().includes(q)) ||
-        (t.M1_Name && t.M1_Name.toLowerCase().includes(q)) ||
-        (t.M1_Email && t.M1_Email.toLowerCase().includes(q)) ||
-        (t.M1_Phone && t.M1_Phone.toLowerCase().includes(q)) ||
-        (t.college && t.college.toLowerCase().includes(q))
-      );
+      const filtered = allTeamsData.filter(t => {
+        const teamId = (t.id || t.teamId || t.vccId || "").toLowerCase();
+        return (
+          teamId.includes(q) ||
+          (t.M1_Name && t.M1_Name.toLowerCase().includes(q)) ||
+          (t.M1_Email && t.M1_Email.toLowerCase().includes(q)) ||
+          (t.M1_Phone && t.M1_Phone.toLowerCase().includes(q)) ||
+          (t.college && t.college.toLowerCase().includes(q))
+        );
+      });
       renderTeams(filtered);
     });
   }
@@ -295,12 +304,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeEditModalBtn = document.getElementById("closeEditModalBtn");
   const cancelEditModalBtn = document.getElementById("cancelEditModalBtn");
 
-  window.openEditTeamModal = (vccId) => {
-    const team = allTeamsData.find(t => t.vccId === vccId);
+  window.openEditTeamModal = (teamId) => {
+    const team = allTeamsData.find(t => (t.id || t.teamId || t.vccId) === teamId);
     if (!team) return;
 
-    document.getElementById("editModalVccId").textContent = vccId;
-    document.getElementById("editVccId").value = vccId;
+    const modalTitleEl = document.getElementById("editModalTeamId") || document.getElementById("editModalVccId");
+    if (modalTitleEl) modalTitleEl.textContent = teamId;
+
+    const hiddenIdEl = document.getElementById("editTeamId") || document.getElementById("editVccId");
+    if (hiddenIdEl) hiddenIdEl.value = teamId;
+
     document.getElementById("editLeaderName").value = team.M1_Name || "";
     document.getElementById("editCollege").value = team.college || "";
     document.getElementById("editEmail").value = team.M1_Email || "";
@@ -321,7 +334,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (editTeamForm) {
     editTeamForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const vccId = document.getElementById("editVccId").value;
+      const idEl = document.getElementById("editTeamId") || document.getElementById("editVccId");
+      const teamId = idEl ? idEl.value : "";
       const updates = {
         M1_Name: document.getElementById("editLeaderName").value.trim(),
         college: document.getElementById("editCollege").value.trim(),
@@ -338,7 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
       }
 
-      const res = await manageFetch(`/api/manage/teams/${vccId}`, {
+      const res = await manageFetch(`/api/manage/teams/${teamId}`, {
         method: "PUT",
         body: JSON.stringify(updates)
       });
@@ -349,20 +363,20 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (res && res.ok) {
-        showToast(`Team ${vccId} updated successfully!`, "success");
+        showToast(`Team ${teamId} updated successfully!`, "success");
         closeEditModal();
         loadParticipants();
       } else {
-        showToast(`Failed to update team ${vccId}.`, "error");
+        showToast(`Failed to update team ${teamId}.`, "error");
       }
     });
   }
 
   // Single Team Reset
-  window.resetTeamSessionSingle = async (vccId) => {
+  window.resetTeamSessionSingle = async (teamId) => {
     const confirmed = await window.showConfirmDialog({
       title: "Reset Team Countdown",
-      message: `Reset session and 2-hour countdown for Team ${vccId}?`,
+      message: `Reset session and 2-hour countdown for Team ${teamId}?`,
       details: "This unlocks their dashboard terminal and restarts their 2-hour timer back to 2:00:00.",
       type: "warning",
       confirmText: "Reset Countdown",
@@ -370,18 +384,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (!confirmed) return;
 
-    const res = await manageFetch(`/api/manage/teams/${vccId}/reset`, { method: "POST" });
+    const res = await manageFetch(`/api/manage/teams/${teamId}/reset`, { method: "POST" });
     if (res && res.ok) {
-      showToast(`Team ${vccId} timer reset and session unlocked!`, "success");
+      showToast(`Team ${teamId} timer reset and session unlocked!`, "success");
       loadParticipants();
     }
   };
 
   // Single Team Delete
-  window.deleteTeamSingle = async (vccId) => {
+  window.deleteTeamSingle = async (teamId) => {
     const confirmed = await window.showConfirmDialog({
       title: "Delete Team Account",
-      message: `Are you sure you want to completely delete Team ${vccId}?`,
+      message: `Are you sure you want to completely delete Team ${teamId}?`,
       details: "This removes their login credentials, team roster, and all database records. This action cannot be undone.",
       type: "danger",
       confirmText: "Delete Team",
@@ -389,9 +403,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (!confirmed) return;
 
-    const res = await manageFetch(`/api/manage/teams/${vccId}`, { method: "DELETE" });
+    const res = await manageFetch(`/api/manage/teams/${teamId}`, { method: "DELETE" });
     if (res && res.ok) {
-      showToast(`Team ${vccId} deleted.`, "success");
+      showToast(`Team ${teamId} deleted.`, "success");
       loadParticipants();
     }
   };
@@ -417,8 +431,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (addTeamForm) {
     addTeamForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const addInput = document.getElementById("addTeamId") || document.getElementById("addVccId");
+      const teamId = addInput.value.trim().toUpperCase();
       const payload = {
-        vccId: document.getElementById("addVccId").value.trim().toUpperCase(),
+        id: teamId,
+        teamId: teamId,
+        vccId: teamId,
         leaderName: document.getElementById("addLeaderName").value.trim(),
         email: document.getElementById("addEmail").value.trim().toLowerCase(),
         password: document.getElementById("addPassword").value.trim(),
@@ -443,7 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (res && res.ok) {
-        showToast(`Team ${payload.vccId} registered and live!`, "success");
+        showToast(`Team ${payload.teamId || payload.id || payload.vccId} registered and live!`, "success");
         closeAddModal();
         addTeamForm.reset();
         loadParticipants();
@@ -505,7 +523,7 @@ document.addEventListener("DOMContentLoaded", () => {
     demoCredentialsSection.style.display = "block";
     demoTableBody.innerHTML = list.map(item => `
       <tr>
-        <td><span class="vcc-badge">${item.vccId}</span></td>
+        <td><span class="team-badge">${item.teamId || item.id || item.vccId}</span></td>
         <td><code>${escapeHtml(item.email)}</code></td>
         <td><code>${escapeHtml(item.password)}</code></td>
         <td>
@@ -520,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (copyAllDemoBtn) {
     copyAllDemoBtn.addEventListener("click", () => {
       if (activeDemoList.length === 0) return;
-      const text = activeDemoList.map(d => `VCC ID: ${d.vccId} | Email: ${d.email} | Password: ${d.password}`).join("\n");
+      const text = activeDemoList.map(d => `Team ID: ${d.teamId || d.id || d.vccId} | Email: ${d.email} | Password: ${d.password}`).join("\n");
       navigator.clipboard.writeText(text);
       showToast("All demo credentials copied to clipboard!", "success");
     });
@@ -930,8 +948,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const importCountBadge = document.getElementById("importCountBadge");
   const importMappingSummary = document.getElementById("importMappingSummary");
   const executeImportBtn = document.getElementById("executeImportBtn");
-  const importVccPrefix = document.getElementById("importVccPrefix");
-  const importVccStart = document.getElementById("importVccStart");
+  const importTeamPrefix = document.getElementById("importTeamPrefix") || document.getElementById("importVccPrefix");
+  const importTeamStart = document.getElementById("importTeamStart") || document.getElementById("importVccStart");
   const dropZoneText = document.getElementById("dropZoneText");
   const importSuccessDownloadSection = document.getElementById("importSuccessDownloadSection");
   const importSuccessMsg = document.getElementById("importSuccessMsg");
@@ -958,7 +976,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Intelligent column detector for Google Forms & CSV
   function detectColumns(headers) {
     const mapping = {
-      vccId: -1,
+      teamId: -1,
       teamNo: -1,
       teamSize: -1,
       m1Name: -1,
@@ -1007,8 +1025,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Team / Leader / Member 1
-      if (mapping.vccId === -1 && /vcc|team\s*id|team_id/i.test(h)) {
-        mapping.vccId = idx;
+      if (mapping.teamId === -1 && /team\s*id|team_id|id|vcc/i.test(h)) {
+        mapping.teamId = idx;
       } else if (mapping.teamNo === -1 && /team\s*no|team_no|s\.?no|sl\.?no/i.test(h)) {
         mapping.teamNo = idx;
       } else if (mapping.teamSize === -1 && /team\s*size|team_size|members\s*count/i.test(h)) {
@@ -1055,8 +1073,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const rawHeaders = splitCSVLine(lines[0]);
     const colMap = detectColumns(rawHeaders);
 
-    const prefix = (importVccPrefix ? importVccPrefix.value.trim() : "VCC").toUpperCase() || "VCC";
-    const startNum = parseInt(importVccStart ? importVccStart.value : 101) || 101;
+    const prefix = (importTeamPrefix ? importTeamPrefix.value.trim() : "TEAM").toUpperCase() || "TEAM";
+    const startNum = parseInt(importTeamStart ? importTeamStart.value : 101) || 101;
 
     const teams = [];
 
@@ -1074,9 +1092,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const college = getVal(colMap.m1College) || "School of Computing";
       const branch = getVal(colMap.m1Branch) || "Cyber Security";
 
-      let vccId = getVal(colMap.vccId).toUpperCase();
-      if (!vccId) {
-        vccId = `${prefix}${startNum + (i - 1)}`;
+      let teamId = getVal(colMap.teamId).toUpperCase();
+      if (!teamId) {
+        teamId = `${prefix}${startNum + (i - 1)}`;
       }
 
       const teamNo = parseInt(getVal(colMap.teamNo)) || i;
@@ -1102,7 +1120,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const teamEntry = {
-        VCC_ID: vccId,
+        Team_ID: teamId,
+        teamId: teamId,
+        id: teamId,
+        VCC_ID: teamId,
         Team_No: teamNo,
         Team_Size: calcSize,
         M1_College: college,
@@ -1148,12 +1169,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (importPreviewTableBody) {
         importPreviewTableBody.innerHTML = teams.slice(0, 8).map(t => `
           <tr>
-            <td><strong style="color:var(--cyan); font-family:var(--font-mono);">${escapeHtml(t.VCC_ID)}</strong></td>
+            <td><strong style="color:var(--cyan); font-family:var(--font-mono);">${escapeHtml(t.Team_ID || t.teamId || t.VCC_ID)}</strong></td>
             <td><strong>${escapeHtml(t.M1_Name)}</strong></td>
             <td><span class="cred-chip">${escapeHtml(t.M1_Email)}</span></td>
             <td><span class="cred-chip" style="color:var(--green); font-weight:700;">${escapeHtml(t.M1_Phone)}</span></td>
             <td style="color:var(--text-3);">${escapeHtml(t.M1_College)}</td>
-            <td><span class="vcc-badge">${t.Team_Size} Members</span></td>
+            <td><span class="team-badge">${t.Team_Size} Members</span></td>
           </tr>
         `).join("");
       }
@@ -1293,7 +1314,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const header = "Team_ID,Leader_Name,Login_Email,Login_Password,College,Team_Size\n";
       const rows = lastImportedCredentials.map(t => 
-        `"${t.vccId || t.VCC_ID}","${t.leaderName || t.M1_Name}","${t.email || t.M1_Email}","${t.password || t.M1_Phone}","${t.college || t.M1_College || ''}",${t.teamSize || t.Team_Size || 2}`
+        `"${t.Team_ID || t.teamId || t.id || t.vccId || t.VCC_ID}","${t.leaderName || t.M1_Name}","${t.email || t.M1_Email}","${t.password || t.M1_Phone}","${t.college || t.M1_College || ''}",${t.teamSize || t.Team_Size || 2}`
       ).join("\n");
 
       const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });

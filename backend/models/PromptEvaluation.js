@@ -8,9 +8,13 @@ const promptEvaluationSchema = new mongoose.Schema({
     unique: true
   },
 
+  teamId: {
+    type: String,
+    index: true
+  },
+
   vccId: {
     type: String,
-    required: true,
     index: true
   },
 

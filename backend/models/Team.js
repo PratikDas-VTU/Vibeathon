@@ -12,10 +12,14 @@ const memberSchema = new mongoose.Schema(
 
 const teamSchema = new mongoose.Schema(
   {
+    teamId: {
+      type: String,
+      index: true
+    },
+
     vccId: {
       type: String,
-      required: true,
-      unique: true
+      index: true
     },
 
     teamNo: {

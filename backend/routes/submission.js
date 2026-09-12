@@ -1,9 +1,12 @@
 const express = require("express");
 const auth = require("../middleware/auth");
 const {
+  getTeamById,
   getTeamByVccId,
   updateTeam,
-  createPrompt
+  createPrompt,
+  getPromptsByTeamId,
+  getPromptsByVccId
 } = require("../services/firebaseService");
 const { enqueuePromptEvaluation } = require("../services/evaluationQueue");
 
@@ -14,8 +17,8 @@ const fs = require("fs");
 /* =====================================================
    HELPER — MARK TEAM AS ACTIVE
 ===================================================== */
-async function markActive(vccId) {
-  await updateTeam(vccId, {
+async function markActive(teamId) {
+  await updateTeam(teamId, {
     lastActiveAt: new Date().toISOString()
   });
 }
@@ -25,18 +28,19 @@ async function markActive(vccId) {
 ===================================================== */
 router.post("/start", auth, async (req, res) => {
   try {
-    const team = await getTeamByVccId(req.team.vccId);
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
     if (!team.hackathonStart) {
-      await updateTeam(team.vccId, {
+      await updateTeam(teamId, {
         hackathonStart: new Date().toISOString()
       });
     }
 
-    await markActive(team.vccId);
+    await markActive(teamId);
 
-    const updatedTeam = await getTeamByVccId(req.team.vccId);
+    const updatedTeam = await getTeamById(teamId);
     res.json({ hackathonStart: updatedTeam.hackathonStart });
   } catch (err) {
     console.error(err);
@@ -55,15 +59,16 @@ router.post("/github", auth, async (req, res) => {
   }
 
   try {
-    const team = await getTeamByVccId(req.team.vccId);
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
     if (team.sessionEnded) {
       return res.status(403).json({ message: "Session ended. Locked." });
     }
 
-    await updateTeam(team.vccId, { githubUrl });
-    await markActive(team.vccId);
+    await updateTeam(teamId, { githubUrl });
+    await markActive(teamId);
 
     res.json({ message: "GitHub URL saved" });
   } catch (err) {
@@ -83,15 +88,16 @@ router.post("/deployment", auth, async (req, res) => {
   }
 
   try {
-    const team = await getTeamByVccId(req.team.vccId);
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
     if (team.sessionEnded) {
       return res.status(403).json({ message: "Session ended. Locked." });
     }
 
-    await updateTeam(team.vccId, { deploymentUrl });
-    await markActive(team.vccId);
+    await updateTeam(teamId, { deploymentUrl });
+    await markActive(teamId);
 
     res.json({ message: "Deployment URL saved" });
   } catch (err) {
@@ -111,7 +117,8 @@ router.post("/prompt", auth, async (req, res) => {
   }
 
   try {
-    const team = await getTeamByVccId(req.team.vccId);
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
     if (team.sessionEnded) {
@@ -119,16 +126,17 @@ router.post("/prompt", auth, async (req, res) => {
     }
 
     const newPrompt = await createPrompt({
-      vccId: team.vccId,
+      teamId,
+      vccId: teamId,
       aiTool: aiTool,
       promptText
     });
 
-    await markActive(team.vccId);
+    await markActive(teamId);
 
     // Trigger instant asynchronous evaluation in background
     if (newPrompt && newPrompt.id) {
-      enqueuePromptEvaluation(newPrompt.id, team.vccId, promptText, aiTool);
+      enqueuePromptEvaluation(newPrompt.id, teamId, promptText, aiTool);
     }
 
     res.json({ message: "Prompt submitted successfully", promptId: newPrompt?.id });
@@ -143,10 +151,11 @@ router.post("/prompt", auth, async (req, res) => {
 ===================================================== */
 router.get("/prompts", auth, async (req, res) => {
   try {
-    const { getPromptsByVccId } = require("../services/firebaseService");
-    const prompts = await getPromptsByVccId(req.team.vccId);
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const fetchPrompts = getPromptsByTeamId || getPromptsByVccId;
+    const prompts = await fetchPrompts(teamId);
 
-    await markActive(req.team.vccId);
+    await markActive(teamId);
 
     res.json(prompts);
   } catch (err) {
@@ -160,11 +169,12 @@ router.get("/prompts", auth, async (req, res) => {
 ===================================================== */
 router.post("/end", auth, async (req, res) => {
   try {
-    const team = await getTeamByVccId(req.team.vccId);
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    await updateTeam(team.vccId, { sessionEnded: true });
-    await markActive(team.vccId);
+    await updateTeam(teamId, { sessionEnded: true });
+    await markActive(teamId);
 
     res.json({ message: "Session ended" });
   } catch (err) {
@@ -178,7 +188,8 @@ router.post("/end", auth, async (req, res) => {
 ===================================================== */
 router.get("/problem-statement", auth, async (req, res) => {
   try {
-    const team = await getTeamByVccId(req.team.vccId);
+    const teamId = req.team.teamId || req.team.id || req.team.vccId;
+    const team = await getTeamById(teamId);
     if (!team) {
       return res.status(404).json({ message: "Team not found" });
     }

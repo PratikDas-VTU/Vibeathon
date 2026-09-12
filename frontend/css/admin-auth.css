@@ -86,6 +86,7 @@ body {
   z-index: 10;
 }
 
+.header-left .team-logo,
 .header-left .vcc-logo,
 .header-left .vibe-svg-logo {
   height: 42px;

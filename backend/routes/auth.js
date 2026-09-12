@@ -49,10 +49,14 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Team not found in records." });
     }
 
+    const teamId = team.teamId || team.id || team.vccId;
+
     res.json({
       token: idToken,
       team: {
-        vccId: team.vccId,
+        id: teamId,
+        teamId: teamId,
+        vccId: teamId,
         teamNo: team.teamNo,
         teamSize: team.teamSize,
         sessionEnded: team.sessionEnded ?? false

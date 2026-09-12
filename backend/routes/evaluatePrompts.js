@@ -189,23 +189,24 @@ router.post("/evaluate-prompts", verifyAdmin, async (req, res) => {
         };
 
         // Process each team
-        for (const [vccId, team] of Object.entries(teams)) {
+        for (const [teamKey, team] of Object.entries(teams)) {
             results.total++;
+            const teamId = team.teamId || team.id || team.vccId || teamKey;
 
             // Get team's prompts
             const teamPrompts = Object.values(allPrompts).filter(
-                p => p.vccId === vccId
+                p => (p.teamId || p.id || p.vccId) === teamId
             );
 
             if (teamPrompts.length === 0) {
-                console.log(`⏭️  Skipping ${vccId}: No prompts submitted`);
+                console.log(`⏭️  Skipping ${teamId}: No prompts submitted`);
                 results.skipped++;
                 continue;
             }
 
             // Skip if already evaluated (unless force flag passed in body)
-            if (existingEvaluations[vccId] && !req.body?.force) {
-                console.log(`⏭️  Skipping ${vccId}: Already evaluated`);
+            if (existingEvaluations[teamId] && !req.body?.force) {
+                console.log(`⏭️  Skipping ${teamId}: Already evaluated`);
                 results.skipped++;
                 continue;
             }
@@ -221,7 +222,7 @@ router.post("/evaluate-prompts", verifyAdmin, async (req, res) => {
             const fullPrompt = `${customEvaluationPrompt}\n\n---\n\nTeam Prompts:\n\n${promptsText}`;
 
             try {
-                console.log(`🔄 Evaluating ${vccId} (${teamPrompts.length} prompts)...`);
+                console.log(`🔄 Evaluating ${teamId} (${teamPrompts.length} prompts)...`);
 
                 // Call Gemini API (Interactions API or fallback)
                 const content = await callGemini(fullPrompt);
@@ -255,31 +256,35 @@ router.post("/evaluate-prompts", verifyAdmin, async (req, res) => {
                 evaluation.score = Math.max(0, Math.min(100, evaluation.score));
 
                 // Store evaluation in Firebase
-                await db.ref(`promptEvaluations/${vccId}`).set({
+                await db.ref(`promptEvaluations/${teamId}`).set({
                     ...evaluation,
                     evaluatedAt: new Date().toISOString(),
                     promptCount: teamPrompts.length
                 });
 
                 // Also update team record with aiScore
-                await db.ref(`teams/${vccId}`).update({
+                await db.ref(`teams/${teamId}`).update({
                     aiScore: evaluation.score
                 });
 
-                console.log(`✅ ${vccId}: Score ${evaluation.score}/50 (${evaluation.level})`);
+                console.log(`✅ ${teamId}: Score ${evaluation.score}/50 (${evaluation.level})`);
 
                 results.evaluated++;
                 results.details.push({
-                    vccId,
+                    id: teamId,
+                    teamId,
+                    vccId: teamId,
                     score: evaluation.score,
                     level: evaluation.level
                 });
 
             } catch (error) {
-                console.error(`❌ Error evaluating ${vccId}:`, error.message);
+                console.error(`❌ Error evaluating ${teamId}:`, error.message);
                 results.failed++;
                 results.details.push({
-                    vccId,
+                    id: teamId,
+                    teamId,
+                    vccId: teamId,
                     error: error.message
                 });
             }

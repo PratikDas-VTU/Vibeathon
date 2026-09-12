@@ -13,21 +13,23 @@ module.exports = async function (req, res, next) {
     // Verify Firebase ID token or custom token
     const decoded = await verifyIdToken(token);
 
-    let vccId = decoded.vccId;
+    let teamId = decoded.teamId || decoded.id || decoded.vccId;
     let teamNo = decoded.teamNo;
 
     // Fallback: If custom claims are not baked into token, lookup team by email
-    if (!vccId && decoded.email) {
+    if (!teamId && decoded.email) {
       const { getTeamByEmail } = require("../services/firebaseService");
       const team = await getTeamByEmail(decoded.email);
       if (team) {
-        vccId = team.vccId;
+        teamId = team.teamId || team.id || team.vccId;
         teamNo = team.teamNo;
       }
     }
 
     req.team = {
-      vccId,
+      id: teamId,
+      teamId,
+      vccId: teamId,
       teamNo,
       email: decoded.email
     };

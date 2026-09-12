@@ -166,8 +166,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${seconds}s`;
   }
 
-  function computeTeamAIScore(vccId) {
-    const evalData = promptEvaluations[vccId];
+  function computeTeamAIScore(teamId) {
+    const evalData = promptEvaluations[teamId];
     if (evalData && typeof evalData.score === "number") {
       return evalData.score;
     }
@@ -209,18 +209,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
       promptStats = {};
       prompts.forEach(p => {
-        if (!promptStats[p.vccId]) {
-          promptStats[p.vccId] = {
+        const tId = p.teamId || p.id || p.vccId;
+        if (!promptStats[tId]) {
+          promptStats[tId] = {
             promptCount: 0,
             uniqueAITools: new Set()
           };
         }
-        promptStats[p.vccId].promptCount += 1;
-        if (p.aiTool) promptStats[p.vccId].uniqueAITools.add(p.aiTool);
+        promptStats[tId].promptCount += 1;
+        if (p.aiTool) promptStats[tId].uniqueAITools.add(p.aiTool);
       });
 
-      Object.keys(promptStats).forEach(vccId => {
-        promptStats[vccId].uniqueAITools = promptStats[vccId].uniqueAITools.size;
+      Object.keys(promptStats).forEach(teamId => {
+        promptStats[teamId].uniqueAITools = promptStats[teamId].uniqueAITools.size;
       });
 
       return prompts;
@@ -259,12 +260,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Prepare teams with computed metrics
     let enrichedTeams = teams.map(team => {
-      const stats = promptStats[team.vccId] || { promptCount: 0, uniqueAITools: 0 };
+      const tId = team.teamId || team.id || team.vccId;
+      const stats = promptStats[tId] || { promptCount: 0, uniqueAITools: 0 };
       const compTime = getCompletionTime(team);
-      const aiScore = computeTeamAIScore(team.vccId);
+      const aiScore = computeTeamAIScore(tId);
 
       return {
         ...team,
+        teamId: tId,
         promptCount: stats.promptCount,
         uniqueAITools: stats.uniqueAITools,
         completionTime: compTime,
@@ -275,11 +278,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // 3. Search Filter
     if (searchQuery) {
       enrichedTeams = enrichedTeams.filter(t => {
-        const vccId = (t.vccId || "").toLowerCase();
+        const teamId = (t.teamId || t.id || t.vccId || "").toLowerCase();
         const leader = (t.leaderName || "").toLowerCase();
         const college = (t.college || t.M1_College || "").toLowerCase();
         const email = (t.email || t.M1_Email || "").toLowerCase();
-        return vccId.includes(searchQuery) || leader.includes(searchQuery) || college.includes(searchQuery) || email.includes(searchQuery);
+        return teamId.includes(searchQuery) || leader.includes(searchQuery) || college.includes(searchQuery) || email.includes(searchQuery);
       });
     }
 
@@ -323,14 +326,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       case "none":
       default:
-        // natural order (teamNo or vccId)
+        // natural order (teamNo or teamId)
         break;
     }
 
     // 5. Fastest completion update
     const completedList = rankedTeams.filter(t => t.completionTime !== null);
     if (fastestTeamEl) {
-      fastestTeamEl.textContent = completedList.length > 0 ? completedList[0].vccId : "—";
+      fastestTeamEl.textContent = completedList.length > 0 ? (completedList[0].teamId || completedList[0].id || completedList[0].vccId) : "—";
     }
 
     // 6. Render Table
@@ -392,11 +395,11 @@ document.addEventListener("DOMContentLoaded", () => {
         aiScoreHtml = `<span class="score-badge"><i class="fas fa-bolt"></i> ${team.aiScore}/50</span>`;
       }
 
-      const collegeDisplay = team.college || team.M1_College || "Demo College";
+      const teamId = team.teamId || team.id || team.vccId;
 
       row.innerHTML = `
         <td><span class="rank-badge ${rankClass}">${rankLabel}</span></td>
-        <td><span class="team-id-chip">${escapeHtml(team.vccId)}</span></td>
+        <td><span class="team-id-chip">${escapeHtml(teamId)}</span></td>
         <td>
           <div class="leader-cell">
             <span class="leader-name">${escapeHtml(team.leaderName || team.M1_Name || "—")}</span>
@@ -408,7 +411,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${promptChip}</td>
         <td>${aiScoreHtml}</td>
         <td style="text-align: right;">
-          <button class="view-btn" data-id="${escapeHtml(team.vccId)}" title="Inspect Team Activity & Prompts">
+          <button class="view-btn" data-id="${escapeHtml(teamId)}" title="Inspect Team Activity & Prompts">
             <i class="fas fa-eye"></i> View
           </button>
         </td>
@@ -426,11 +429,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!btn) return;
 
     const teamId = btn.dataset.id;
-    const team = teams.find(t => t.vccId === teamId);
+    const team = teams.find(t => (t.teamId || t.id || t.vccId) === teamId);
     if (!team) return;
 
     if (modalTeamTitle) {
-      modalTeamTitle.textContent = `${team.vccId} · ${team.leaderName || "Team Overview"}`;
+      modalTeamTitle.textContent = `${teamId} · ${team.leaderName || "Team Overview"}`;
     }
 
     // 1. Team Info Box
@@ -451,11 +454,13 @@ document.addEventListener("DOMContentLoaded", () => {
       deliverablesRow += '</div>';
     }
 
+    const selectedTeamId = team.teamId || team.id || team.vccId;
+
     teamInfo.innerHTML = `
       <div class="info-grid">
         <div class="info-item">
-          <span class="info-label">Team Accession</span>
-          <span class="info-value" style="color: var(--cyan); font-family: var(--font-mono); font-weight: 800;">${escapeHtml(team.vccId)}</span>
+          <span class="info-label">Team ID</span>
+          <span class="info-value" style="color: var(--cyan); font-family: var(--font-mono); font-weight: 800;">${escapeHtml(selectedTeamId)}</span>
         </div>
         <div class="info-item">
           <span class="info-label">Team Leader</span>
@@ -494,8 +499,8 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     // 2. Team Stats Box
-    const stats = promptStats[team.vccId] || { promptCount: 0, uniqueAITools: 0 };
-    const aiScore = computeTeamAIScore(team.vccId);
+    const stats = promptStats[selectedTeamId] || { promptCount: 0, uniqueAITools: 0 };
+    const aiScore = computeTeamAIScore(selectedTeamId);
     const duration = formatDuration(getCompletionTime(team));
 
     teamStats.innerHTML = `
@@ -520,7 +525,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     // 3. Team Prompts (Expandable Cards)
-    const teamPrompts = allPrompts.filter(p => p.vccId === team.vccId);
+    const teamPrompts = allPrompts.filter(p => (p.teamId || p.id || p.vccId) === selectedTeamId);
     if (modalPromptCount) modalPromptCount.textContent = `${teamPrompts.length} Prompt${teamPrompts.length === 1 ? "" : "s"}`;
 
     promptTable.innerHTML = "";
@@ -811,12 +816,13 @@ document.addEventListener("DOMContentLoaded", () => {
     exportBtn.addEventListener("click", async () => {
       try {
         const rows = teams.map(team => {
-          const stats = promptStats[team.vccId] || { promptCount: 0, uniqueAITools: 0 };
+          const tId = team.teamId || team.id || team.vccId;
+          const stats = promptStats[tId] || { promptCount: 0, uniqueAITools: 0 };
           const compTime = getCompletionTime(team);
-          const aiScore = computeTeamAIScore(team.vccId);
+          const aiScore = computeTeamAIScore(tId);
 
           return {
-            Team_ID: team.vccId,
+            Team_ID: tId,
             Leader_Name: team.leaderName || team.M1_Name || "",
             College: team.college || team.M1_College || "",
             Leader_Email: team.email || team.M1_Email || "",

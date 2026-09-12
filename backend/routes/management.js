@@ -5,6 +5,7 @@ const { auth, db } = require("../firebaseConfig");
 const verifyAdmin = require("../middleware/verifyAdmin");
 const {
   getAllTeams,
+  getTeamById,
   getTeamByVccId,
   createTeam,
   createTeamUser,
@@ -14,6 +15,7 @@ const {
   resetAllTeamSessions,
   generateDemoTeams,
   purgeDemoTeams,
+  purgeAllParticipants,
   getSettings,
   updateSettings,
   logActivity,
@@ -51,20 +53,23 @@ router.get("/teams", verifyAdmin, async (req, res) => {
  */
 router.post("/teams", verifyAdmin, async (req, res) => {
   try {
-    const { vccId, leaderName, email, password, college, teamSize, branch } = req.body;
+    const { teamId, id, vccId, leaderName, email, password, college, teamSize, branch } = req.body;
+    const resolvedId = (teamId || id || vccId || "").trim().toUpperCase();
 
-    if (!vccId || !email || !password) {
-      return res.status(400).json({ success: false, message: "vccId, email, and password are required" });
+    if (!resolvedId || !email || !password) {
+      return res.status(400).json({ success: false, message: "Team ID, email, and password are required" });
     }
 
-    const cleanVccId = vccId.trim().toUpperCase();
-    const existing = await getTeamByVccId(cleanVccId);
+    const teamLookup = getTeamById || getTeamByVccId;
+    const existing = await teamLookup(resolvedId);
     if (existing) {
-      return res.status(400).json({ success: false, message: `Team ${cleanVccId} already exists!` });
+      return res.status(400).json({ success: false, message: `Team ${resolvedId} already exists!` });
     }
 
     const teamData = {
-      vccId: cleanVccId,
+      id: resolvedId,
+      teamId: resolvedId,
+      vccId: resolvedId,
       teamNo: Math.floor(1000 + Math.random() * 9000),
       teamSize: parseInt(teamSize) || 2,
       college: college || "School of Computing",
@@ -92,13 +97,13 @@ router.post("/teams", verifyAdmin, async (req, res) => {
 
     await logActivity(
       "CREATE_TEAM",
-      `Created new team ${cleanVccId} (${teamData.M1_Email})`,
+      `Created new team ${resolvedId} (${teamData.M1_Email})`,
       req.admin?.username || "Admin"
     );
 
     res.status(201).json({
       success: true,
-      message: `Team ${cleanVccId} created successfully!`,
+      message: `Team ${resolvedId} created successfully!`,
       team: teamData
     });
   } catch (err) {
@@ -108,54 +113,54 @@ router.post("/teams", verifyAdmin, async (req, res) => {
 });
 
 /**
- * PUT /api/manage/teams/:vccId
+ * PUT /api/manage/teams/:id
  * Update participant credentials & profile
  */
-router.put("/teams/:vccId", verifyAdmin, async (req, res) => {
+router.put(["/teams/:id", "/teams/:vccId"], verifyAdmin, async (req, res) => {
   try {
-    const { vccId } = req.params;
+    const teamId = req.params.id || req.params.vccId;
     const updates = req.body;
 
-    const updatedTeam = await updateTeamCredentials(vccId, updates);
+    const updatedTeam = await updateTeamCredentials(teamId, updates);
 
     await logActivity(
       "UPDATE_TEAM",
-      `Updated credentials/details for ${vccId} (${updates.M1_Email || "no email change"})`,
+      `Updated credentials/details for ${teamId} (${updates.M1_Email || "no email change"})`,
       req.admin?.username || "Admin"
     );
 
     res.json({
       success: true,
-      message: `Team ${vccId} updated successfully!`,
+      message: `Team ${teamId} updated successfully!`,
       team: updatedTeam
     });
   } catch (err) {
-    console.error(`Update team ${req.params.vccId} error:`, err);
+    console.error(`Update team ${req.params.id || req.params.vccId} error:`, err);
     res.status(500).json({ success: false, message: "Failed to update team: " + err.message });
   }
 });
 
 /**
- * DELETE /api/manage/teams/:vccId
+ * DELETE /api/manage/teams/:id
  * Remove a team from both RTDB and Firebase Auth
  */
-router.delete("/teams/:vccId", verifyAdmin, async (req, res) => {
+router.delete(["/teams/:id", "/teams/:vccId"], verifyAdmin, async (req, res) => {
   try {
-    const { vccId } = req.params;
-    await deleteTeam(vccId);
+    const teamId = req.params.id || req.params.vccId;
+    await deleteTeam(teamId);
 
     await logActivity(
       "DELETE_TEAM",
-      `Deleted team ${vccId}`,
+      `Deleted team ${teamId}`,
       req.admin?.username || "Admin"
     );
 
     res.json({
       success: true,
-      message: `Team ${vccId} deleted successfully!`
+      message: `Team ${teamId} deleted successfully!`
     });
   } catch (err) {
-    console.error(`Delete team ${req.params.vccId} error:`, err);
+    console.error(`Delete team ${req.params.id || req.params.vccId} error:`, err);
     res.status(500).json({ success: false, message: "Failed to delete team: " + err.message });
   }
 });
@@ -185,10 +190,10 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
         const leaderEmail = (row.M1_Email || row.email || row.leaderEmail || "").trim().toLowerCase();
         let leaderPhone = String(row.M1_Phone || row.phone || row.leaderPhone || "").replace(/[^0-9]/g, "").trim();
         const leaderName = (row.M1_Name || row.leaderName || row.name || `Team Lead ${i + 1}`).trim();
-        let vccId = (row.VCC_ID || row.vccId || row.teamId || "").trim().toUpperCase();
+        let teamId = (row.Team_ID || row.teamId || row.id || row.VCC_ID || row.vccId || "").trim().toUpperCase();
 
-        if (!vccId) {
-          vccId = `VCC${String(100 + i + 1)}`;
+        if (!teamId) {
+          teamId = `TEAM${String(100 + i + 1)}`;
         }
 
         if (!leaderEmail) {
@@ -202,7 +207,9 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
         }
 
         const teamData = {
-          vccId: vccId,
+          id: teamId,
+          teamId: teamId,
+          vccId: teamId,
           teamNo: parseInt(row.Team_No || row.teamNo) || (i + 1),
           teamSize: parseInt(row.Team_Size || row.teamSize) || (row.M2_Name ? 2 : 1),
           college: (row.M1_College || row.college || "School of Computing").trim(),
@@ -252,9 +259,10 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
         }
 
         // 2. Save in RTDB
-        const existing = await getTeamByVccId(teamData.vccId);
+        const teamLookup = getTeamById || getTeamByVccId;
+        const existing = await teamLookup(teamData.teamId);
         if (existing) {
-          await updateTeamCredentials(teamData.vccId, teamData);
+          await updateTeamCredentials(teamData.teamId, teamData);
           results.updated++;
         } else {
           await createTeam(teamData);
@@ -262,7 +270,9 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
         }
 
         results.importedTeams.push({
-          vccId: teamData.vccId,
+          id: teamData.teamId,
+          teamId: teamData.teamId,
+          vccId: teamData.teamId,
           leaderName: teamData.M1_Name,
           email: teamData.M1_Email,
           password: teamData.M1_Phone,
@@ -271,7 +281,7 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
         });
 
       } catch (rowErr) {
-        results.errors.push(`Row ${i + 1} (${row.vccId || 'unknown'}): ${rowErr.message}`);
+        results.errors.push(`Row ${i + 1} (${row.teamId || row.id || row.vccId || 'unknown'}): ${rowErr.message}`);
       }
     }
 
@@ -308,10 +318,10 @@ router.delete("/prompts", verifyAdmin, async (req, res) => {
     const teamsSnap = await db.ref("teams").once("value");
     const teamsObj = teamsSnap.val() || {};
     const updates = {};
-    Object.keys(teamsObj).forEach(vccId => {
-      updates[`teams/${vccId}/score`] = null;
-      updates[`teams/${vccId}/totalScore`] = null;
-      updates[`teams/${vccId}/promptCount`] = 0;
+    Object.keys(teamsObj).forEach(teamKey => {
+      updates[`teams/${teamKey}/score`] = null;
+      updates[`teams/${teamKey}/totalScore`] = null;
+      updates[`teams/${teamKey}/promptCount`] = 0;
     });
     if (Object.keys(updates).length > 0) {
       await db.ref().update(updates);
@@ -339,28 +349,49 @@ router.delete("/prompts", verifyAdmin, async (req, res) => {
    ============================================================ */
 
 /**
- * POST /api/manage/teams/:vccId/reset
+ * POST /api/manage/teams/:id/reset
  * Reset session for an individual team
  */
-router.post("/teams/:vccId/reset", verifyAdmin, async (req, res) => {
+router.post(["/teams/:id/reset", "/teams/:vccId/reset"], verifyAdmin, async (req, res) => {
   try {
-    const { vccId } = req.params;
-    const result = await resetSingleTeamSession(vccId);
+    const teamId = req.params.id || req.params.vccId;
+    const result = await resetSingleTeamSession(teamId);
 
     await logActivity(
       "RESET_TEAM_SESSION",
-      `Reset timer and unlocked session for team ${vccId}`,
+      `Reset timer and unlocked session for team ${teamId}`,
       req.admin?.username || "Admin"
     );
 
     res.json({
       success: true,
-      message: `Team ${vccId} session has been reset!`,
+      message: `Team ${teamId} session has been reset!`,
       result
     });
   } catch (err) {
-    console.error(`Reset team ${req.params.vccId} error:`, err);
+    console.error(`Reset team ${req.params.id || req.params.vccId} error:`, err);
     res.status(500).json({ success: false, message: "Failed to reset session: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/purge-participants
+ * Delete all participant teams, prompts, evaluations, and participant auth accounts
+ */
+router.post("/purge-participants", verifyAdmin, async (req, res) => {
+  try {
+    const result = await purgeAllParticipants();
+
+    await logActivity(
+      "PURGE_ALL_PARTICIPANTS",
+      `Purged all participant records and accounts (${result.deletedAuthCount} auth users removed)`,
+      req.admin?.username || "Admin"
+    );
+
+    res.json(result);
+  } catch (err) {
+    console.error("Purge participants error:", err);
+    res.status(500).json({ success: false, message: "Failed to purge participants: " + err.message });
   }
 });
 

@@ -145,7 +145,7 @@
         <div class="toolbar">
           <div class="search-box">
             <i class="fas fa-search"></i>
-            <input type="text" id="participantSearch" class="search-input" placeholder="Search by VCC ID, Leader, Email, College..." />
+            <input type="text" id="participantSearch" class="search-input" placeholder="Search by Team ID, Leader, Email, College..." />
           </div>
           <div style="display: flex; gap: 8px;">
             <button id="refreshTeamsBtn" class="btn btn-secondary btn-sm">
@@ -158,7 +158,7 @@
           <table class="manage-table">
             <thead>
               <tr>
-                <th>VCC ID</th>
+                <th>Team ID</th>
                 <th>Leader & College</th>
                 <th>Login Email (M1_Email)</th>
                 <th>Phone / Password</th>
@@ -227,7 +227,7 @@
             <table class="manage-table">
               <thead>
                 <tr>
-                  <th>VCC ID</th>
+                  <th>Team ID</th>
                   <th>Login Email</th>
                   <th>Password</th>
                   <th>Action</th>
@@ -458,13 +458,13 @@
       <div class="modal-header">
         <div class="modal-title">
           <i class="fas fa-user-edit" style="color: var(--cyan);"></i>
-          <span>Edit Participant Credentials (<span id="editModalVccId"></span>)</span>
+          <span>Edit Participant Credentials (<span id="editModalTeamId"></span>)</span>
         </div>
         <button class="modal-close" id="closeEditModalBtn"><i class="fas fa-times"></i></button>
       </div>
       <form id="editTeamForm">
         <div class="modal-body">
-          <input type="hidden" id="editVccId" />
+          <input type="hidden" id="editTeamId" />
           <div class="form-grid">
             <div class="form-group">
               <label for="editLeaderName">Team Leader Name</label>
@@ -514,8 +514,8 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group">
-              <label for="addVccId">Team ID (e.g. VCC201)</label>
-              <input type="text" id="addVccId" class="form-control" placeholder="VCC..." required />
+              <label for="addTeamId">Team ID (e.g. TEAM101)</label>
+              <input type="text" id="addTeamId" class="form-control" placeholder="TEAM..." required />
             </div>
             <div class="form-group">
               <label for="addLeaderName">Team Leader Name</label>
@@ -600,16 +600,16 @@
           <summary style="cursor: pointer; color: var(--cyan); font-weight: 600; padding: 4px 0;">
             <i class="fas fa-paste"></i> Or paste raw CSV text directly...
           </summary>
-          <textarea id="importRawCsvText" rows="4" class="form-control" style="font-family: var(--font-mono); font-size: 0.72rem; margin-top: 0.5rem;" placeholder="Team_No,VCC_ID,Team_Size,M1_Name,M1_Email,M1_Phone,M1_College,M2_Name,M2_Email,M2_Phone..."></textarea>
+          <textarea id="importRawCsvText" rows="4" class="form-control" style="font-family: var(--font-mono); font-size: 0.72rem; margin-top: 0.5rem;" placeholder="Team_No,Team_ID,Team_Size,M1_Name,M1_Email,M1_Phone,M1_College,M2_Name,M2_Email,M2_Phone..."></textarea>
         </details>
 
         <!-- Configuration Settings Row -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; padding: 0.85rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 0.85rem;">
           <div>
-            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-2); display: block; margin-bottom: 4px;">Default VCC ID Prefix (if missing in CSV):</label>
+            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-2); display: block; margin-bottom: 4px;">Default Team ID Prefix (if missing in CSV):</label>
             <div style="display: flex; gap: 6px;">
-              <input type="text" id="importVccPrefix" class="form-control" style="font-size: 0.8rem; padding: 0.35rem 0.6rem; text-transform: uppercase;" value="VCC" placeholder="VCC" />
-              <input type="number" id="importVccStart" class="form-control" style="font-size: 0.8rem; padding: 0.35rem 0.6rem; width: 85px;" value="101" placeholder="101" />
+              <input type="text" id="importTeamPrefix" class="form-control" style="font-size: 0.8rem; padding: 0.35rem 0.6rem; text-transform: uppercase;" value="TEAM" placeholder="TEAM" />
+              <input type="number" id="importTeamStart" class="form-control" style="font-size: 0.8rem; padding: 0.35rem 0.6rem; width: 85px;" value="101" placeholder="101" />
             </div>
           </div>
           <div style="display: flex; flex-direction: column; justify-content: center;">

@@ -133,10 +133,14 @@ function calculateCumulativeScore(scores) {
 /**
  * Recalculate and persist cumulative team AI score
  */
-async function updateTeamCumulativeScore(vccId) {
+async function updateTeamCumulativeScore(teamId) {
   try {
-    const snap = await db.ref("prompts").orderByChild("vccId").equalTo(vccId).once("value");
-    const promptsObj = snap.val() || {};
+    let snap = await db.ref("prompts").orderByChild("teamId").equalTo(teamId).once("value");
+    let promptsObj = snap.val();
+    if (!promptsObj) {
+      snap = await db.ref("prompts").orderByChild("vccId").equalTo(teamId).once("value");
+      promptsObj = snap.val() || {};
+    }
 
     const evaluatedScores = [];
     let bestScore = 0;
@@ -155,14 +159,14 @@ async function updateTeamCumulativeScore(vccId) {
     const cumulativeScore = calculateCumulativeScore(evaluatedScores);
 
     if (cumulativeScore !== null) {
-      // 1. Update /teams/{vccId}/aiScore
-      await db.ref(`teams/${vccId}`).update({
+      // 1. Update /teams/{teamId}/aiScore
+      await db.ref(`teams/${teamId}`).update({
         aiScore: cumulativeScore,
         aiEvaluatedCount: evaluatedScores.length
       });
 
-      // 2. Update /promptEvaluations/{vccId} for admin compatibility
-      await db.ref(`promptEvaluations/${vccId}`).set({
+      // 2. Update /promptEvaluations/{teamId} for admin compatibility
+      await db.ref(`promptEvaluations/${teamId}`).set({
         score: cumulativeScore,
         bestScore,
         level: latestLevel,
@@ -172,10 +176,10 @@ async function updateTeamCumulativeScore(vccId) {
         evaluatedCount: evaluatedScores.length
       });
 
-      console.log(`📊 [Team ${vccId}] Updated cumulative AI score: ${cumulativeScore} (from ${evaluatedScores.length} evaluated prompts)`);
+      console.log(`📊 [Team ${teamId}] Updated cumulative AI score: ${cumulativeScore} (from ${evaluatedScores.length} evaluated prompts)`);
     }
   } catch (err) {
-    console.error(`Failed to update cumulative score for ${vccId}:`, err.message);
+    console.error(`Failed to update cumulative score for ${teamId}:`, err.message);
   }
 }
 
@@ -192,9 +196,10 @@ async function processQueue() {
 
   while (evaluationQueue.length > 0) {
     const task = evaluationQueue.shift();
-    const { promptId, vccId, promptText, aiTool, retryCount = 0 } = task;
+    const { promptId, teamId, vccId, promptText, aiTool, retryCount = 0 } = task;
+    const targetTeamId = teamId || vccId;
 
-    console.log(`🤖 [Queue] Evaluating prompt ${promptId} for team ${vccId} (AI: ${aiTool})...`);
+    console.log(`🤖 [Queue] Evaluating prompt ${promptId} for team ${targetTeamId} (AI: ${aiTool})...`);
 
     try {
       const problemStatementContext = await getProblemStatementContext();
@@ -253,7 +258,7 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
       console.log(`✅ [Queue] Prompt ${promptId} evaluated: Score ${evaluation.score}/100 (${evaluation.level})`);
 
       // 2. Recalculate team's cumulative score
-      await updateTeamCumulativeScore(vccId);
+      await updateTeamCumulativeScore(targetTeamId);
 
     } catch (err) {
       console.error(`❌ [Queue] Failed evaluating prompt ${promptId}:`, err.message);
@@ -262,7 +267,7 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
       if (retryCount < 2) {
         console.log(`🔄 Re-queueing prompt ${promptId} for retry #${retryCount + 1}...`);
         await new Promise(r => setTimeout(r, 2000));
-        evaluationQueue.push({ promptId, vccId, promptText, aiTool, retryCount: retryCount + 1 });
+        evaluationQueue.push({ promptId, teamId: targetTeamId, vccId: targetTeamId, promptText, aiTool, retryCount: retryCount + 1 });
       }
     }
 
@@ -276,9 +281,9 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
 /**
  * Enqueue a newly submitted prompt for background evaluation
  */
-function enqueuePromptEvaluation(promptId, vccId, promptText, aiTool) {
+function enqueuePromptEvaluation(promptId, teamId, promptText, aiTool) {
   if (!promptId || !promptText) return;
-  evaluationQueue.push({ promptId, vccId, promptText, aiTool, retryCount: 0 });
+  evaluationQueue.push({ promptId, teamId, vccId: teamId, promptText, aiTool, retryCount: 0 });
   processQueue().catch(err => console.error("Queue worker error:", err));
 }
 

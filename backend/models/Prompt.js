@@ -2,9 +2,13 @@ const mongoose = require("mongoose");
 
 const promptSchema = new mongoose.Schema(
   {
+    teamId: {
+      type: String,
+      index: true
+    },
+
     vccId: {
       type: String,
-      required: true,
       index: true
     },
 

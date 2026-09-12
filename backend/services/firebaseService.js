@@ -9,28 +9,54 @@ const { db, auth } = require("../firebaseConfig");
 // ==================== TEAM OPERATIONS ====================
 
 /**
- * Get team by vccId
+ * Get team by ID (teamId, id, or vccId)
  */
-async function getTeamByVccId(vccId) {
-    const snapshot = await db.ref(`teams/${vccId}`).once("value");
-    return snapshot.val();
+async function getTeamById(teamId) {
+    if (!teamId) return null;
+    const snapshot = await db.ref(`teams/${teamId}`).once("value");
+    const val = snapshot.val();
+    if (!val) return null;
+    const id = val.teamId || val.id || val.vccId || teamId;
+    return {
+        ...val,
+        id,
+        teamId: id,
+        vccId: id
+    };
 }
 
+const getTeamByVccId = getTeamById;
+
 /**
- * Get team by email (M1_Email)
+ * Get team by email (M1_Email or email)
  */
 async function getTeamByEmail(email) {
+    if (!email) return null;
     const snapshot = await db.ref("teams")
         .orderByChild("M1_Email")
         .equalTo(email)
         .once("value");
 
-    const teams = snapshot.val();
+    let teams = snapshot.val();
+    if (!teams) {
+        const snap2 = await db.ref("teams")
+            .orderByChild("email")
+            .equalTo(email)
+            .once("value");
+        teams = snap2.val();
+    }
     if (!teams) return null;
 
     // Return first match
-    const vccId = Object.keys(teams)[0];
-    return teams[vccId];
+    const teamKey = Object.keys(teams)[0];
+    const val = teams[teamKey];
+    const id = val.teamId || val.id || val.vccId || teamKey;
+    return {
+        ...val,
+        id,
+        teamId: id,
+        vccId: id
+    };
 }
 
 /**
@@ -43,29 +69,39 @@ async function getAllTeams() {
     if (!teamsObj) return [];
 
     // Convert object to array
-    return Object.keys(teamsObj).map(vccId => ({
-        ...teamsObj[vccId],
-        vccId
-    }));
+    return Object.keys(teamsObj).map(teamKey => {
+        const val = teamsObj[teamKey];
+        const id = val.teamId || val.id || val.vccId || teamKey;
+        return {
+            ...val,
+            id,
+            teamId: id,
+            vccId: id
+        };
+    });
 }
 
 /**
  * Update team data
  */
-async function updateTeam(vccId, updates) {
+async function updateTeam(teamId, updates) {
+    const id = updates.teamId || updates.id || updates.vccId || teamId;
     updates.updatedAt = new Date().toISOString();
-    await db.ref(`teams/${vccId}`).update(updates);
+    await db.ref(`teams/${id}`).update(updates);
 }
 
 /**
  * Create team
  */
 async function createTeam(teamData) {
-    const { vccId } = teamData;
+    const id = teamData.teamId || teamData.id || teamData.vccId;
+    teamData.id = id;
+    teamData.teamId = id;
+    teamData.vccId = id;
     teamData.createdAt = new Date().toISOString();
     teamData.updatedAt = new Date().toISOString();
 
-    await db.ref(`teams/${vccId}`).set(teamData);
+    await db.ref(`teams/${id}`).set(teamData);
     return teamData;
 }
 
@@ -105,6 +141,9 @@ async function createAdmin(adminData) {
  */
 async function createPrompt(promptData) {
     const promptRef = db.ref("prompts").push();
+    const teamId = promptData.teamId || promptData.id || promptData.vccId;
+    promptData.teamId = teamId;
+    promptData.vccId = teamId;
     promptData.submittedAt = new Date().toISOString();
 
     await promptRef.set(promptData);
@@ -112,22 +151,38 @@ async function createPrompt(promptData) {
 }
 
 /**
- * Get prompts by vccId
+ * Get prompts by team ID
  */
-async function getPromptsByVccId(vccId) {
-    const snapshot = await db.ref("prompts")
+async function getPromptsByTeamId(teamId) {
+    let snapshot = await db.ref("prompts")
         .orderByChild("vccId")
-        .equalTo(vccId)
+        .equalTo(teamId)
         .once("value");
 
-    const promptsObj = snapshot.val();
+    let promptsObj = snapshot.val();
+    if (!promptsObj) {
+        snapshot = await db.ref("prompts")
+            .orderByChild("teamId")
+            .equalTo(teamId)
+            .once("value");
+        promptsObj = snapshot.val();
+    }
     if (!promptsObj) return [];
 
-    return Object.keys(promptsObj).map(id => ({
-        ...promptsObj[id],
-        _id: id
-    }));
+    return Object.keys(promptsObj).map(id => {
+        const p = promptsObj[id];
+        const tId = p.teamId || p.id || p.vccId || teamId;
+        return {
+            ...p,
+            id,
+            teamId: tId,
+            vccId: tId,
+            _id: id
+        };
+    }).sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
 }
+
+const getPromptsByVccId = getPromptsByTeamId;
 
 /**
  * Get all prompts
@@ -138,10 +193,17 @@ async function getAllPrompts() {
 
     if (!promptsObj) return [];
 
-    return Object.keys(promptsObj).map(id => ({
-        ...promptsObj[id],
-        _id: id
-    })).sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
+    return Object.keys(promptsObj).map(id => {
+        const p = promptsObj[id];
+        const tId = p.teamId || p.id || p.vccId;
+        return {
+            ...p,
+            id,
+            teamId: tId,
+            vccId: tId,
+            _id: id
+        };
+    }).sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
 }
 
 // ==================== PROMPT EVALUATION OPERATIONS ====================
@@ -256,10 +318,10 @@ async function createCustomToken(uid, claims = {}) {
 /**
  * Update team credentials & data in RTDB and Firebase Auth
  */
-async function updateTeamCredentials(vccId, updates) {
-    const existing = await getTeamByVccId(vccId);
+async function updateTeamCredentials(teamId, updates) {
+    const existing = await getTeamById(teamId);
     if (!existing) {
-        throw new Error(`Team ${vccId} not found`);
+        throw new Error(`Team ${teamId} not found`);
     }
 
     const oldEmail = existing.M1_Email;
@@ -294,7 +356,7 @@ async function updateTeamCredentials(vccId, updates) {
                 }
             }
         } catch (authErr) {
-            console.warn(`[updateTeamCredentials] Warning during Firebase Auth update for ${vccId}:`, authErr.message);
+            console.warn(`[updateTeamCredentials] Warning during Firebase Auth update for ${teamId}:`, authErr.message);
         }
     }
 
@@ -306,17 +368,17 @@ async function updateTeamCredentials(vccId, updates) {
     }
     rtdbUpdates.updatedAt = new Date().toISOString();
 
-    await db.ref(`teams/${vccId}`).update(rtdbUpdates);
-    return await getTeamByVccId(vccId);
+    await db.ref(`teams/${teamId}`).update(rtdbUpdates);
+    return await getTeamById(teamId);
 }
 
 /**
  * Delete a team from both RTDB and Firebase Auth
  */
-async function deleteTeam(vccId) {
-    const team = await getTeamByVccId(vccId);
+async function deleteTeam(teamId) {
+    const team = await getTeamById(teamId);
     if (!team) {
-        throw new Error(`Team ${vccId} not found`);
+        throw new Error(`Team ${teamId} not found`);
     }
 
     if (team.M1_Email) {
@@ -326,18 +388,18 @@ async function deleteTeam(vccId) {
                 await auth.deleteUser(userRecord.uid);
             }
         } catch (err) {
-            console.warn(`[deleteTeam] Firebase Auth user delete warning for ${vccId}:`, err.message);
+            console.warn(`[deleteTeam] Firebase Auth user delete warning for ${teamId}:`, err.message);
         }
     }
 
-    await db.ref(`teams/${vccId}`).remove();
+    await db.ref(`teams/${teamId}`).remove();
     return true;
 }
 
 /**
  * Reset single team hackathon session
  */
-async function resetSingleTeamSession(vccId) {
+async function resetSingleTeamSession(teamId) {
     const updates = {
         hackathonStart: null,
         githubUrl: null,
@@ -345,7 +407,7 @@ async function resetSingleTeamSession(vccId) {
         sessionEnded: false,
         updatedAt: new Date().toISOString()
     };
-    await db.ref(`teams/${vccId}`).update(updates);
+    await db.ref(`teams/${teamId}`).update(updates);
     return updates;
 }
 
@@ -366,8 +428,8 @@ async function resetAllTeamSessions() {
     };
 
     let count = 0;
-    for (const vccId of teamKeys) {
-        await db.ref(`teams/${vccId}`).update(resetPayload);
+    for (const teamKey of teamKeys) {
+        await db.ref(`teams/${teamKey}`).update(resetPayload);
         count++;
     }
 
@@ -392,16 +454,16 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
     const prefixUpper = (prefix || "DEMO").toUpperCase();
     const prefixRegex = new RegExp(`^${prefixUpper}(\\d+)$`, "i");
 
-    for (const vccId of Object.keys(existingTeams)) {
-        const team = existingTeams[vccId];
-        const match = vccId.match(prefixRegex);
+    for (const teamKey of Object.keys(existingTeams)) {
+        const team = existingTeams[teamKey];
+        const match = teamKey.match(prefixRegex);
         if (match) {
             const num = parseInt(match[1], 10);
             if (!isNaN(num) && num > maxNum) {
                 maxNum = num;
             }
         }
-        if (team && (team.isDemo === true || vccId.toUpperCase().startsWith(prefixUpper))) {
+        if (team && (team.isDemo === true || teamKey.toUpperCase().startsWith(prefixUpper))) {
             if (team.teamNo && !isNaN(team.teamNo) && team.teamNo > maxTeamNo) {
                 maxTeamNo = team.teamNo;
             }
@@ -424,12 +486,14 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
     for (let i = 1; i <= safeCount; i++) {
         const currentNum = maxNum + i;
         const numStr = String(currentNum);
-        const vccId = `${prefixUpper}${numStr}`;
+        const teamId = `${prefixUpper}${numStr}`;
         const email = `demo_${prefixUpper.toLowerCase()}_${numStr}@vibeathon.internal`;
         const leadIndex = maxLeadIndex + i;
 
         const teamData = {
-            vccId,
+            id: teamId,
+            teamId,
+            vccId: teamId,
             teamNo: maxTeamNo + i,
             teamSize: 2,
             college: "Vibeathon Sandbox Academy",
@@ -465,7 +529,9 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
 
             if (userRecord) {
                 await auth.setCustomUserClaims(userRecord.uid, {
-                    vccId,
+                    id: teamId,
+                    teamId,
+                    vccId: teamId,
                     teamNo: teamData.teamNo,
                     role: "participant"
                 });
@@ -475,10 +541,12 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
         }
 
         // Save to RTDB
-        await db.ref(`teams/${vccId}`).set(teamData);
+        await db.ref(`teams/${teamId}`).set(teamData);
 
         createdTeams.push({
-            vccId,
+            id: teamId,
+            teamId,
+            vccId: teamId,
             email,
             password: defaultPassword,
             leader: teamData.M1_Name
@@ -496,9 +564,10 @@ async function purgeDemoTeams(prefix = "DEMO") {
     const teams = snapshot.val() || {};
     let deletedCount = 0;
 
-    for (const vccId of Object.keys(teams)) {
-        const team = teams[vccId];
-        if (vccId.startsWith(prefix) || team.isDemo === true) {
+    for (const teamKey of Object.keys(teams)) {
+        const team = teams[teamKey];
+        const teamId = team.teamId || team.id || team.vccId || teamKey;
+        if (teamId.startsWith(prefix) || team.isDemo === true) {
             if (team.M1_Email) {
                 try {
                     const userRecord = await auth.getUserByEmail(team.M1_Email);
@@ -507,12 +576,58 @@ async function purgeDemoTeams(prefix = "DEMO") {
                     // Ignore not found
                 }
             }
-            await db.ref(`teams/${vccId}`).remove();
+            await db.ref(`teams/${teamKey}`).remove();
             deletedCount++;
         }
     }
 
     return { deletedCount };
+}
+
+/**
+ * Purge ALL participant data (teams, prompts, evaluations, and participant Auth users)
+ * Preserves admin accounts and RTDB admins node.
+ */
+async function purgeAllParticipants() {
+    // 1. Clear RTDB teams, prompts, promptEvaluations
+    await db.ref("teams").remove();
+    await db.ref("prompts").remove();
+    await db.ref("promptEvaluations").remove();
+
+    // 2. Fetch admins to make sure they are never deleted
+    const adminsSnap = await db.ref("admins").once("value");
+    const adminsObj = adminsSnap.val() || {};
+    const adminEmails = new Set(["admin@vibeathon.internal"]);
+    Object.values(adminsObj).forEach(a => {
+        if (a.email) adminEmails.add(a.email.toLowerCase());
+        if (a.username) adminEmails.add(`${a.username.toLowerCase()}@vibeathon.internal`);
+    });
+
+    // 3. Delete participant users from Firebase Auth
+    let deletedAuthCount = 0;
+    let nextPageToken;
+    do {
+        const listUsersResult = await auth.listUsers(100, nextPageToken);
+        for (const userRecord of listUsersResult.users) {
+            const email = (userRecord.email || "").toLowerCase();
+            const isRoleAdmin = userRecord.customClaims?.role === "admin";
+            if (!isRoleAdmin && !adminEmails.has(email)) {
+                try {
+                    await auth.deleteUser(userRecord.uid);
+                    deletedAuthCount++;
+                } catch (delErr) {
+                    console.warn(`[purgeAllParticipants] Could not delete user ${userRecord.uid}:`, delErr.message);
+                }
+            }
+        }
+        nextPageToken = listUsersResult.pageToken;
+    } while (nextPageToken);
+
+    return {
+        success: true,
+        deletedAuthCount,
+        message: "All participant teams, prompts, evaluations, and participant auth accounts have been deleted."
+    };
 }
 
 /**
@@ -583,6 +698,7 @@ async function updateAdminPassword(username, newPassword) {
 
 module.exports = {
     // Team operations
+    getTeamById,
     getTeamByVccId,
     getTeamByEmail,
     getAllTeams,
@@ -594,6 +710,7 @@ module.exports = {
     resetAllTeamSessions,
     generateDemoTeams,
     purgeDemoTeams,
+    purgeAllParticipants,
 
     // Admin operations
     getAdminByUsername,
@@ -608,6 +725,7 @@ module.exports = {
 
     // Prompt operations
     createPrompt,
+    getPromptsByTeamId,
     getPromptsByVccId,
     getAllPrompts,
 
