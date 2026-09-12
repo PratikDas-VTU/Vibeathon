@@ -134,6 +134,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const separator = url.includes("?") ? "&" : "?";
     const cacheBustedUrl = `${url}${separator}_t=${Date.now()}`;
+    const targetUrl = window.getApiUrl ? window.getApiUrl(cacheBustedUrl) : cacheBustedUrl;
     let res = await fetch(targetUrl, { ...options, cache: "no-store", headers });
 
     // Cold start mitigation for 502/504 gateway timeout
