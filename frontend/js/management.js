@@ -243,8 +243,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // AI Score badge
       let aiScoreBadge = '<span style="color: var(--text-3); font-family: var(--font-mono); font-size: 0.85rem;">—</span>';
-      if (typeof t.aiScore === "number") {
-        aiScoreBadge = `<span class="team-badge" style="background: rgba(0, 240, 255, 0.12); color: var(--cyan); border-color: rgba(0, 240, 255, 0.3); font-weight: 700; font-family: var(--font-mono);"><i class="fas fa-bolt"></i> ${t.aiScore}/50</span>`;
+      if (t.aiEvaluating) {
+        aiScoreBadge = `<span class="team-badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border-color: rgba(245, 158, 11, 0.35); font-weight: 600;"><i class="fas fa-spinner fa-spin"></i> Evaluating...</span>`;
+      } else if (typeof t.aiScore === "number") {
+        const normScore = t.aiScore > 50 ? Math.round(t.aiScore / 2) : t.aiScore;
+        aiScoreBadge = `<span class="team-badge" style="background: rgba(0, 240, 255, 0.12); color: var(--cyan); border-color: rgba(0, 240, 255, 0.3); font-weight: 700; font-family: var(--font-mono);"><i class="fas fa-bolt"></i> ${normScore}/50</span>`;
       }
 
       return `

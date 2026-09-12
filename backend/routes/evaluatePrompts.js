@@ -252,8 +252,8 @@ router.post("/evaluate-prompts", verifyAdmin, async (req, res) => {
                     throw new Error("Invalid evaluation structure");
                 }
 
-                // Ensure score is within bounds
-                evaluation.score = Math.max(0, Math.min(100, evaluation.score));
+                // Ensure score is within bounds (0-50)
+                evaluation.score = Math.max(0, Math.min(50, evaluation.score));
 
                 // Store evaluation in Firebase
                 await db.ref(`promptEvaluations/${teamId}`).set({

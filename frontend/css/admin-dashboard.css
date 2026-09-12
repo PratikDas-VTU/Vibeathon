@@ -677,6 +677,21 @@ body {
   font-weight: 600;
 }
 
+.score-badge.evaluating {
+  color: var(--amber);
+  background: var(--amber-dim);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  font-weight: 700;
+  font-size: 0.74rem;
+  animation: pulse-score-badge 2s infinite ease-in-out;
+}
+
+@keyframes pulse-score-badge {
+  0% { border-color: rgba(251, 191, 36, 0.3); }
+  50% { border-color: rgba(251, 191, 36, 0.85); box-shadow: 0 0 10px rgba(251, 191, 36, 0.2); }
+  100% { border-color: rgba(251, 191, 36, 0.3); }
+}
+
 /* Action View Button */
 .view-btn {
   font-family: var(--font-main);

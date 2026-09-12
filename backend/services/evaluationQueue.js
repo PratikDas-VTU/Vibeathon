@@ -109,25 +109,27 @@ async function callGemini(fullPrompt) {
 }
 
 /**
- * Compute Trimmed Mean (Top 80% Average)
- * Prevents penalizing participants for quick syntax/debug queries.
+ * Compute Cumulative AI Score (0-50 scale)
+ * Computes average of evaluated prompts, normalizing legacy 100-pt scores to 50,
+ * and filtering out 0-point test prompts if valid prompts exist.
  */
 function calculateCumulativeScore(scores) {
   if (!scores || scores.length === 0) return null;
-  if (scores.length <= 2) {
-    const sum = scores.reduce((a, b) => a + b, 0);
-    return Math.round(sum / scores.length);
-  }
 
-  // Sort ascending
-  const sorted = [...scores].sort((a, b) => a - b);
+  // Normalize any legacy 100-point scores down to 50
+  const normalized = scores.map(s => {
+    const num = Number(s) || 0;
+    return num > 50 ? Math.round(num / 2) : Math.max(0, Math.min(50, Math.round(num)));
+  });
 
-  // Drop bottom 20% (keep top 80%)
-  const dropCount = Math.floor(sorted.length * 0.2);
-  const considered = sorted.slice(dropCount);
+  // If there are multiple prompts and some non-zero scores, drop 0-point test/placeholder queries
+  const nonZero = normalized.filter(s => s > 0);
+  const pool = nonZero.length > 0 ? nonZero : normalized;
 
-  const sum = considered.reduce((a, b) => a + b, 0);
-  return Math.round((sum / considered.length) * 10) / 10;
+  const sum = pool.reduce((a, b) => a + b, 0);
+  const avg = sum / pool.length;
+
+  return Math.min(50, Math.max(0, Math.round(avg * 10) / 10));
 }
 
 /**
@@ -146,11 +148,16 @@ async function updateTeamCumulativeScore(teamId) {
     let bestScore = 0;
     let latestLevel = "Evaluating";
     let latestReasoning = "";
+    let isAnyEvaluating = false;
 
     Object.values(promptsObj).forEach(p => {
+      if (p.evaluationStatus === "evaluating" || (!p.evaluation && p.evaluationStatus !== "failed")) {
+        isAnyEvaluating = true;
+      }
       if (p.evaluation && typeof p.evaluation.score === "number") {
-        evaluatedScores.push(p.evaluation.score);
-        if (p.evaluation.score > bestScore) bestScore = p.evaluation.score;
+        const normalized = p.evaluation.score > 50 ? Math.round(p.evaluation.score / 2) : p.evaluation.score;
+        evaluatedScores.push(normalized);
+        if (normalized > bestScore) bestScore = normalized;
         latestLevel = p.evaluation.level || latestLevel;
         latestReasoning = p.evaluation.reasoning || latestReasoning;
       }
@@ -158,14 +165,15 @@ async function updateTeamCumulativeScore(teamId) {
 
     const cumulativeScore = calculateCumulativeScore(evaluatedScores);
 
-    if (cumulativeScore !== null) {
-      // 1. Update /teams/{teamId}/aiScore
-      await db.ref(`teams/${teamId}`).update({
-        aiScore: cumulativeScore,
-        aiEvaluatedCount: evaluatedScores.length
-      });
+    // Update /teams/{teamId}
+    await db.ref(`teams/${teamId}`).update({
+      aiScore: cumulativeScore,
+      aiEvaluatedCount: evaluatedScores.length,
+      aiEvaluating: isAnyEvaluating
+    });
 
-      // 2. Update /promptEvaluations/{teamId} for admin compatibility
+    if (cumulativeScore !== null) {
+      // Update /promptEvaluations/{teamId} for admin compatibility
       await db.ref(`promptEvaluations/${teamId}`).set({
         score: cumulativeScore,
         bestScore,
@@ -176,7 +184,7 @@ async function updateTeamCumulativeScore(teamId) {
         evaluatedCount: evaluatedScores.length
       });
 
-      console.log(`📊 [Team ${teamId}] Updated cumulative AI score: ${cumulativeScore} (from ${evaluatedScores.length} evaluated prompts)`);
+      console.log(`📊 [Team ${teamId}] Updated cumulative AI score: ${cumulativeScore}/50 (evaluating: ${isAnyEvaluating})`);
     }
   } catch (err) {
     console.error(`Failed to update cumulative score for ${teamId}:`, err.message);
@@ -215,14 +223,19 @@ AI Tool Used: ${aiTool || "AI Copilot"}
 Verbatim Prompt:
 ${promptText}
 
-Evaluate based on:
-1. Understanding of requirements, roles, and constraints
-2. Prompt clarity, precision, and depth
-3. Prompt engineering technique (role prompting, chain-of-thought, constraints specification)
+Evaluate strictly out of 50 based on these 5 criteria (max 10 points each):
+1. Problem Understanding & Requirements (0-10)
+2. Clarity, Precision, Depth & Technical Detail (0-10)
+3. Prompt Engineering Technique (role, chain-of-thought, constraints specification) (0-10)
+4. Strategic Intentional AI Usage (thinking/design assistant vs raw code dump) (0-10)
+5. Contextual Alignment with the Event Management Problem Statement (0-10)
+
+Total maximum score is 50 points.
+If the prompt is just a greeting, placeholder, or random test like "testing", award 0 points.
 
 Respond STRICTLY in valid JSON without code blocks or markdown:
 {
-  "score": <integer from 0 to 100>,
+  "score": <integer from 0 to 50>,
   "level": "<Needs Improvement | Basic | Good | Excellent>",
   "reasoning": "<2 concise sentences explaining the score>",
   "strengths": ["point1", "point2"],
@@ -245,19 +258,25 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
       }
 
       if (typeof evaluation.score === "number") {
-        evaluation.score = Math.max(0, Math.min(100, Math.round(evaluation.score)));
+        if (evaluation.score > 50) {
+          evaluation.score = Math.round(evaluation.score / 2);
+        }
+        evaluation.score = Math.max(0, Math.min(50, Math.round(evaluation.score)));
       } else {
-        evaluation.score = 50;
+        evaluation.score = 25;
       }
 
       evaluation.evaluatedAt = new Date().toISOString();
 
-      // 1. Save evaluation directly into the prompt record
-      await db.ref(`prompts/${promptId}/evaluation`).set(evaluation);
+      // 1. Save evaluation and status directly into the prompt record
+      await db.ref(`prompts/${promptId}`).update({
+        evaluation,
+        evaluationStatus: "evaluated"
+      });
 
-      console.log(`✅ [Queue] Prompt ${promptId} evaluated: Score ${evaluation.score}/100 (${evaluation.level})`);
+      console.log(`✅ [Queue] Prompt ${promptId} evaluated: Score ${evaluation.score}/50 (${evaluation.level})`);
 
-      // 2. Recalculate team's cumulative score
+      // 2. Recalculate team's cumulative score & updating evaluating flag
       await updateTeamCumulativeScore(targetTeamId);
 
     } catch (err) {
@@ -268,6 +287,10 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
         console.log(`🔄 Re-queueing prompt ${promptId} for retry #${retryCount + 1}...`);
         await new Promise(r => setTimeout(r, 2000));
         evaluationQueue.push({ promptId, teamId: targetTeamId, vccId: targetTeamId, promptText, aiTool, retryCount: retryCount + 1 });
+      } else {
+        // Mark as failed and update team state
+        await db.ref(`prompts/${promptId}`).update({ evaluationStatus: "failed" });
+        await updateTeamCumulativeScore(targetTeamId);
       }
     }
 
@@ -283,7 +306,11 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
  */
 function enqueuePromptEvaluation(promptId, teamId, promptText, aiTool) {
   if (!promptId || !promptText) return;
-  evaluationQueue.push({ promptId, teamId, vccId: teamId, promptText, aiTool, retryCount: 0 });
+  const targetId = teamId;
+  db.ref(`teams/${targetId}/aiEvaluating`).set(true).catch(() => {});
+  db.ref(`prompts/${promptId}/evaluationStatus`).set("evaluating").catch(() => {});
+
+  evaluationQueue.push({ promptId, teamId: targetId, vccId: targetId, promptText, aiTool, retryCount: 0 });
   processQueue().catch(err => console.error("Queue worker error:", err));
 }
 

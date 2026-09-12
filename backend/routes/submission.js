@@ -129,10 +129,14 @@ router.post("/prompt", auth, async (req, res) => {
       teamId,
       vccId: teamId,
       aiTool: aiTool,
-      promptText
+      promptText,
+      evaluationStatus: "evaluating"
     });
 
-    await markActive(teamId);
+    await updateTeam(teamId, {
+      lastActiveAt: new Date().toISOString(),
+      aiEvaluating: true
+    });
 
     // Trigger instant asynchronous evaluation in background
     if (newPrompt && newPrompt.id) {

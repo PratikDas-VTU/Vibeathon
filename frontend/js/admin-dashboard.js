@@ -166,18 +166,24 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${seconds}s`;
   }
 
+  function normalizeAIScore(score) {
+    if (typeof score !== "number" || isNaN(score)) return null;
+    if (score > 50) score = Math.round(score / 2);
+    return Math.min(50, Math.max(0, Math.round(score * 10) / 10));
+  }
+
   function computeTeamAIScore(teamId, fallbackScore) {
     const evalData = promptEvaluations[teamId];
     if (evalData && typeof evalData.score === "number") {
-      return evalData.score;
+      return normalizeAIScore(evalData.score);
     }
     if (typeof fallbackScore === "number") {
-      return fallbackScore;
+      return normalizeAIScore(fallbackScore);
     }
     if (Array.isArray(teams)) {
       const team = teams.find(t => (t.teamId || t.id || t.vccId) === teamId);
       if (team && typeof team.aiScore === "number") {
-        return team.aiScore;
+        return normalizeAIScore(team.aiScore);
       }
     }
     return null;
@@ -274,6 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const compTime = getCompletionTime(team);
       const evalScore = computeTeamAIScore(tId, team.aiScore);
       const aiScore = typeof evalScore === "number" ? evalScore : (typeof team.aiScore === "number" ? team.aiScore : null);
+      const isEvaluating = Boolean(team.aiEvaluating) || (stats.promptCount > 0 && allPrompts.some(p => (p.teamId || p.id || p.vccId) === tId && (p.evaluationStatus === "evaluating" || (!p.evaluation && p.evaluationStatus !== "failed"))));
 
       return {
         ...team,
@@ -281,7 +288,8 @@ document.addEventListener("DOMContentLoaded", () => {
         promptCount: stats.promptCount,
         uniqueAITools: stats.uniqueAITools,
         completionTime: compTime,
-        aiScore: aiScore
+        aiScore: aiScore,
+        aiEvaluating: isEvaluating
       };
     });
 
@@ -401,7 +409,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // AI Score
       let aiScoreHtml = '<span class="score-badge none">—</span>';
-      if (typeof team.aiScore === "number") {
+      if (team.aiEvaluating) {
+        aiScoreHtml = `<span class="score-badge evaluating"><i class="fas fa-spinner fa-spin"></i> Evaluating...</span>`;
+      } else if (typeof team.aiScore === "number") {
         aiScoreHtml = `<span class="score-badge"><i class="fas fa-bolt"></i> ${team.aiScore}/50</span>`;
       }
 
@@ -531,7 +541,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
       <div class="m-stat-box">
         <span class="m-stat-label">AI Jury Score</span>
-        <span class="m-stat-val cyan">${typeof aiScore === "number" ? aiScore + "/50" : "Not Graded"}</span>
+        <span class="m-stat-val ${team.aiEvaluating ? "amber" : "cyan"}">${team.aiEvaluating ? '<i class="fas fa-spinner fa-spin"></i> Evaluating...' : (typeof aiScore === "number" ? aiScore + "/50" : "Not Graded")}</span>
       </div>
     `;
 
@@ -566,10 +576,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const ev = p.evaluation;
         let evalHtml = '';
         if (ev && typeof ev.score === 'number') {
+          const s = ev.score > 50 ? Math.round(ev.score / 2) : ev.score;
           evalHtml = `
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 6px 10px; background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.2); border-radius: 8px; font-size: 0.76rem;">
-              <span style="font-weight: 700; color: var(--green); font-family: var(--font-mono);"><i class="fas fa-check-circle"></i> AI Score: ${ev.score}/100 (${escapeHtml(ev.level || "Evaluated")})</span>
+              <span style="font-weight: 700; color: var(--green); font-family: var(--font-mono);"><i class="fas fa-check-circle"></i> AI Score: ${s}/50 (${escapeHtml(ev.level || "Evaluated")})</span>
               <span style="color: var(--text-2); font-size: 0.72rem;">${escapeHtml(ev.reasoning ? ev.reasoning.slice(0, 110) + "..." : "")}</span>
+            </div>
+          `;
+        } else if (p.evaluationStatus === "evaluating" || !ev) {
+          evalHtml = `
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 6px 10px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 8px; font-size: 0.76rem; color: var(--amber);">
+              <i class="fas fa-spinner fa-spin"></i> <span style="font-weight: 600;">AI Evaluation in progress...</span>
             </div>
           `;
         }
