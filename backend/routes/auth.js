@@ -18,7 +18,12 @@ if (!FIREBASE_API_KEY) {
  * password = M1_Phone
  */
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const email = (req.body.email || "").trim().toLowerCase();
+  const password = (req.body.password || "").trim();
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
 
   try {
     // Sign in with Firebase Authentication REST API
@@ -41,7 +46,7 @@ router.post("/login", async (req, res) => {
     const team = await getTeamByEmail(email);
 
     if (!team) {
-      return res.status(401).json({ error: "Team not found" });
+      return res.status(401).json({ error: "Team not found in records." });
     }
 
     res.json({
@@ -54,17 +59,31 @@ router.post("/login", async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
+    console.error("LOGIN ERROR:", err.response?.data?.error?.message || err.message);
 
     // Handle Firebase Auth errors
     if (err.response?.data?.error?.message) {
       const errorMessage = err.response.data.error.message;
-      if (errorMessage.includes("INVALID_PASSWORD") || errorMessage.includes("EMAIL_NOT_FOUND")) {
-        return res.status(401).json({ error: "Invalid credentials" });
+      if (
+        errorMessage.includes("INVALID_PASSWORD") ||
+        errorMessage.includes("EMAIL_NOT_FOUND") ||
+        errorMessage.includes("INVALID_LOGIN_CREDENTIALS")
+      ) {
+        return res.status(401).json({ error: "Invalid email or password." });
       }
+      if (errorMessage.includes("TOO_MANY_ATTEMPTS_TRY_LATER")) {
+        return res.status(429).json({ error: "Too many failed attempts. Please try again later." });
+      }
+      if (errorMessage.includes("USER_DISABLED")) {
+        return res.status(403).json({ error: "This participant account has been disabled." });
+      }
+      if (errorMessage.includes("INVALID_EMAIL")) {
+        return res.status(400).json({ error: "Invalid email address format." });
+      }
+      return res.status(401).json({ error: "Invalid login credentials." });
     }
 
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Server error. Please try again later." });
   }
 });
 

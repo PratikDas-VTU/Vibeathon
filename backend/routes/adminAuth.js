@@ -130,7 +130,11 @@ router.post("/login", async (req, res) => {
       // Handle Firebase Auth errors
       if (authError.response?.data?.error?.message) {
         const errorMessage = authError.response.data.error.message;
-        if (errorMessage.includes("INVALID_PASSWORD") || errorMessage.includes("EMAIL_NOT_FOUND")) {
+        if (
+          errorMessage.includes("INVALID_PASSWORD") ||
+          errorMessage.includes("EMAIL_NOT_FOUND") ||
+          errorMessage.includes("INVALID_LOGIN_CREDENTIALS")
+        ) {
           return res.status(401).json({
             message: "Invalid credentials"
           });
