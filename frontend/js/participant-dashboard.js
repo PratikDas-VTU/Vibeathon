@@ -621,8 +621,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  let promptPollTimer = null;
-
   async function loadPrompts() {
     try {
       const res = await authFetch(
@@ -634,31 +632,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       const prompts = await res.json();
       promptTable.innerHTML = "";
 
-      // Check if any prompt is currently evaluating
-      const hasEvaluating = prompts.some(p => p.evaluationStatus === "evaluating" || (!p.evaluation && p.evaluationStatus !== "failed"));
-      const evaluatedCount = prompts.filter(p => p.evaluation && typeof p.evaluation.score === "number").length;
-
-      // Update counters
+      // Update counters (Prompt count only, do not expose internal AI score to participants)
       const countEl = document.getElementById("promptCount");
       const feedCountEl = document.getElementById("promptFeedCount");
       const emptyState = document.getElementById("emptyPromptState");
 
       if (countEl) {
-        if (hasEvaluating) {
-          countEl.innerHTML = `${prompts.length} PROMPT${prompts.length === 1 ? "" : "S"} <span style="font-size: 0.72rem; color: #f59e0b; font-weight:600;"><i class="fas fa-spinner fa-spin"></i> Evaluating</span>`;
-        } else {
-          countEl.textContent = `${prompts.length} PROMPT${prompts.length === 1 ? "" : "S"}`;
-        }
+        countEl.textContent = `${prompts.length} PROMPT${prompts.length === 1 ? "" : "S"}`;
       }
 
       if (feedCountEl) {
-        if (hasEvaluating) {
-          feedCountEl.innerHTML = `${prompts.length} Logged &nbsp; <span class="eval-live-pill"><i class="fas fa-spinner fa-spin"></i> AI Evaluating...</span>`;
-        } else if (evaluatedCount > 0) {
-          feedCountEl.innerHTML = `${prompts.length} Logged &nbsp; <span class="eval-done-pill"><i class="fas fa-check-circle"></i> Evaluated</span>`;
-        } else {
-          feedCountEl.textContent = `${prompts.length} Logged`;
-        }
+        feedCountEl.textContent = `${prompts.length} Logged`;
       }
 
       if (emptyState) {
@@ -695,14 +679,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? "Just now"
           : dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-        // Evaluation status badge
-        let evalBadge = '';
-        if (p.evaluation && typeof p.evaluation.score === "number") {
-          const score = p.evaluation.score > 50 ? Math.round(p.evaluation.score / 2) : p.evaluation.score;
-          evalBadge = `<span class="pc-eval-pill evaluated" title="${escapeHtml(p.evaluation.reasoning || '')}"><i class="fas fa-check-circle"></i> AI Evaluated • ${score}/50</span>`;
-        } else if (p.evaluationStatus === "evaluating" || !p.evaluation) {
-          evalBadge = `<span class="pc-eval-pill evaluating"><i class="fas fa-spinner fa-spin"></i> AI Evaluating...</span>`;
-        }
+        // Participant status badge: Simply indicates prompt is logged/received
+        const evalBadge = `<span class="pc-eval-pill evaluated"><i class="fas fa-check-circle"></i> Logged</span>`;
 
         card.innerHTML = `
           <div class="pc-header">
@@ -739,17 +717,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         promptTable.appendChild(card);
       });
-
-      // Auto-poll if evaluation is underway
-      if (promptPollTimer) {
-        clearTimeout(promptPollTimer);
-        promptPollTimer = null;
-      }
-      if (hasEvaluating) {
-        promptPollTimer = setTimeout(() => {
-          loadPrompts();
-        }, 4000);
-      }
 
     } catch (err) {
       console.error("Load prompts error:", err);
