@@ -419,21 +419,61 @@ async function resetAllTeamSessions() {
     const teams = snapshot.val() || {};
     const teamKeys = Object.keys(teams);
 
-    const resetPayload = {
-        hackathonStart: null,
-        githubUrl: null,
-        deploymentUrl: null,
-        sessionEnded: false,
-        updatedAt: new Date().toISOString()
-    };
+    const now = new Date().toISOString();
+    const updates = {};
+    teamKeys.forEach(teamKey => {
+        updates[`teams/${teamKey}/hackathonStart`] = null;
+        updates[`teams/${teamKey}/githubUrl`] = null;
+        updates[`teams/${teamKey}/deploymentUrl`] = null;
+        updates[`teams/${teamKey}/sessionEnded`] = false;
+        updates[`teams/${teamKey}/updatedAt`] = now;
+    });
 
-    let count = 0;
-    for (const teamKey of teamKeys) {
-        await db.ref(`teams/${teamKey}`).update(resetPayload);
-        count++;
+    if (Object.keys(updates).length > 0) {
+        await db.ref().update(updates);
     }
 
-    return { totalReset: count };
+    return { totalReset: teamKeys.length };
+}
+
+/**
+ * Reset all participant submissions, deliverables, prompts, and AI scores
+ * @param {boolean} includeTimers - If true, also resets hackathonStart to null
+ */
+async function resetAllSubmissions(includeTimers = false) {
+    // 1. Delete all prompts and prompt evaluations
+    await db.ref("prompts").remove();
+    await db.ref("promptEvaluations").remove();
+
+    // 2. Fetch all teams and build atomic multi-path update
+    const snapshot = await db.ref("teams").once("value");
+    const teams = snapshot.val() || {};
+    const updates = {};
+    const now = new Date().toISOString();
+    let count = 0;
+
+    Object.keys(teams).forEach(teamKey => {
+        updates[`teams/${teamKey}/githubUrl`] = null;
+        updates[`teams/${teamKey}/deploymentUrl`] = null;
+        updates[`teams/${teamKey}/aiScore`] = null;
+        updates[`teams/${teamKey}/aiEvaluatedCount`] = 0;
+        updates[`teams/${teamKey}/aiEvaluating`] = false;
+        updates[`teams/${teamKey}/score`] = null;
+        updates[`teams/${teamKey}/totalScore`] = null;
+        updates[`teams/${teamKey}/promptCount`] = 0;
+        updates[`teams/${teamKey}/sessionEnded`] = false;
+        if (includeTimers) {
+            updates[`teams/${teamKey}/hackathonStart`] = null;
+        }
+        updates[`teams/${teamKey}/updatedAt`] = now;
+        count++;
+    });
+
+    if (Object.keys(updates).length > 0) {
+        await db.ref().update(updates);
+    }
+
+    return { totalTeams: count, clearedPrompts: true, includeTimers };
 }
 
 /**
@@ -724,6 +764,7 @@ module.exports = {
     deleteTeam,
     resetSingleTeamSession,
     resetAllTeamSessions,
+    resetAllSubmissions,
     generateDemoTeams,
     purgeDemoTeams,
     purgeAllParticipants,

@@ -249,10 +249,10 @@
         <div class="card-header">
           <div>
             <h2 class="card-title" style="color: var(--amber);">
-              <i class="fas fa-exclamation-triangle"></i> Master Hackathon Session Reset
+              <i class="fas fa-clock"></i> Master Hackathon Timer & Session Reset
             </h2>
             <p class="card-desc">
-              Direct cloud replacement for <code>reset-all-sessions.bat</code>. Resets 2-hour timers, clears lockout flags, and wipes submission URLs across all participating teams simultaneously.
+              Resets 2-hour timers, clears lockout flags, and unlocks participant dashboards across all teams simultaneously.
             </p>
           </div>
         </div>
@@ -260,20 +260,52 @@
         <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
           <p style="font-size: 0.85rem; color: #fde68a; line-height: 1.6;">
             <strong>What happens when you click this:</strong><br />
-            1. All 70+ teams have their <code>hackathonStart</code> set to <code>null</code> (timer resets to 2:00:00).<br />
+            1. All teams have their <code>hackathonStart</code> set to <code>null</code> (timer resets to 2:00:00).<br />
             2. <code>sessionEnded</code> is set to <code>false</code> (unlocks any locked out participants).<br />
-            3. <code>githubUrl</code> and <code>deploymentUrl</code> are cleared for fresh attempts.<br />
-            4. Participant prompts logged previously are <strong>preserved</strong> for jury audit.
+            3. Registered accounts and passwords remain 100% active.
           </p>
         </div>
 
         <button id="triggerResetAllSessionsBtn" class="btn btn-warning">
-          <i class="fas fa-redo-alt"></i> Execute Reset on All 70+ Live Teams
+          <i class="fas fa-redo-alt"></i> Reset Timers & Unlock All Sessions
         </button>
       </div>
 
+      <!-- Reset All Submissions & AI Scores Card -->
+      <div class="card" style="border-color: rgba(244, 63, 94, 0.4); margin-top: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color: var(--rose);">
+              <i class="fas fa-undo-alt"></i> Reset All Submissions, Deliverables & AI Scores
+            </h2>
+            <p class="card-desc">
+              Purge all GitHub URLs, Live App URLs, submitted AI Prompts, and evaluation scores. Perfect for resetting test runs without re-creating accounts.
+            </p>
+          </div>
+        </div>
+
+        <div style="background: rgba(244, 63, 94, 0.08); border: 1px dashed rgba(244, 63, 94, 0.3); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <p style="font-size: 0.85rem; color: #fecdd3; line-height: 1.6;">
+            <strong>What happens when you click this:</strong><br />
+            1. All <code>githubUrl</code> and <code>deploymentUrl</code> are cleared to empty.<br />
+            2. All prompt audit logs in <code>/prompts</code> are deleted (Prompt count drops to 0).<br />
+            3. All AI evaluation scores and telemetry are reset to unrated (<code>—</code>).<br />
+            4. Participant accounts and login credentials are <strong>preserved</strong> for immediate re-testing.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button id="resetSubmissionsOnlyBtn" class="btn btn-danger">
+            <i class="fas fa-trash-alt"></i> Reset Submissions & AI Scores Only
+          </button>
+          <button id="completeFactoryResetBtn" class="btn btn-warning" style="background: rgba(245, 158, 11, 0.2); border-color: var(--amber); color: #fef08a;">
+            <i class="fas fa-bomb"></i> Complete Factory Reset (Timers + All Submissions)
+          </button>
+        </div>
+      </div>
+
       <!-- Live Broadcast Announcement -->
-      <div class="card">
+      <div class="card" style="margin-top: 1.5rem;">
         <div class="card-header">
           <div>
             <h2 class="card-title"><i class="fas fa-bullhorn"></i> Live Participant Broadcast Announcement</h2>
@@ -294,23 +326,6 @@
             <i class="fas fa-times-circle"></i> Clear Active Alert
           </button>
           <span id="announcementStatus" style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-2);"></span>
-        </div>
-      </div>
-
-      <!-- Clear Test Prompts Card -->
-      <div class="card" style="border-color: rgba(244, 63, 94, 0.4); margin-top: 1.5rem;">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title" style="color: var(--rose);">
-              <i class="fas fa-terminal"></i> Reset / Purge AI Evaluation Prompts
-            </h2>
-            <p class="card-desc">
-              Clear all recorded prompt audit logs and reset the "AI Prompts Logged" counter to 0 for official competition start.
-            </p>
-          </div>
-          <button id="clearPromptsBtn" class="btn btn-danger">
-            <i class="fas fa-trash-alt"></i> Clear All Prompts (Reset to 0)
-          </button>
         </div>
       </div>
     </section>

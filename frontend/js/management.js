@@ -643,6 +643,76 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Reset Submissions Only
+  const resetSubmissionsOnlyBtn = document.getElementById("resetSubmissionsOnlyBtn");
+  if (resetSubmissionsOnlyBtn) {
+    resetSubmissionsOnlyBtn.addEventListener("click", async () => {
+      const confirmed = await window.showConfirmDialog({
+        title: "Reset All Submissions & AI Scores",
+        message: "Wipe all GitHub URLs, Live App URLs, and submitted AI prompts across all teams?",
+        details: "AI scores will reset to unrated (—) and prompt counters will drop to 0. Participant accounts, passwords, and timers will remain intact for fresh testing.",
+        type: "danger",
+        confirmText: "Wipe Submissions & AI Scores",
+        icon: "fas fa-trash-alt"
+      });
+      if (!confirmed) return;
+
+      resetSubmissionsOnlyBtn.disabled = true;
+      resetSubmissionsOnlyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting submissions...';
+
+      const res = await manageFetch("/api/manage/reset-all-submissions", {
+        method: "POST",
+        body: JSON.stringify({ includeTimers: false })
+      });
+
+      resetSubmissionsOnlyBtn.disabled = false;
+      resetSubmissionsOnlyBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Reset Submissions & AI Scores Only';
+
+      if (res && res.ok) {
+        const data = await res.json();
+        showToast(data.message || "Submissions and AI scores cleared!", "success");
+        loadParticipants();
+      } else {
+        showToast("Failed to reset submissions.", "error");
+      }
+    });
+  }
+
+  // Complete Factory Reset (Timers + Submissions)
+  const completeFactoryResetBtn = document.getElementById("completeFactoryResetBtn");
+  if (completeFactoryResetBtn) {
+    completeFactoryResetBtn.addEventListener("click", async () => {
+      const confirmed = await window.showConfirmDialog({
+        title: "Complete Factory Reset (Timers + Submissions)",
+        message: "Perform a 100% complete test reset across all participating teams?",
+        details: "This will reset 2-hour timers to 2:00:00, unlock all sessions, clear GitHub and Live URLs, and purge all AI prompts and scores. Team accounts and passwords will be preserved.",
+        type: "danger",
+        confirmText: "Execute Complete Factory Reset",
+        icon: "fas fa-bomb"
+      });
+      if (!confirmed) return;
+
+      completeFactoryResetBtn.disabled = true;
+      completeFactoryResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Executing factory reset...';
+
+      const res = await manageFetch("/api/manage/reset-all-submissions", {
+        method: "POST",
+        body: JSON.stringify({ includeTimers: true })
+      });
+
+      completeFactoryResetBtn.disabled = false;
+      completeFactoryResetBtn.innerHTML = '<i class="fas fa-bomb"></i> Complete Factory Reset (Timers + All Submissions)';
+
+      if (res && res.ok) {
+        const data = await res.json();
+        showToast(data.message || "All sessions, deliverables, and prompts reset!", "success");
+        loadParticipants();
+      } else {
+        showToast("Failed to execute complete reset.", "error");
+      }
+    });
+  }
+
   // Announcements
   const broadcastMessageInput = document.getElementById("broadcastMessage");
   const postAnnouncementBtn = document.getElementById("postAnnouncementBtn");

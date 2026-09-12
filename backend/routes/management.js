@@ -13,6 +13,7 @@ const {
   deleteTeam,
   resetSingleTeamSession,
   resetAllTeamSessions,
+  resetAllSubmissions,
   generateDemoTeams,
   purgeDemoTeams,
   purgeAllParticipants,
@@ -319,6 +320,9 @@ router.delete("/prompts", verifyAdmin, async (req, res) => {
     const teamsObj = teamsSnap.val() || {};
     const updates = {};
     Object.keys(teamsObj).forEach(teamKey => {
+      updates[`teams/${teamKey}/aiScore`] = null;
+      updates[`teams/${teamKey}/aiEvaluatedCount`] = 0;
+      updates[`teams/${teamKey}/aiEvaluating`] = false;
       updates[`teams/${teamKey}/score`] = null;
       updates[`teams/${teamKey}/totalScore`] = null;
       updates[`teams/${teamKey}/promptCount`] = 0;
@@ -335,12 +339,38 @@ router.delete("/prompts", verifyAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Successfully cleared all ${count} prompts and reset evaluation logs!`,
+      message: `Successfully cleared all ${count} prompts and reset evaluation scores to 0!`,
       clearedCount: count
     });
   } catch (err) {
     console.error("Clear prompts error:", err);
     res.status(500).json({ success: false, message: "Failed to clear prompts: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/reset-all-submissions
+ * Clear all participant submissions (GitHub URLs, Deployment URLs, prompts, and AI scores)
+ */
+router.post("/reset-all-submissions", verifyAdmin, async (req, res) => {
+  try {
+    const { includeTimers = false } = req.body;
+    const result = await resetAllSubmissions(includeTimers);
+
+    await logActivity(
+      "RESET_ALL_SUBMISSIONS",
+      `Reset all deliverables, submission URLs, prompts, and AI scores for ${result.totalTeams} teams (includeTimers: ${includeTimers})`,
+      req.admin?.username || "Admin"
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully reset all submissions, deliverables, and prompt scores for all ${result.totalTeams} teams!`,
+      ...result
+    });
+  } catch (err) {
+    console.error("Reset all submissions error:", err);
+    res.status(500).json({ success: false, message: "Failed to reset submissions: " + err.message });
   }
 });
 
