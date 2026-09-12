@@ -101,6 +101,21 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.get("/api/version", (req, res) => {
+  res.json({
+    version: "2.3.0",
+    build: "production",
+    features: [
+      "heuristic-eval-fallback",
+      "auto-recovery-scanner",
+      "wrong-password-explicit-error",
+      "atomic-reset-all-submissions",
+      "team-id-login-support"
+    ],
+    timestamp: new Date().toISOString()
+  });
+});
+
 /* =====================================================
    DATABASE CONNECTION
 ===================================================== */

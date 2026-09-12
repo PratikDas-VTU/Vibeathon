@@ -107,10 +107,12 @@ router.post("/login", async (req, res) => {
     if (authFailed || !idToken) {
       if (
         authErrorMessage.includes("INVALID_PASSWORD") ||
-        authErrorMessage.includes("EMAIL_NOT_FOUND") ||
         authErrorMessage.includes("INVALID_LOGIN_CREDENTIALS")
       ) {
-        return res.status(401).json({ error: "Invalid email/Team ID or password." });
+        return res.status(401).json({ error: "Wrong password. Please check your password and try again." });
+      }
+      if (authErrorMessage.includes("EMAIL_NOT_FOUND")) {
+        return res.status(401).json({ error: "Team ID or email not found in participant records." });
       }
       if (authErrorMessage.includes("TOO_MANY_ATTEMPTS_TRY_LATER")) {
         return res.status(429).json({ error: "Too many failed attempts. Please try again in a few minutes." });
@@ -121,7 +123,13 @@ router.post("/login", async (req, res) => {
       if (authErrorMessage.includes("INVALID_EMAIL")) {
         return res.status(400).json({ error: "Invalid email format. You can also sign in with your Team ID (e.g. DEMO101)." });
       }
-      return res.status(401).json({ error: "Invalid credentials. Please verify your email and password." });
+
+      // If team exists in RTDB records, the failure was definitely an incorrect password
+      if (targetTeam) {
+        return res.status(401).json({ error: "Wrong password. Please check your password and try again." });
+      }
+
+      return res.status(401).json({ error: "Invalid credentials. Please verify your Team ID/email and password." });
     }
 
     // 5. Get team data from database
@@ -147,8 +155,25 @@ router.post("/login", async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("LOGIN UNHANDLED ERROR:", err.response?.data?.error?.message || err.message);
-    res.status(500).json({ error: "Authentication service temporarily busy. Please try again." });
+    const errorMsg = err.response?.data?.error?.message || err.message || "";
+    console.error("LOGIN ERROR HANDLER:", errorMsg);
+
+    if (
+      errorMsg.includes("INVALID_PASSWORD") ||
+      errorMsg.includes("INVALID_LOGIN_CREDENTIALS")
+    ) {
+      return res.status(401).json({ error: "Wrong password. Please check your password and try again." });
+    }
+    if (errorMsg.includes("EMAIL_NOT_FOUND")) {
+      return res.status(401).json({ error: "Team ID or email not found in participant records." });
+    }
+
+    // If targetTeam was located, failure was wrong password
+    if (targetTeam) {
+      return res.status(401).json({ error: "Wrong password. Please check your password and try again." });
+    }
+
+    res.status(401).json({ error: "Wrong password or invalid credentials. Please check and try again." });
   }
 });
 

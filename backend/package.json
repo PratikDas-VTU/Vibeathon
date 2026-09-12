@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "node -e \"console.log('Backend build ready')\"",
     "dev": "nodemon server.js"
   },
   "author": "Pratik Das",

@@ -427,8 +427,8 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
       }
     }
 
-    // Rate smoothing delay between prompts (300ms)
-    await new Promise(r => setTimeout(r, 300));
+    // Rate smoothing delay between prompts (200ms)
+    await new Promise(r => setTimeout(r, 200));
   }
 
   isProcessingQueue = false;
@@ -447,8 +447,97 @@ function enqueuePromptEvaluation(promptId, teamId, promptText, aiTool) {
   processQueue().catch(err => console.error("Queue worker error:", err));
 }
 
+/**
+ * Auto-Recovery Engine:
+ * Scans Firebase RTDB on startup and periodically to find any prompts that were left
+ * unevaluated (e.g. from server restarts, network drops, or previous rate limits)
+ * and resolves them within seconds using the rubric heuristic evaluator.
+ */
+let isRecovering = false;
+async function recoverPendingEvaluations() {
+  if (isRecovering) return;
+  isRecovering = true;
+
+  try {
+    const snap = await db.ref("prompts").once("value");
+    const allPrompts = snap.val() || {};
+    const affectedTeams = new Set();
+    const problemContext = await getProblemStatementContext();
+
+    for (const [promptId, p] of Object.entries(allPrompts)) {
+      // Check if prompt is missing evaluation and has not explicitly failed
+      if (!p.evaluation && p.evaluationStatus !== "failed") {
+        const teamId = p.teamId || p.vccId || p.id;
+        if (!teamId) continue;
+
+        console.log(`🛠️ [Auto-Recovery] Found pending prompt ${promptId} for team ${teamId}. Evaluating...`);
+        const evalResult = heuristicEvaluate(p.promptText, p.aiTool, problemContext);
+
+        await db.ref(`prompts/${promptId}`).update({
+          evaluation: evalResult,
+          evaluationStatus: "evaluated"
+        });
+
+        affectedTeams.add(teamId);
+      }
+    }
+
+    // Recalculate scores for all teams that had recovered prompts
+    for (const teamId of affectedTeams) {
+      await updateTeamCumulativeScore(teamId);
+      console.log(`✅ [Auto-Recovery] Successfully resolved evaluation for team ${teamId}`);
+    }
+
+    // Safety check: clear aiEvaluating flag for teams where all prompts are finished
+    const teamsSnap = await db.ref("teams").once("value");
+    const allTeams = teamsSnap.val() || {};
+    for (const [teamKey, team] of Object.entries(allTeams)) {
+      if (team.aiEvaluating) {
+        const teamPrompts = Object.values(allPrompts).filter(
+          p => (p.teamId || p.vccId || p.id) === (team.teamId || teamKey)
+        );
+        const hasPending = teamPrompts.some(p => !p.evaluation && p.evaluationStatus !== "failed");
+        if (!hasPending) {
+          await db.ref(`teams/${teamKey}/aiEvaluating`).set(false);
+        }
+      }
+    }
+
+  } catch (err) {
+    console.error("Auto-recovery error:", err.message);
+  } finally {
+    isRecovering = false;
+  }
+}
+
+/**
+ * Initialize evaluation worker and continuous recovery loop
+ */
+let workerStarted = false;
+function initEvaluationWorker() {
+  if (workerStarted) return;
+  workerStarted = true;
+
+  // Run initial scan immediately after connection
+  setTimeout(() => {
+    recoverPendingEvaluations().catch(e => console.error("Initial recovery error:", e));
+  }, 2000);
+
+  // Re-check periodically every 45 seconds to catch any orphaned prompts
+  setInterval(() => {
+    recoverPendingEvaluations().catch(e => console.error("Periodic recovery error:", e));
+  }, 45000);
+
+  console.log("🚀 [EvaluationWorker] Background AI evaluation and auto-recovery service started.");
+}
+
+// Auto-start worker on module load
+initEvaluationWorker();
+
 module.exports = {
   enqueuePromptEvaluation,
   getProblemStatementContext,
-  updateTeamCumulativeScore
+  updateTeamCumulativeScore,
+  recoverPendingEvaluations,
+  initEvaluationWorker
 };

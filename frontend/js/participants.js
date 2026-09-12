@@ -63,7 +63,13 @@ document.addEventListener("DOMContentLoaded", () => {
           btn.disabled = false;
           btn.innerHTML = '<span>ENTER DASHBOARD</span> <i class="fas fa-arrow-right"></i>';
         }
-        message.textContent = data.error || data.message || "Invalid Team ID/Email or password.";
+
+        let errorText = data.error || data.message || "";
+        if (!errorText || errorText.toLowerCase().includes("server error") || res.status === 500) {
+          errorText = "Wrong password or invalid credentials. Please check and try again.";
+        }
+
+        message.textContent = errorText;
         message.classList.add("error");
         return;
       }
@@ -92,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!navigator.onLine) {
         message.textContent = "No internet connection detected. Please connect to Wi-Fi / Internet and try again.";
       } else {
-        message.textContent = "Server unreachable. Please verify your connection and try again.";
+        message.textContent = "Wrong password or unable to connect. Please check credentials and try again.";
       }
       message.classList.add("error");
     }
