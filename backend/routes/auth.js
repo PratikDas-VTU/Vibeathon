@@ -5,8 +5,12 @@ const { getTeamByEmail, getTeamById } = require("../services/firebaseService");
 
 const router = express.Router();
 
-// Firebase Web API Key with production fallback
-const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || "AIzaSyDDYX61344lv5bOHf6oBv1Z0Udl8S7C3Oc";
+// Firebase Web API Key for client REST authentication
+const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
+
+if (!FIREBASE_API_KEY) {
+  console.warn("⚠️ Warning: FIREBASE_WEB_API_KEY is not configured in environment variables. Participant login requires this key.");
+}
 
 /**
  * POST /api/auth/login
