@@ -509,14 +509,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (demoGenForm) {
     demoGenForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const count = parseInt(document.getElementById("demoCount").value) || 3;
+      const count = parseInt(document.getElementById("demoCount").value) || 10;
+      if (count < 1 || count > 200) {
+        showToast("Please enter a count between 1 and 200.", "warning");
+        return;
+      }
       const prefix = document.getElementById("demoPrefix").value.trim() || "DEMO";
       const password = document.getElementById("demoPassword").value.trim() || "demo12345";
 
       const btn = document.getElementById("generateDemoSubmitBtn");
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Provisioning accounts...';
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Provisioning ${count} accounts...`;
       }
 
       const res = await manageFetch("/api/manage/demo-credentials", {
@@ -533,12 +537,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json();
         showToast(`Provisioned ${data.demoTeams?.length || 0} demo accounts!`, "success");
         await loadParticipants();
+      } else {
+        const errData = res ? await res.json().catch(() => ({})) : {};
+        showToast(errData.message || "Failed to generate demo accounts.", "error");
       }
     });
   }
 
   function renderDemoList(list) {
     if (!demoCredentialsSection || !demoTableBody) return;
+    const badge = document.getElementById("demoListCountBadge");
+    if (badge) {
+      badge.textContent = list.length > 0 ? `(${list.length} active)` : "";
+    }
     if (list.length === 0) {
       demoCredentialsSection.style.display = "none";
       return;

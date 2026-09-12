@@ -441,7 +441,7 @@ async function resetAllTeamSessions() {
  */
 async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "demo12345") {
     const createdTeams = [];
-    const safeCount = Math.min(Math.max(1, parseInt(count) || 3), 30); // Max 30 at a time
+    const safeCount = Math.min(Math.max(1, parseInt(count) || 3), 200); // Allow up to 200 demo accounts
 
     // Fetch existing teams to calculate highest existing demo ID and team number
     const snapshot = await db.ref("teams").once("value");
@@ -483,6 +483,9 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
         maxLeadIndex = maxNum - 100;
     }
 
+    const dbUpdates = {};
+    const authTasks = [];
+
     for (let i = 1; i <= safeCount; i++) {
         const currentNum = maxNum + i;
         const numStr = String(currentNum);
@@ -513,35 +516,7 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
             updatedAt: new Date().toISOString()
         };
 
-        // Create in Firebase Auth
-        try {
-            let userRecord;
-            try {
-                userRecord = await auth.getUserByEmail(email);
-                await auth.updateUser(userRecord.uid, { password: defaultPassword });
-            } catch (err) {
-                userRecord = await auth.createUser({
-                    email,
-                    password: defaultPassword,
-                    emailVerified: true
-                });
-            }
-
-            if (userRecord) {
-                await auth.setCustomUserClaims(userRecord.uid, {
-                    id: teamId,
-                    teamId,
-                    vccId: teamId,
-                    teamNo: teamData.teamNo,
-                    role: "participant"
-                });
-            }
-        } catch (authErr) {
-            console.warn(`[generateDemoTeams] Auth warning for ${email}:`, authErr.message);
-        }
-
-        // Save to RTDB
-        await db.ref(`teams/${teamId}`).set(teamData);
+        dbUpdates[teamId] = teamData;
 
         createdTeams.push({
             id: teamId,
@@ -551,7 +526,48 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
             password: defaultPassword,
             leader: teamData.M1_Name
         });
+
+        authTasks.push(async () => {
+            try {
+                let userRecord;
+                try {
+                    userRecord = await auth.createUser({
+                        email,
+                        password: defaultPassword,
+                        emailVerified: true
+                    });
+                } catch (err) {
+                    if (err.code === "auth/email-already-exists") {
+                        userRecord = await auth.getUserByEmail(email);
+                        await auth.updateUser(userRecord.uid, { password: defaultPassword });
+                    } else {
+                        console.warn(`[generateDemoTeams] Auth err for ${email}:`, err.message);
+                    }
+                }
+
+                if (userRecord) {
+                    await auth.setCustomUserClaims(userRecord.uid, {
+                        id: teamId,
+                        teamId,
+                        vccId: teamId,
+                        teamNo: teamData.teamNo,
+                        role: "participant"
+                    });
+                }
+            } catch (authErr) {
+                console.warn(`[generateDemoTeams] Auth warning for ${email}:`, authErr.message);
+            }
+        });
     }
+
+    // Process Auth in concurrent batches of 6 for high performance without triggering Google rate limits
+    const CHUNK_SIZE = 6;
+    for (let i = 0; i < authTasks.length; i += CHUNK_SIZE) {
+        await Promise.all(authTasks.slice(i, i + CHUNK_SIZE).map(fn => fn()));
+    }
+
+    // Single multi-path atomic update to RTDB
+    await db.ref("teams").update(dbUpdates);
 
     return createdTeams;
 }

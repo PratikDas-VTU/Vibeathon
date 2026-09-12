@@ -196,7 +196,8 @@
         <form id="demoGenForm" class="form-grid" style="margin-bottom: 1.5rem;">
           <div class="form-group">
             <label for="demoCount">Number of Demo Teams (N)</label>
-            <input type="number" id="demoCount" class="form-control" value="3" min="1" max="25" required />
+            <input type="number" id="demoCount" class="form-control" value="10" min="1" max="200" required />
+            <span style="font-size: 0.72rem; color: var(--text-3); margin-top: 3px;">Generate up to 200 teams at once.</span>
           </div>
           <div class="form-group">
             <label for="demoPrefix">ID Prefix</label>
@@ -217,7 +218,7 @@
         <div id="demoCredentialsSection" style="display: none;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
             <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--cyan);">
-              <i class="fas fa-key"></i> Active Demo Credentials List
+              <i class="fas fa-key"></i> Active Demo Credentials List <span id="demoListCountBadge" style="font-size:0.75rem; color:var(--text-3); font-weight:600; margin-left:6px;"></span>
             </h3>
             <button id="copyAllDemoBtn" class="btn btn-secondary btn-sm">
               <i class="far fa-copy"></i> Copy All to Clipboard
