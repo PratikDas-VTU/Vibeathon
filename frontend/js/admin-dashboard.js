@@ -166,10 +166,19 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${seconds}s`;
   }
 
-  function computeTeamAIScore(teamId) {
+  function computeTeamAIScore(teamId, fallbackScore) {
     const evalData = promptEvaluations[teamId];
     if (evalData && typeof evalData.score === "number") {
       return evalData.score;
+    }
+    if (typeof fallbackScore === "number") {
+      return fallbackScore;
+    }
+    if (Array.isArray(teams)) {
+      const team = teams.find(t => (t.teamId || t.id || t.vccId) === teamId);
+      if (team && typeof team.aiScore === "number") {
+        return team.aiScore;
+      }
     }
     return null;
   }
@@ -263,7 +272,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const tId = team.teamId || team.id || team.vccId;
       const stats = promptStats[tId] || { promptCount: 0, uniqueAITools: 0 };
       const compTime = getCompletionTime(team);
-      const aiScore = computeTeamAIScore(tId);
+      const evalScore = computeTeamAIScore(tId, team.aiScore);
+      const aiScore = typeof evalScore === "number" ? evalScore : (typeof team.aiScore === "number" ? team.aiScore : null);
 
       return {
         ...team,
@@ -501,7 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Team Stats Box
     const stats = promptStats[selectedTeamId] || { promptCount: 0, uniqueAITools: 0 };
-    const aiScore = computeTeamAIScore(selectedTeamId);
+    const aiScore = computeTeamAIScore(selectedTeamId, team.aiScore);
     const duration = formatDuration(getCompletionTime(team));
 
     teamStats.innerHTML = `
@@ -820,7 +830,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const tId = team.teamId || team.id || team.vccId;
           const stats = promptStats[tId] || { promptCount: 0, uniqueAITools: 0 };
           const compTime = getCompletionTime(team);
-          const aiScore = computeTeamAIScore(tId);
+          const aiScore = computeTeamAIScore(tId, team.aiScore);
 
           return {
             Team_ID: tId,
@@ -907,22 +917,47 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==========================
-     SILENT AUTO REFRESH (30s)
+     SILENT AUTO REFRESH (12s)
      ========================== */
   function startSilentAutoRefresh() {
     if (autoRefreshInterval) return;
     autoRefreshInterval = setInterval(async () => {
       try {
+        await fetchEvaluations();
+        await fetchPrompts();
         const res = await adminFetch("/api/admin/teams");
         if (res.ok) {
           teams = await res.json();
           renderDashboard();
         }
-        await fetchPrompts();
       } catch (err) {
         // silent
       }
-    }, 30000);
+    }, 12000);
+  }
+
+  /* ==========================
+     MANUAL REFRESH BUTTON
+     ========================== */
+  const refreshAdminBtn = document.getElementById("refreshAdminBtn");
+  if (refreshAdminBtn) {
+    refreshAdminBtn.addEventListener("click", async () => {
+      const originalHtml = refreshAdminBtn.innerHTML;
+      refreshAdminBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+      refreshAdminBtn.disabled = true;
+      try {
+        await fetchEvaluations();
+        await fetchPrompts();
+        await fetchTeams();
+        window.showToast("Leaderboard & AI scores updated!", "success");
+      } catch (err) {
+        console.error("Refresh error:", err);
+        window.showToast("Failed to refresh leaderboard", "error");
+      } finally {
+        refreshAdminBtn.innerHTML = originalHtml;
+        refreshAdminBtn.disabled = false;
+      }
+    });
   }
 
   /* ==========================

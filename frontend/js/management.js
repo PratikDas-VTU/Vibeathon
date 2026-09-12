@@ -190,7 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!teamsTableBody) return;
 
     if (teams.length === 0) {
-      teamsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-3);">No matching teams found.</td></tr>`;
+      teamsTableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-3);">No matching teams found.</td></tr>`;
       return;
     }
 
@@ -241,6 +241,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ? `<span class="online-beacon" title="Connected: Active within last 4 minutes" style="margin-right:6px;"></span>`
         : `<span class="offline-beacon" title="Offline / Idle: No recent activity" style="margin-right:6px;"></span>`;
 
+      // AI Score badge
+      let aiScoreBadge = '<span style="color: var(--text-3); font-family: var(--font-mono); font-size: 0.85rem;">—</span>';
+      if (typeof t.aiScore === "number") {
+        aiScoreBadge = `<span class="team-badge" style="background: rgba(0, 240, 255, 0.12); color: var(--cyan); border-color: rgba(0, 240, 255, 0.3); font-weight: 700; font-family: var(--font-mono);"><i class="fas fa-bolt"></i> ${t.aiScore}/50</span>`;
+      }
+
       return `
         <tr>
           <td><span class="team-badge">${teamId}</span></td>
@@ -258,6 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
           <td>${statusBadge}</td>
           <td>${deliverableSummary}</td>
+          <td>${aiScoreBadge}</td>
           <td class="actions-cell">
             <button class="btn btn-secondary btn-sm" onclick="window.openEditTeamModal('${teamId}')" title="Edit Credentials">
               <i class="fas fa-edit"></i> Edit
