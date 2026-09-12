@@ -200,6 +200,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }[tag] || tag));
   }
 
+  function formatExternalUrl(url) {
+    if (!url) return "";
+    const trimmed = String(url).trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  }
+
   /* ==========================
      FETCH LIVE DATA
      ========================== */
@@ -392,13 +400,13 @@ document.addEventListener("DOMContentLoaded", () => {
       // Deliverables
       let delHtml = '<div class="deliverables-group">';
       if (team.githubUrl) {
-        delHtml += `<a href="${escapeHtml(team.githubUrl)}" target="_blank" rel="noopener noreferrer" class="del-chip gh-active" title="Open GitHub Repo"><i class="fab fa-github"></i> GitHub</a>`;
+        delHtml += `<a href="${escapeHtml(formatExternalUrl(team.githubUrl))}" target="_blank" rel="noopener noreferrer" class="del-chip gh-active" title="Open GitHub Repo (${escapeHtml(team.githubUrl)})"><i class="fab fa-github"></i> GitHub</a>`;
       } else {
         delHtml += `<span class="del-chip pending"><i class="fab fa-github"></i> Pending</span>`;
       }
 
       if (team.deploymentUrl) {
-        delHtml += `<a href="${escapeHtml(team.deploymentUrl)}" target="_blank" rel="noopener noreferrer" class="del-chip dep-active" title="Open Live App"><i class="fas fa-globe"></i> Live</a>`;
+        delHtml += `<a href="${escapeHtml(formatExternalUrl(team.deploymentUrl))}" target="_blank" rel="noopener noreferrer" class="del-chip dep-active" title="Open Live App (${escapeHtml(team.deploymentUrl)})"><i class="fas fa-globe"></i> Live</a>`;
       } else {
         delHtml += `<span class="del-chip pending"><i class="fas fa-globe"></i> Pending</span>`;
       }
@@ -467,10 +475,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (team.githubUrl || team.deploymentUrl) {
       deliverablesRow = '<div class="modal-deliverables-row">';
       if (team.githubUrl) {
-        deliverablesRow += `<a href="${escapeHtml(team.githubUrl)}" target="_blank" rel="noopener" class="modal-del-link github"><i class="fab fa-github"></i> Open GitHub Repository</a>`;
+        deliverablesRow += `<a href="${escapeHtml(formatExternalUrl(team.githubUrl))}" target="_blank" rel="noopener noreferrer" class="modal-del-link github"><i class="fab fa-github"></i> Open GitHub Repository</a>`;
       }
       if (team.deploymentUrl) {
-        deliverablesRow += `<a href="${escapeHtml(team.deploymentUrl)}" target="_blank" rel="noopener" class="modal-del-link deploy"><i class="fas fa-external-link-alt"></i> Open Live Application</a>`;
+        deliverablesRow += `<a href="${escapeHtml(formatExternalUrl(team.deploymentUrl))}" target="_blank" rel="noopener noreferrer" class="modal-del-link deploy"><i class="fas fa-external-link-alt"></i> Open Live Application</a>`;
       }
       deliverablesRow += '</div>';
     }

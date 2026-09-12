@@ -235,40 +235,52 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const hasGithub = Boolean(t.githubUrl);
       const hasDeploy = Boolean(t.deploymentUrl);
-      const deliverableSummary = `${hasGithub ? '<i class="fab fa-github" style="color:var(--cyan);" title="GitHub Submitted"></i>' : '<span style="opacity:0.3;">GH</span>'} &nbsp; ${hasDeploy ? '<i class="fas fa-external-link-alt" style="color:var(--green);" title="Live Demo Submitted"></i>' : '<span style="opacity:0.3;">URL</span>'}`;
+      let deliverableSummary = '<div class="deliv-wrap">';
+      if (hasGithub) {
+        deliverableSummary += `<a href="${escapeHtml(formatExternalUrl(t.githubUrl))}" target="_blank" rel="noopener noreferrer" class="deliv-chip gh-active" title="Open GitHub Repo (${escapeHtml(t.githubUrl)})"><i class="fab fa-github"></i> GH</a>`;
+      } else {
+        deliverableSummary += `<span class="deliv-chip pending" title="GitHub not submitted"><i class="fab fa-github"></i> —</span>`;
+      }
+
+      if (hasDeploy) {
+        deliverableSummary += `<a href="${escapeHtml(formatExternalUrl(t.deploymentUrl))}" target="_blank" rel="noopener noreferrer" class="deliv-chip dep-active" title="Open Live Application (${escapeHtml(t.deploymentUrl)})"><i class="fas fa-external-link-alt"></i> Live</a>`;
+      } else {
+        deliverableSummary += `<span class="deliv-chip pending" title="Live demo not submitted"><i class="fas fa-external-link-alt"></i> —</span>`;
+      }
+      deliverableSummary += '</div>';
 
       const beaconIcon = isOnline 
         ? `<span class="online-beacon" title="Connected: Active within last 4 minutes" style="margin-right:6px;"></span>`
         : `<span class="offline-beacon" title="Offline / Idle: No recent activity" style="margin-right:6px;"></span>`;
 
-      // AI Score badge
-      let aiScoreBadge = '<span style="color: var(--text-3); font-family: var(--font-mono); font-size: 0.85rem;">—</span>';
+      // Compact AI Score badge
+      let aiScoreBadge = '<span class="ai-score-pill none">—</span>';
       if (t.aiEvaluating) {
-        aiScoreBadge = `<span class="team-badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border-color: rgba(245, 158, 11, 0.35); font-weight: 600;"><i class="fas fa-spinner fa-spin"></i> Evaluating...</span>`;
+        aiScoreBadge = `<span class="ai-score-pill evaluating" title="AI evaluation in progress"><i class="fas fa-spinner fa-spin"></i> Eval...</span>`;
       } else if (typeof t.aiScore === "number") {
         const normScore = t.aiScore > 50 ? Math.round(t.aiScore / 2) : t.aiScore;
-        aiScoreBadge = `<span class="team-badge" style="background: rgba(0, 240, 255, 0.12); color: var(--cyan); border-color: rgba(0, 240, 255, 0.3); font-weight: 700; font-family: var(--font-mono);"><i class="fas fa-bolt"></i> ${normScore}/50</span>`;
+        aiScoreBadge = `<span class="ai-score-pill" title="AI Score: ${normScore}/50"><i class="fas fa-bolt"></i> ${normScore}/50</span>`;
       }
 
       return `
         <tr>
-          <td><span class="team-badge">${teamId}</span></td>
-          <td>
-            <div style="font-weight: 600; color: var(--text-1); display:flex; align-items:center;">
-              ${beaconIcon} ${escapeHtml(t.M1_Name || "Team Leader")}
+          <td class="col-id"><span class="team-badge">${teamId}</span></td>
+          <td class="col-leader">
+            <div style="font-weight: 600; color: var(--text-1); display:flex; align-items:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${beaconIcon} <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.M1_Name || "Team Leader")}</span>
             </div>
-            <div style="font-size: 0.72rem; color: var(--text-3); padding-left: 14px;">${escapeHtml(t.college || "—")}</div>
+            <div style="font-size: 0.72rem; color: var(--text-3); padding-left: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.college || "—")}</div>
           </td>
-          <td>
-            <span class="cred-chip"><i class="far fa-envelope"></i> ${escapeHtml(t.M1_Email || "—")}</span>
+          <td class="col-email">
+            <span class="cred-chip" title="${escapeHtml(t.M1_Email || '')}"><i class="far fa-envelope"></i> ${escapeHtml(t.M1_Email || "—")}</span>
           </td>
-          <td>
+          <td class="col-phone">
             <span class="cred-chip"><i class="fas fa-key"></i> ${escapeHtml(t.M1_Phone || "—")}</span>
           </td>
-          <td>${statusBadge}</td>
-          <td>${deliverableSummary}</td>
-          <td>${aiScoreBadge}</td>
-          <td class="actions-cell">
+          <td class="col-status">${statusBadge}</td>
+          <td class="col-deliv">${deliverableSummary}</td>
+          <td class="col-score">${aiScoreBadge}</td>
+          <td class="col-actions actions-cell">
             <button class="btn btn-secondary btn-sm" onclick="window.openEditTeamModal('${teamId}')" title="Edit Credentials">
               <i class="fas fa-edit"></i> Edit
             </button>
@@ -1384,6 +1396,15 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  // Helper: Format External URL (ensure protocol)
+  function formatExternalUrl(url) {
+    if (!url) return "";
+    const trimmed = String(url).trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
   }
 
   // Initial Data Load
