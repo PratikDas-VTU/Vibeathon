@@ -396,6 +396,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const teamId = team.teamId || team.id || team.vccId;
+      const collegeDisplay = team.college || team.M1_College || "—";
 
       row.innerHTML = `
         <td><span class="rank-badge ${rankClass}">${rankLabel}</span></td>
