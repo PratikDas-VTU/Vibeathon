@@ -44,19 +44,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const loginUrl = window.getApiUrl ? window.getApiUrl("/api/auth/login") : "/api/auth/login";
-      const res = await fetch(
-        loginUrl,
+      const authFn = (typeof window !== "undefined" && window.safeAuthFetch) 
+        ? window.safeAuthFetch 
+        : async (endpoint, opts) => {
+            const url = window.getApiUrl ? window.getApiUrl(endpoint) : endpoint;
+            const r = await fetch(url, opts);
+            const d = await r.json().catch(() => ({}));
+            return { res: r, data: d };
+          };
+
+      const { res, data } = await authFn(
+        "/api/auth/login",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({ email, password })
+        },
+        (statusText) => {
+          message.textContent = statusText;
+          message.className = "login-message";
+          if (btn) {
+            btn.innerHTML = `<span>CONNECTING...</span> <i class="fas fa-spinner fa-spin"></i>`;
+          }
         }
       );
-
-      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         if (btn) {

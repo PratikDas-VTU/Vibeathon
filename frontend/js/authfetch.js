@@ -29,10 +29,20 @@ export async function authFetch(url, options = {}) {
   };
 
   try {
-    const response = await fetch(targetUrl, {
+    let response = await fetch(targetUrl, {
       ...options,
       headers
     });
+
+    // Handle Render free tier cold-start timeout from Vercel proxy rewrite (502 / 504)
+    if (response.status === 502 || response.status === 504) {
+      console.warn("⚠️ Gateway timeout in authFetch (Render cold start). Retrying directly against Render backend...");
+      await new Promise(r => setTimeout(r, 3000));
+      const directUrl = url.startsWith("http") 
+        ? url 
+        : `https://vibeathon-backend-g210.onrender.com${url.startsWith("/") ? url : "/" + url}`;
+      response = await fetch(directUrl, { ...options, headers });
+    }
 
     console.log("📥 Response received:", response);
     console.log("📊 Response status:", response.status);

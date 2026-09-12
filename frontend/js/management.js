@@ -36,13 +36,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     try {
-      const res = await fetch(fullUrl, {
+      let res = await fetch(fullUrl, {
         ...options,
         headers: {
           ...defaultHeaders,
           ...(options.headers || {})
         }
       });
+
+      // Cold start mitigation for 502/504 gateway timeout
+      if (res.status === 502 || res.status === 504) {
+        console.warn(`Gateway 502/504 for ${endpoint}. Retrying directly against Render backend...`);
+        const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+        const directUrl = `https://vibeathon-backend-g210.onrender.com${cleanEndpoint}`;
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        res = await fetch(directUrl, {
+          ...options,
+          headers: {
+            ...defaultHeaders,
+            ...(options.headers || {})
+          }
+        });
+      }
 
       if (res.status === 401 || res.status === 403) {
         localStorage.removeItem("adminToken");

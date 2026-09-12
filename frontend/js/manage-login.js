@@ -60,25 +60,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const loginUrl = (typeof window !== "undefined" && window.getApiUrl) 
-        ? window.getApiUrl("/api/admin/login") 
-        : "/api/admin/login";
+      const authFn = (typeof window !== "undefined" && window.safeAuthFetch) 
+        ? window.safeAuthFetch 
+        : async (endpoint, opts) => {
+            const url = window.getApiUrl ? window.getApiUrl(endpoint) : endpoint;
+            const r = await fetch(url, opts);
+            let d = {};
+            try { d = await r.json(); } catch(e) { d = { message: `HTTP ${r.status}` }; }
+            return { res: r, data: d };
+          };
 
-      console.log("Connecting to login endpoint:", loginUrl);
-
-
-      const res = await fetch(loginUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        data = { message: `Gateway error (${res.status}: ${res.statusText || "No response body"})` };
-      }
+      const { res, data } = await authFn(
+        "/api/admin/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        },
+        (statusText) => {
+          showMessage(statusText, "info");
+          if (loginBtn) {
+            loginBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>${statusText}</span>`;
+          }
+        }
+      );
 
       if (!res.ok) {
         showMessage(data.message || "Invalid administrative credentials.", "error");

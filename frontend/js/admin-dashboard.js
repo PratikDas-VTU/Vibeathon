@@ -134,8 +134,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const separator = url.includes("?") ? "&" : "?";
     const cacheBustedUrl = `${url}${separator}_t=${Date.now()}`;
-    const targetUrl = window.getApiUrl ? window.getApiUrl(cacheBustedUrl) : cacheBustedUrl;
-    const res = await fetch(targetUrl, { ...options, cache: "no-store", headers });
+    let res = await fetch(targetUrl, { ...options, cache: "no-store", headers });
+
+    // Cold start mitigation for 502/504 gateway timeout
+    if (res.status === 502 || res.status === 504) {
+      console.warn("Gateway timeout in admin API (Render cold start). Retrying directly against Render backend...");
+      await new Promise(r => setTimeout(r, 3000));
+      const cleanUrl = cacheBustedUrl.startsWith("/") ? cacheBustedUrl : `/${cacheBustedUrl}`;
+      const directUrl = `https://vibeathon-backend-g210.onrender.com${cleanUrl}`;
+      res = await fetch(directUrl, { ...options, cache: "no-store", headers });
+    }
 
     if (res.status === 401 || res.status === 403) {
       localStorage.removeItem("adminToken");

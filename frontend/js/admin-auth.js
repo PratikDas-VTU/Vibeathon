@@ -32,32 +32,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      let loginUrl = "/api/admin/login";
-      if (typeof window !== "undefined" && window.getApiUrl) {
-        loginUrl = window.getApiUrl("/api/admin/login");
-      } else if (window.location.port === "5500" || window.location.port === "5501" || window.location.protocol === "file:") {
-        loginUrl = "https://vibeathon-backend-g210.onrender.com/api/admin/login";
-      }
+      const authFn = (typeof window !== "undefined" && window.safeAuthFetch) 
+        ? window.safeAuthFetch 
+        : async (endpoint, opts) => {
+            const url = window.getApiUrl ? window.getApiUrl(endpoint) : endpoint;
+            const r = await fetch(url, opts);
+            let d = {};
+            try { d = await r.json(); } catch(e) { d = { message: `HTTP ${r.status}` }; }
+            return { res: r, data: d };
+          };
 
-      const res = await fetch(
-        loginUrl,
+      const { res, data } = await authFn(
+        "/api/admin/login",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({ username, password })
+        },
+        (statusText) => {
+          showMessage(statusText, "info");
         }
       );
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (e) {
-        data = { message: `Gateway error (${res.status}: ${res.statusText})` };
-      }
       console.log("📦 Admin login response data:", data);
-
 
       if (!res.ok) {
         console.error("❌ Admin login failed:", data.message);

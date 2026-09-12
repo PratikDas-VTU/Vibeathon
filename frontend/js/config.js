@@ -65,15 +65,93 @@
     return `${API_BASE}${cleanEndpoint}`;
   }
 
+  /**
+   * Safe fetch with cold-start auto-retry and Render direct-routing fallback.
+   * Mitigates 502 Bad Gateway timeouts caused by Vercel edge proxies when
+   * waiting for sleeping Render free-tier containers.
+   */
+  async function safeAuthFetch(endpoint, options = {}, onStatusUpdate = null, maxRetries = 2) {
+    let currentUrl = getApiUrl(endpoint);
+    let attempts = 0;
+
+    while (attempts <= maxRetries) {
+      try {
+        const res = await fetch(currentUrl, options);
+
+        // If gateway error (502 / 504 / 503 from Vercel proxy rewrite)
+        if ((res.status === 502 || res.status === 504 || res.status === 503) && attempts < maxRetries) {
+          attempts++;
+          if (onStatusUpdate) {
+            onStatusUpdate(`⚡ Server is waking up (cold start)... Retrying directly in 3s (Attempt ${attempts}/${maxRetries})`);
+          }
+          // Fall back to direct backend URL (browser waits without Vercel's 10s rewrite timeout)
+          const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+          currentUrl = `${PRODUCTION_BACKEND}${cleanEndpoint}`;
+          await new Promise((resolve) => setTimeout(resolve, 3500));
+          continue;
+        }
+
+        // Parse JSON or text safely
+        let data = {};
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          try {
+            data = await res.json();
+          } catch (e) {
+            data = {};
+          }
+        } else {
+          const text = await res.text().catch(() => "");
+          if (text) {
+            try {
+              data = JSON.parse(text);
+            } catch (e) {
+              data = { message: text.length < 150 ? text : `HTTP ${res.status}` };
+            }
+          }
+        }
+
+        return { res, data };
+      } catch (networkErr) {
+        attempts++;
+        if (attempts <= maxRetries) {
+          if (onStatusUpdate) {
+            onStatusUpdate(`Connecting to server... Attempt ${attempts}/${maxRetries}`);
+          }
+          const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+          currentUrl = `${PRODUCTION_BACKEND}${cleanEndpoint}`;
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          continue;
+        }
+        throw networkErr;
+      }
+    }
+  }
+
+  // Auto pre-warm Render backend in background when page loads
+  if (typeof window !== "undefined") {
+    setTimeout(() => {
+      try {
+        fetch(`${PRODUCTION_BACKEND}/api/health`, {
+          method: "GET",
+          cache: "no-store",
+          mode: "cors"
+        }).catch(() => {});
+      } catch (e) {}
+    }, 150);
+  }
+
   // Attach to global window object
   if (typeof window !== "undefined") {
-    window.VIBEATHON_CONFIG = { API_BASE, getApiUrl };
+    window.VIBEATHON_CONFIG = { API_BASE, PRODUCTION_BACKEND, getApiUrl, safeAuthFetch };
     window.getApiUrl = getApiUrl;
     window.API_BASE_URL = API_BASE;
+    window.PRODUCTION_BACKEND = PRODUCTION_BACKEND;
+    window.safeAuthFetch = safeAuthFetch;
   }
 
   // Support CommonJS / Node environments if required
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { API_BASE, getApiUrl };
+    module.exports = { API_BASE, PRODUCTION_BACKEND, getApiUrl, safeAuthFetch };
   }
 })(typeof window !== "undefined" ? window : globalThis);
