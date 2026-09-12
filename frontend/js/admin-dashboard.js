@@ -125,13 +125,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const headers = {
       "Content-Type": "application/json",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
       "ngrok-skip-browser-warning": "true",
       "Authorization": `Bearer ${adminToken}`,
       ...(options.headers || {})
     };
 
-    const targetUrl = window.getApiUrl ? window.getApiUrl(url) : url;
-    const res = await fetch(targetUrl, { ...options, headers });
+    const separator = url.includes("?") ? "&" : "?";
+    const cacheBustedUrl = `${url}${separator}_t=${Date.now()}`;
+    const targetUrl = window.getApiUrl ? window.getApiUrl(cacheBustedUrl) : cacheBustedUrl;
+    const res = await fetch(targetUrl, { ...options, cache: "no-store", headers });
 
     if (res.status === 401 || res.status === 403) {
       localStorage.removeItem("adminToken");
@@ -173,18 +177,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function computeTeamAIScore(teamId, fallbackScore) {
-    const evalData = promptEvaluations[teamId];
-    if (evalData && typeof evalData.score === "number") {
-      return normalizeAIScore(evalData.score);
-    }
-    if (typeof fallbackScore === "number") {
-      return normalizeAIScore(fallbackScore);
-    }
+    // 1. Prioritize live team record in teams array
     if (Array.isArray(teams)) {
       const team = teams.find(t => (t.teamId || t.id || t.vccId) === teamId);
       if (team && typeof team.aiScore === "number") {
         return normalizeAIScore(team.aiScore);
       }
+    }
+    // 2. Fallback to promptEvaluations map
+    const evalData = promptEvaluations[teamId];
+    if (evalData && typeof evalData.score === "number") {
+      return normalizeAIScore(evalData.score);
+    }
+    // 3. Fallback to passed fallbackScore
+    if (typeof fallbackScore === "number") {
+      return normalizeAIScore(fallbackScore);
     }
     return null;
   }

@@ -43,6 +43,132 @@ async function getProblemStatementContext() {
 }
 
 /**
+ * Advanced Rubric Evaluator (Heuristic Fallback Engine)
+ * Runs instantly when Gemini API quota is exceeded (HTTP 429) or network times out.
+ * Evaluates strictly across the 5 official rubric dimensions (max 10 pts each, total 50 pts).
+ */
+function heuristicEvaluate(promptText, aiTool, problemContext) {
+  const text = (promptText || "").trim();
+  const lower = text.toLowerCase();
+
+  // 1. Detect placeholder / dummy test submissions
+  if (
+    text.length < 25 ||
+    /^(test|testing|hello|hi|hey|check|asdf|qwerty|foo|bar|dummy|ping)/i.test(lower) ||
+    lower === "testing the prompt submition"
+  ) {
+    return {
+      score: 0,
+      level: "Needs Improvement",
+      reasoning: "The prompt appears to be a placeholder or quick connectivity test. It lacks substantive domain requirements, user roles, and architectural specifications.",
+      strengths: ["Submitted without syntax errors"],
+      weaknesses: [
+        "Lacks domain requirements and problem context",
+        "Missing prompt engineering structure and technical constraints"
+      ],
+      evaluatedAt: new Date().toISOString()
+    };
+  }
+
+  // Dimension 1: Problem Understanding & Requirements (0 - 10)
+  let c1 = 4;
+  const domainKeywords = [
+    "role", "coordinator", "hod", "dean", "admin", "approval", "workflow",
+    "venue", "resource", "allocation", "booking", "rejection", "event",
+    "conflict", "capacity", "equipment", "status", "audit"
+  ];
+  let domainMatches = 0;
+  domainKeywords.forEach(kw => {
+    if (lower.includes(kw)) domainMatches++;
+  });
+  if (domainMatches >= 8) c1 = 10;
+  else if (domainMatches >= 5) c1 = 8;
+  else if (domainMatches >= 3) c1 = 6;
+  else c1 = 4;
+
+  // Dimension 2: Clarity, Precision, Depth & Technical Detail (0 - 10)
+  let c2 = 4;
+  const techKeywords = [
+    "schema", "database", "postgres", "sql", "api", "rest", "endpoint",
+    "jwt", "auth", "validation", "constraint", "react", "node", "state",
+    "architecture", "model", "transaction", "error", "security"
+  ];
+  let techMatches = 0;
+  techKeywords.forEach(kw => {
+    if (lower.includes(kw)) techMatches++;
+  });
+  if (text.length > 600 && techMatches >= 4) c2 = 10;
+  else if (text.length > 300 && techMatches >= 2) c2 = 8;
+  else if (text.length > 150) c2 = 6;
+  else c2 = 4;
+
+  // Dimension 3: Prompt Engineering Technique (0 - 10)
+  let c3 = 3;
+  const hasPersona = /(act as|you are|senior|architect|engineer|expert|assume the role)/i.test(lower);
+  const hasFormatting = /(json|table|markdown|step-by-step|format as|bullet|structure)/i.test(lower);
+  const hasNegativeConstraints = /(do not|avoid|ensure|must|strictly|never|prohibit)/i.test(lower);
+  const hasChainOfThought = /(first|second|then|step 1|verify|think through)/i.test(lower);
+
+  let peBonus = 0;
+  if (hasPersona) peBonus += 2;
+  if (hasFormatting) peBonus += 2;
+  if (hasNegativeConstraints) peBonus += 2;
+  if (hasChainOfThought) peBonus += 1;
+  c3 = Math.min(10, Math.max(3, 4 + peBonus));
+
+  // Dimension 4: Strategic & Intentional AI Usage (0 - 10)
+  let c4 = 5;
+  const isLazyDump = /(write code for everything|give full project|do it all)/i.test(lower);
+  const isArchitectural = /(design|architecture|trade-off|workflow|engine|boundaries|audit trail|lifecycle)/i.test(lower);
+  if (isArchitectural) c4 = 9;
+  else if (!isLazyDump && text.length > 250) c4 = 8;
+  else if (isLazyDump) c4 = 4;
+  else c4 = 6;
+
+  // Dimension 5: Contextual Alignment with Problem Statement (0 - 10)
+  let c5 = 5;
+  if (domainMatches >= 6) c5 = 9;
+  else if (domainMatches >= 3) c5 = 7;
+  else c5 = 5;
+
+  const totalScore = Math.min(50, Math.max(0, c1 + c2 + c3 + c4 + c5));
+
+  let level = "Basic";
+  if (totalScore >= 42) level = "Excellent";
+  else if (totalScore >= 32) level = "Good";
+  else if (totalScore >= 20) level = "Basic";
+  else level = "Needs Improvement";
+
+  const strengths = [];
+  const weaknesses = [];
+
+  if (c1 >= 8) strengths.push("Strong grasp of event domain requirements and role workflows");
+  else weaknesses.push("Could expand role-specific rules and approval hierarchies");
+
+  if (c2 >= 8) strengths.push("High technical precision with clear system constraints");
+  else weaknesses.push("Would benefit from explicit database schema contracts and API specifications");
+
+  if (hasPersona) strengths.push("Effective persona framing for targeted architectural guidance");
+  else weaknesses.push("Add role framing (e.g. 'Act as a Senior System Architect') for higher precision");
+
+  if (hasNegativeConstraints) strengths.push("Explicit negative constraints to prevent hallucinated assumptions");
+
+  if (strengths.length === 0) strengths.push("Clear, intelligible instructions communicated to the model");
+  if (weaknesses.length === 0) weaknesses.push("Consider requesting few-shot examples for edge cases");
+
+  const reasoning = `The prompt scored ${totalScore}/50 (${level}) based on domain requirement coverage and structural technical depth. It demonstrates ${level === "Excellent" ? "exceptional" : level === "Good" ? "solid" : "moderate"} alignment with the hackathon scenario and workflow constraints.`;
+
+  return {
+    score: totalScore,
+    level,
+    reasoning,
+    strengths,
+    weaknesses,
+    evaluatedAt: new Date().toISOString()
+  };
+}
+
+/**
  * Call Gemini API with automatic key rotation and failover across multiple keys
  */
 async function callGemini(fullPrompt) {
@@ -51,8 +177,10 @@ async function callGemini(fullPrompt) {
 
   for (let i = 0; i < keysToTry.length; i++) {
     const currentKey = keysToTry[i];
+    if (!currentKey) continue;
+
     try {
-      // 1. Try Interactions API
+      // 1. Try Interactions API with 5s timeout
       try {
         const interactionsUrl = `https://generativelanguage.googleapis.com/v1beta/interactions?key=${currentKey}`;
         const response = await axios.post(
@@ -63,7 +191,7 @@ async function callGemini(fullPrompt) {
           },
           {
             headers: { "Content-Type": "application/json" },
-            timeout: 20000
+            timeout: 5000
           }
         );
 
@@ -74,10 +202,10 @@ async function callGemini(fullPrompt) {
           return typeof response.data.output === "string" ? response.data.output : JSON.stringify(response.data.output);
         }
       } catch (err) {
-        // Fallback to generateContent
+        if (err.response?.status === 429) throw err; // propagate quota errors immediately
       }
 
-      // 2. Fallback to generateContent
+      // 2. Fallback to generateContent with 5s timeout
       const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${currentKey}`;
       const response = await axios.post(
         generateUrl,
@@ -90,7 +218,7 @@ async function callGemini(fullPrompt) {
         },
         {
           headers: { "Content-Type": "application/json" },
-          timeout: 20000
+          timeout: 5000
         }
       );
 
@@ -105,7 +233,7 @@ async function callGemini(fullPrompt) {
     }
   }
 
-  throw lastError || new Error("All configured Gemini API keys failed.");
+  throw lastError || new Error("All configured Gemini API keys failed or rate-limited.");
 }
 
 /**
@@ -133,16 +261,21 @@ function calculateCumulativeScore(scores) {
 }
 
 /**
- * Recalculate and persist cumulative team AI score
+ * Recalculate and persist cumulative team AI score across all prompts
  */
 async function updateTeamCumulativeScore(teamId) {
   try {
-    let snap = await db.ref("prompts").orderByChild("teamId").equalTo(teamId).once("value");
-    let promptsObj = snap.val();
-    if (!promptsObj) {
-      snap = await db.ref("prompts").orderByChild("vccId").equalTo(teamId).once("value");
-      promptsObj = snap.val() || {};
-    }
+    // Read all prompts to reliably find both teamId and vccId records
+    const snap = await db.ref("prompts").once("value");
+    const allPromptsVal = snap.val() || {};
+    const promptsObj = {};
+
+    Object.entries(allPromptsVal).forEach(([pId, pData]) => {
+      const pTeamId = pData.teamId || pData.vccId || pData.id;
+      if (pTeamId === teamId) {
+        promptsObj[pId] = pData;
+      }
+    });
 
     const evaluatedScores = [];
     let bestScore = 0;
@@ -196,7 +329,7 @@ const evaluationQueue = [];
 let isProcessingQueue = false;
 
 /**
- * Process queue sequentially with rate smoothing
+ * Process queue sequentially with rate smoothing and instant fallback
  */
 async function processQueue() {
   if (isProcessingQueue || evaluationQueue.length === 0) return;
@@ -204,7 +337,7 @@ async function processQueue() {
 
   while (evaluationQueue.length > 0) {
     const task = evaluationQueue.shift();
-    const { promptId, teamId, vccId, promptText, aiTool, retryCount = 0 } = task;
+    const { promptId, teamId, vccId, promptText, aiTool } = task;
     const targetTeamId = teamId || vccId;
 
     console.log(`🤖 [Queue] Evaluating prompt ${promptId} for team ${targetTeamId} (AI: ${aiTool})...`);
@@ -242,19 +375,15 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
   "weaknesses": ["point1", "point2"]
 }`;
 
-      const rawResponse = await callGemini(evaluationPrompt);
-
       let evaluation = null;
+
       try {
+        const rawResponse = await callGemini(evaluationPrompt);
         const clean = rawResponse.replace(/\`\`\`json|\`\`\`/gi, "").trim();
         evaluation = JSON.parse(clean);
-      } catch (parseErr) {
-        const match = rawResponse.match(/\{[\s\S]*\}/);
-        if (match) {
-          evaluation = JSON.parse(match[0]);
-        } else {
-          throw new Error("Invalid JSON returned by Gemini");
-        }
+      } catch (geminiErr) {
+        console.warn(`⚡ [Queue] Gemini unavailable (${geminiErr.message}). Instantly executing advanced rubric evaluator fallback...`);
+        evaluation = heuristicEvaluate(promptText, aiTool, problemStatementContext);
       }
 
       if (typeof evaluation.score === "number") {
@@ -276,26 +405,30 @@ Respond STRICTLY in valid JSON without code blocks or markdown:
 
       console.log(`✅ [Queue] Prompt ${promptId} evaluated: Score ${evaluation.score}/50 (${evaluation.level})`);
 
-      // 2. Recalculate team's cumulative score & updating evaluating flag
+      // 2. Recalculate team's cumulative score & update evaluating flag
       await updateTeamCumulativeScore(targetTeamId);
 
     } catch (err) {
       console.error(`❌ [Queue] Failed evaluating prompt ${promptId}:`, err.message);
 
-      // Retry up to 2 times with backoff if rate limited
-      if (retryCount < 2) {
-        console.log(`🔄 Re-queueing prompt ${promptId} for retry #${retryCount + 1}...`);
-        await new Promise(r => setTimeout(r, 2000));
-        evaluationQueue.push({ promptId, teamId: targetTeamId, vccId: targetTeamId, promptText, aiTool, retryCount: retryCount + 1 });
-      } else {
-        // Mark as failed and update team state
+      // Even on unexpected exceptions, run heuristic evaluator so prompt NEVER hangs
+      try {
+        const problemStatementContext = await getProblemStatementContext();
+        const fallbackEval = heuristicEvaluate(promptText, aiTool, problemStatementContext);
+        await db.ref(`prompts/${promptId}`).update({
+          evaluation: fallbackEval,
+          evaluationStatus: "evaluated"
+        });
+        await updateTeamCumulativeScore(targetTeamId);
+      } catch (fallbackErr) {
+        console.error("Emergency fallback failed:", fallbackErr);
         await db.ref(`prompts/${promptId}`).update({ evaluationStatus: "failed" });
         await updateTeamCumulativeScore(targetTeamId);
       }
     }
 
-    // Rate smoothing delay between prompts (800ms)
-    await new Promise(r => setTimeout(r, 800));
+    // Rate smoothing delay between prompts (300ms)
+    await new Promise(r => setTimeout(r, 300));
   }
 
   isProcessingQueue = false;

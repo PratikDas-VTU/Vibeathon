@@ -42,6 +42,9 @@ const upload = multer({
    GET ALL TEAMS (ADMIN)
    ========================= */
 router.get("/teams", verifyAdmin, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   try {
     const teams = await getAllTeams();
     res.json(teams);
@@ -57,6 +60,9 @@ router.get("/teams", verifyAdmin, async (req, res) => {
    GET ALL PROMPTS (ADMIN)
    ========================= */
 router.get("/prompts", verifyAdmin, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   try {
     const prompts = await getAllPrompts();
     res.json(prompts);
@@ -112,6 +118,9 @@ router.get(["/teams/:id/prompts", "/teams/:vccId/prompts"], verifyAdmin, async (
    GET PROMPT EVALUATIONS
    ========================= */
 router.get("/prompt-evaluations", verifyAdmin, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   try {
     // Fetch from Firebase Realtime Database
     const evaluationsSnapshot = await db.ref("promptEvaluations").once("value");
