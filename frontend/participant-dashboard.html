@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Vibeathon 2026 � Dashboard</title>
+  <title>Vibeathon 2026 - Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -55,7 +55,7 @@
     </div>
 
     <div class="topbar-actions">
-      <span class="team-chip" id="headerTeamId">TEAM �</span>
+      <span class="team-chip" id="headerTeamId">TEAM -</span>
       <button id="endSession" class="btn-end">
         <i class="fas fa-lock"></i> End Session
       </button>
@@ -76,7 +76,7 @@
 
       <div class="strip-item">
         <span class="strip-label">Team ID</span>
-        <span class="strip-val" id="teamId">�</span>
+        <span class="strip-val" id="teamId">-</span>
         <button class="copy-btn" id="copyTeamIdBtn" title="Copy"><i class="far fa-copy"></i></button>
       </div>
       <div class="strip-divider"></div>
@@ -188,7 +188,7 @@
               <div class="card-icon green-bg"><i class="fas fa-users"></i></div>
               <div>
                 <h2 class="card-title">Team Members</h2>
-                <p class="card-desc">Size: <strong id="teamSize">�</strong></p>
+                <p class="card-desc">Size: <strong id="teamSize">-</strong></p>
               </div>
             </div>
           </div>
@@ -222,7 +222,7 @@
             <label class="field-label" for="aiNameInput">
               <i class="fas fa-robot"></i> AI Tool / Model Name
             </label>
-            <input type="text" id="aiNameInput" list="aiToolsList" placeholder="e.g. Gemini 2.5, Claude 3.5, GPT-4o�" class="text-input" />
+            <input type="text" id="aiNameInput" list="aiToolsList" placeholder="e.g. Gemini 2.5, Claude 3.5, GPT-4o..." class="text-input" />
             <datalist id="aiToolsList"></datalist>
           </div>
 
@@ -233,7 +233,7 @@
               </label>
               <span class="char-count" id="promptCharCount">0 chars</span>
             </div>
-            <textarea id="promptInput" rows="5" placeholder="Paste the exact prompt you gave to the AI tool�"></textarea>
+            <textarea id="promptInput" rows="5" placeholder="Paste the exact prompt you gave to the AI tool..."></textarea>
           </div>
 
           <div class="console-footer">
@@ -259,7 +259,7 @@
           <div id="emptyPromptState" class="empty-state">
             <i class="fas fa-terminal empty-icon"></i>
             <p class="empty-title">No prompts logged yet</p>
-            <p class="empty-sub">Start logging your AI prompts above � they are scored by the jury.</p>
+            <p class="empty-sub">Start logging your AI prompts above - they are scored by the jury.</p>
           </div>
 
           <div id="promptTable" class="prompt-list"></div>

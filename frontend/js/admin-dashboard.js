@@ -38,8 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const fastestTeamEl = document.getElementById("fastestTeam");
 
   const searchInput = document.getElementById("searchInput");
-  const rankFilter = document.getElementById("rankFilter");
   const exportBtn = document.getElementById("exportBtn");
+  const exportDetailedBtn = document.getElementById("exportDetailedBtn");
   const evaluateAIBtn = document.getElementById("evaluateAI");
 
   // Problem Statement Manager elements
@@ -159,24 +159,26 @@ document.addEventListener("DOMContentLoaded", () => {
      DATA HELPERS
      ========================== */
   function getCompletionTime(team) {
-    if (!team.sessionEnded) return null;
-    if (!team.hackathonStart || !team.updatedAt) return null;
+    if (!team || !team.sessionEnded) return null;
+    const endTimestamp = team.completedAt || team.sessionEndedAt || team.updatedAt;
+    if (!team.hackathonStart || !endTimestamp) return null;
 
     const start = new Date(team.hackathonStart).getTime();
-    const end = new Date(team.updatedAt).getTime();
+    const end = new Date(endTimestamp).getTime();
+    if (isNaN(start) || isNaN(end) || end < start) return null;
     return end - start;
   }
 
   function formatDuration(ms) {
-    if (!ms || ms < 0) return "—";
+    if (ms === null || ms === undefined || isNaN(ms) || ms < 0) return null;
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
+    const pad = (n) => String(n).padStart(2, "0");
 
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
+    if (hours > 0) return `${hours}h ${pad(minutes)}m ${pad(seconds)}s`;
+    return `${minutes}m ${pad(seconds)}s`;
   }
 
   function normalizeAIScore(score) {
@@ -414,6 +416,15 @@ document.addEventListener("DOMContentLoaded", () => {
         statusHtml = `<span class="status-pill idle"><i class="far fa-clock"></i> Registered</span>`;
       }
 
+      // Completion Time
+      let compTimeHtml = '<span class="time-chip none">—</span>';
+      if (team.sessionEnded) {
+        const formatted = formatDuration(team.completionTime);
+        compTimeHtml = `<span class="time-chip"><i class="far fa-clock"></i> ${formatted || "—"}</span>`;
+      } else if (team.hackathonStart) {
+        compTimeHtml = `<span class="time-chip in-progress"><i class="fas fa-running"></i> In Progress</span>`;
+      }
+
       // Deliverables
       let delHtml = '<div class="deliverables-group">';
       if (team.githubUrl) {
@@ -453,6 +464,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </td>
         <td>${statusHtml}</td>
+        <td>${compTimeHtml}</td>
         <td>${delHtml}</td>
         <td>${promptChip}</td>
         <td>${aiScoreHtml}</td>
@@ -894,6 +906,98 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         console.error("Export error:", err);
         window.showToast("Failed to export telemetry data.", "error");
+      }
+    });
+  }
+
+  if (exportDetailedBtn) {
+    exportDetailedBtn.addEventListener("click", async () => {
+      const originalText = exportDetailedBtn.innerHTML;
+      exportDetailedBtn.disabled = true;
+      exportDetailedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+
+      try {
+        // 1. Refresh latest prompts and teams to guarantee authoritative data
+        await fetchPrompts();
+        await fetchTeams();
+
+        const detailedRows = [];
+
+        // 2. Iterate through all teams
+        teams.forEach(team => {
+          const tId = team.teamId || team.id || team.vccId;
+          const leader = team.leaderName || team.M1_Name || "—";
+          const college = team.college || team.M1_College || "—";
+          const teamSize = team.teamSize || 1;
+          const status = team.sessionEnded ? "Completed" : (team.hackathonStart ? "Live Sprint" : "Registered");
+          const sessionStart = team.hackathonStart ? new Date(team.hackathonStart).toISOString() : "—";
+          const endTimestamp = team.completedAt || team.sessionEndedAt || (team.sessionEnded ? team.updatedAt : null);
+          const sessionEnd = endTimestamp ? new Date(endTimestamp).toISOString() : "—";
+          const compTimeMs = getCompletionTime(team);
+          const compTimeFormatted = formatDuration(compTimeMs) || "—";
+          const teamCumulativeScore = computeTeamAIScore(tId, team.aiScore);
+
+          // Find this team's prompts using authoritative ownership
+          const teamPrompts = allPrompts.filter(p => (p.teamId || p.vccId) === tId);
+          teamPrompts.sort((a, b) => new Date(a.submittedAt || a.createdAt || 0) - new Date(b.submittedAt || b.createdAt || 0));
+
+          const totalPrompts = teamPrompts.length;
+          const evaluatedCount = teamPrompts.filter(p => p.evaluationStatus === "evaluated" || (p.evaluation && typeof p.evaluation.score === "number")).length;
+
+          teamPrompts.forEach((p, idx) => {
+            const promptNum = idx + 1;
+            const promptId = p.id || p._id || `P-${idx + 1}`;
+            const promptText = p.promptText || "";
+            const submittedAt = p.submittedAt || p.createdAt ? new Date(p.submittedAt || p.createdAt).toISOString() : "—";
+            const aiTool = p.aiTool || "—";
+            const evalStatus = p.evaluationStatus || (p.evaluation ? "evaluated" : "pending");
+            const score = p.evaluation && typeof p.evaluation.score === "number" ? p.evaluation.score : "—";
+            const level = p.evaluation?.level || "—";
+            const reasoning = p.evaluation?.reasoning || "—";
+            const evaluatedAt = p.evaluation?.evaluatedAt ? new Date(p.evaluation.evaluatedAt).toISOString() : "—";
+            const provider = p.evaluation?.evaluatorProvider || "—";
+
+            detailedRows.push({
+              Team_ID: tId,
+              Team_Leader: leader,
+              Institution_College: college,
+              Team_Size: teamSize,
+              Team_Status: status,
+              Session_Start: sessionStart,
+              Session_End: sessionEnd,
+              Completion_Time: compTimeFormatted,
+              Prompt_Number: promptNum,
+              Prompt_ID: promptId,
+              AI_Tool: aiTool,
+              Prompt_Text: promptText,
+              Submitted_At: submittedAt,
+              Evaluation_Status: evalStatus,
+              AI_Score: score,
+              Score_Classification_Level: level,
+              Evaluation_Reasoning: reasoning,
+              Evaluated_At: evaluatedAt,
+              Evaluator_Provider: provider,
+              Team_Cumulative_AI_Score: teamCumulativeScore !== null ? teamCumulativeScore : "Not Graded",
+              Team_Total_Prompts: totalPrompts,
+              Team_Evaluated_Count: evaluatedCount
+            });
+          });
+        });
+
+        if (detailedRows.length === 0) {
+          window.showToast("No submitted prompts found across any team.", "info");
+          return;
+        }
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        exportToCSV(detailedRows, `vibeathon-prompt-audit-${dateStr}.csv`);
+        window.showToast(`Exported ${detailedRows.length} prompt audit records successfully.`, "success");
+      } catch (err) {
+        console.error("Detailed export error:", err);
+        window.showToast("Failed to export detailed prompt audit.", "error");
+      } finally {
+        exportDetailedBtn.disabled = false;
+        exportDetailedBtn.innerHTML = originalText;
       }
     });
   }

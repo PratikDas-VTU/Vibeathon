@@ -183,7 +183,12 @@ router.post("/end", auth, async (req, res) => {
     const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    await updateTeam(teamId, { sessionEnded: true });
+    const nowIso = new Date().toISOString();
+    await updateTeam(teamId, {
+      sessionEnded: true,
+      completedAt: team.completedAt || nowIso,
+      sessionEndedAt: team.sessionEndedAt || nowIso
+    });
     await markActive(teamId);
 
     res.json({ message: "Session ended" });

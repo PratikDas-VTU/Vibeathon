@@ -19,7 +19,7 @@ GitHub Repository: PratikDas-VTU/Vibeathon
 - **Client Layer:** Pure vanilla ES6+ JavaScript, responsive Glassmorphism / Cyber HUD styling, zero frontend build overhead.
 - **API Gateway & Microservices:** Node.js & Express.js 5 REST API with robust security headers, CORS guards, and tokenized custom claims.
 - **Database & Identity:** **Firebase Realtime Database (RTDB)** (Singapore region for sub-50ms latency) & **Firebase Authentication**.
-- **AI Evaluation Subsystem:** **Hybrid Dual-Engine** combining Google Gemini (Flash 2.5/3.6) with a deterministic 5-dimension rubric heuristic evaluator and continuous auto-recovery.
+- **AI Evaluation Subsystem:** **Enterprise Two-Provider Gemini Architecture** (Gemini 2.5 / 3.5 Flash Lite) with per-provider token bucket rate limiting, bounded concurrency, automated failover, idempotent queue deduplication, and continuous auto-recovery.
 
 ---
 
@@ -29,11 +29,13 @@ GitHub Repository: PratikDas-VTU/Vibeathon
    - Direct login with **Team ID** (e.g. `DEMO101`) or Leader Email with automatic credential sync.
    - Server-authoritative 2-hour countdown timer (immune to client clock changes and refreshes).
    - Real-time GitHub repo and Live Deployment URL validation and submissions.
-   - AI prompt logger (captures model, verbatim prompt, timestamp).
+   - **AI Prompt Telemetry Logger:** Verbatim prompt capture with AI model selection and strict team ownership isolation (`teamId` / `vccId` scoped; no cross-team counting contamination).
    - **Privacy Shield:** Confirmation badges show delivery (`✓ Logged`), but numerical AI scores (`0–50`) and jury reasoning remain **strictly hidden** from participants during the hackathon.
 
-2. **Admin & Jury Mission Control (`admin-login.html` & `admin.html`):**
-   - Real-time leaderboard with multi-parameter filtering (by college, team ID, score).
+2. **Admin & Jury Mission Control (`admin-login.html` & `admin-dashboard.html`):**
+   - Real-time leaderboard with multi-parameter filtering (`Least Completion Time`, `Best AI Score`, `Fewest Prompts`, `Most Prompts Logged`, `Balanced Metric`, `Show All`).
+   - **Authoritative Completion Time Tracking:** Real-time session duration displayed in `5m 52s` format, calculated strictly from immutable lifecycle timestamps (`(completedAt || sessionEndedAt) - hackathonStart`).
+   - **Detailed Management Export ("Export Prompt Audit"):** Generates a comprehensive 22-column prompt-wise and team-wise CSV export adhering strictly to RFC 4180 escaping for prompt text, evaluations, provider logs, and scores.
    - One-click deliverable auditing with protocol normalization (`https://`).
    - Deep prompt modal inspecting exact prompts, scores, criteria breakdown, strengths, and weaknesses.
 
@@ -49,7 +51,7 @@ GitHub Repository: PratikDas-VTU/Vibeathon
 
 ---
 
-## 🧠 Hybrid Dual-Engine AI Evaluation Pipeline
+## 🧠 Two-Provider Gemini AI Evaluation Pipeline
 
 Prompt engineering quality is scored out of **50 points** across 5 official rubric dimensions (max 10 points each):
 1. **Problem Understanding & Requirements (0–10):** Domain workflows, approvals, coordinator/HOD/Dean roles, constraint handling.
@@ -58,10 +60,13 @@ Prompt engineering quality is scored out of **50 points** across 5 official rubr
 4. **Strategic & Intentional AI Usage (0–10):** Architectural thinking vs raw copy-paste code dumps.
 5. **Problem Context Alignment (0–10):** Relevance to the active hackathon problem statement.
 
-### Zero-Downtime Fallback & Auto-Recovery
-- **Primary:** Calls Google Gemini API with multi-key rotation and a strict 3.5-second timeout.
-- **Secondary (Heuristic Fallback):** If Gemini returns `429 Too Many Requests` (quota limit) or times out, the built-in deterministic heuristic evaluator completes scoring in **under 1 second**.
-- **Continuous Auto-Recovery Worker:** Scans the database on backend startup and every 45 seconds to evaluate any orphaned prompts and resolve evaluating flags automatically.
+### Multi-Provider Scalability & Concurrency
+- **Two Google Gemini Providers:** Distributes load across two independent Google Cloud projects via `GEMINI_API_KEY_A` and `GEMINI_API_KEY_B` to maximize throughput at $0 cost.
+- **Token-Bucket Rate Limiting:** Enforces independent per-provider dispatch spacing ($\ge 4.615\text{s}$ at 13 RPM) with jitter to guarantee zero provider quota exhaustion.
+- **Bounded Concurrency & Safe Failover:** Evaluates prompts through a centralized in-memory queue (`EVALUATION_CONCURRENCY=2`) with automatic fallback to the alternative provider upon 429/5xx errors.
+- **Idempotent Queue Deduplication:** In-flight lock deduplication ensures identical prompt evaluation requests are never double-evaluated.
+- **Deterministic Heuristic Safety Net:** Instant fallback completes scoring in $< 1\text{s}$ if both AI providers are unreachable.
+- **Continuous Auto-Recovery Worker:** Scans RTDB on startup and periodically to resolve any orphaned evaluations.
 
 ---
 
@@ -88,7 +93,7 @@ VIBEATHON2/
 │   ├── participant-login.html         # Participant Sign-in Gateway
 │   ├── participant-dashboard.html     # Participant Live Hackathon Cockpit
 │   ├── admin-login.html               # Jury & Admin Sign-in Gateway
-│   ├── admin.html                     # Admin & Jury Scoring Cockpit
+│   ├── admin-dashboard.html           # Admin & Jury Scoring Cockpit
 │   ├── manage-login.html              # Super-Admin Operations Login Gateway
 │   ├── management.html                # Operations & Roster Control Console
 │   └── vercel.json                    # Edge Proxy Rewrites to Backend
@@ -127,16 +132,22 @@ VIBEATHON2/
 ### Backend (Render Web Service)
 Configure these environment variables in your **Render Dashboard** under **Environment**:
 
-| Variable | Description | Example / Format |
+| Variable | Description | Example / Recommended Value |
 |---|---|---|
-| `PORT` | Listening port (assigned by Render) | `5000` |
-| `GEMINI_API_KEY` | Google Gemini API Key | `AIza...` |
-| `GEMINI_MODEL` | Gemini Model Identifier | `gemini-3.6-flash` |
+| `PORT` | Listening port (assigned automatically by Render) | `5000` |
+| `NODE_ENV` | Application environment mode | `production` |
+| `GEMINI_API_KEY_A` | Provider A API Key (Google Project A) | `AIza...` |
+| `GEMINI_API_KEY_B` | Provider B API Key (Google Project B) | `AIza...` |
+| `GEMINI_MODEL` | Gemini Model Identifier | `gemini-2.5-flash-lite` |
+| `GEMINI_PROVIDER_A_RPM` | Provider A Rate Limit (RPM) | `13` |
+| `GEMINI_PROVIDER_B_RPM` | Provider B Rate Limit (RPM) | `13` |
+| `EVALUATION_CONCURRENCY` | Concurrent evaluation worker slots | `2` |
+| `RECOVERY_THRESHOLD_MS` | Auto-recovery stale threshold | `90000` |
 | `FIREBASE_WEB_API_KEY` | Firebase Web API Key for Auth REST API | `AIza...` |
-| `FIREBASE_DATABASE_URL` | Firebase RTDB URL | `https://<project-id>-default-rtdb.firebaseio.com` |
-| `FIREBASE_SERVICE_ACCOUNT` | Full JSON content of service account key | `{"type":"service_account",...}` |
-| `FRONTEND_URL` *(Optional)* | Custom frontend domain for CORS | `https://your-app.vercel.app` |
-| `DEMO_ADMIN_PASSWORD` *(Optional)* | Master password for fallback admin | Secure random string |
+| `FIREBASE_DATABASE_URL` | Firebase RTDB Database URL | `https://<project-id>-default-rtdb.firebaseio.com` |
+| `FIREBASE_SERVICE_ACCOUNT` | Service account JSON string (or use Secret Files) | `{"type":"service_account",...}` |
+| `FRONTEND_URL` *(Optional)* | Custom frontend origin for CORS | `https://your-app.vercel.app` |
+| `DEMO_ADMIN_PASSWORD` *(Optional)* | Master password for emergency admin access | Secure random string |
 
 > **Alternative for Firebase Key:** Mount your service account JSON file using Render's **Secret Files** feature at `/etc/secrets/firebase-service-account.json` and set `FIREBASE_SERVICE_ACCOUNT_PATH=/etc/secrets/firebase-service-account.json`.
 

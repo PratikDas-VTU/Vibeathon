@@ -588,6 +588,35 @@ body {
   color: var(--text-3);
 }
 
+/* Completion Time Chip */
+.time-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #c7d2fe;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.time-chip.in-progress {
+  color: var(--green);
+  background: var(--green-dim);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.time-chip.none {
+  color: var(--text-3);
+  background: none;
+  border: none;
+  font-weight: 600;
+}
+
 /* Deliverable Chips */
 .deliverables-group {
   display: flex;

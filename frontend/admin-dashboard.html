@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Vibeathon 2026 � Admin Mission Control</title>
+  <title>Vibeathon 2026 - Admin</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Font Awesome -->
@@ -154,6 +154,11 @@
             <i class="fas fa-file-export"></i> Export CSV
           </button>
 
+          <!-- Export Detailed Prompt Audit -->
+          <button id="exportDetailedBtn" class="btn-tool" title="Export detailed team-wise prompt audit to CSV">
+            <i class="fas fa-file-invoice"></i> Export Prompt Audit
+          </button>
+
           <!-- Problem Statement Manager -->
           <button id="manageProblemBtn" class="btn-tool" title="Upload challenge document and edit evaluation criteria">
             <i class="fas fa-file-upload"></i> Problem Statement
@@ -179,16 +184,17 @@
               <th style="width: 70px;">Rank</th>
               <th style="width: 120px;">Team ID</th>
               <th>Team Leader & College</th>
-              <th style="width: 140px;">Status</th>
-              <th style="width: 170px;">Deliverables</th>
-              <th style="width: 110px;">Prompts</th>
+              <th style="width: 130px;">Status</th>
+              <th style="width: 140px;">Completion Time</th>
+              <th style="width: 160px;">Deliverables</th>
+              <th style="width: 100px;">Prompts</th>
               <th style="width: 120px;">AI Score</th>
-              <th style="width: 110px; text-align: right;">Actions</th>
+              <th style="width: 100px; text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="teamTable">
             <tr>
-              <td colspan="8" class="table-loading">
+              <td colspan="9" class="table-loading">
                 <i class="fas fa-spinner fa-spin"></i> Loading participant telemetry...
               </td>
             </tr>
@@ -197,7 +203,7 @@
       </div>
 
       <!-- Hidden compatibility element for fastest team -->
-      <span id="fastestTeam" style="display: none;">�</span>
+      <span id="fastestTeam" style="display: none;">-</span>
 
     </section>
 
@@ -364,7 +370,7 @@
   </div>
 
   <footer class="admin-footer">
-    <span>Vibeathon 2026 � Evaluation Mission Control</span>
+    <span>Vibeathon 2026 - Evaluation Mission Control</span>
     <span class="footer-badge"><i class="fas fa-lock"></i> Verified Admin Session</span>
   </footer>
 
