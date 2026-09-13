@@ -17,7 +17,7 @@ if (geminiKeys.length === 0) {
     console.log(`🔑 [evaluatePrompts] Loaded ${geminiKeys.length} Gemini API key(s) with automatic failover.`);
 }
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 async function callGemini(fullPrompt) {
     const keysToTry = geminiKeys.length > 0 ? [...geminiKeys] : [""];
@@ -195,7 +195,7 @@ router.post("/evaluate-prompts", verifyAdmin, async (req, res) => {
 
             // Get team's prompts
             const teamPrompts = Object.values(allPrompts).filter(
-                p => (p.teamId || p.id || p.vccId) === teamId
+                p => (p.teamId || p.vccId) === teamId
             );
 
             if (teamPrompts.length === 0) {

@@ -277,8 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (e) {}
 
   window.addEventListener("popstate", () => {
-    localStorage.removeItem("token");
-    sessionStorage.clear();
+    sessionStorage.removeItem("token");
     window.location.replace("participant-login.html");
   });
 
@@ -627,9 +626,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         "/api/submission/prompts"
       );
 
-      if (!res.ok) return;
-
-      const prompts = await res.json();
+      const rawPrompts = await res.json();
+      const prompts = Array.isArray(rawPrompts)
+        ? rawPrompts.filter(p => !p.teamId || p.teamId === TEAM_ID || p.vccId === TEAM_ID)
+        : [];
       promptTable.innerHTML = "";
 
       // Update counters (Prompt count only, do not expose internal AI score to participants)

@@ -1,15 +1,14 @@
-// Security: Clear any cached session tokens when arriving on the login page
+// Security: Clear current tab session token when arriving on the login page
 function clearParticipantSession() {
-  localStorage.removeItem("token");
-  sessionStorage.clear();
+  sessionStorage.removeItem("token");
   const pwd = document.getElementById("password");
   if (pwd) pwd.value = "";
 }
 
-// Clear immediately
+// Clear immediately for this tab
 clearParticipantSession();
 
-// Also clear on pageshow (e.g. when user clicks browser Back button from dashboard)
+// Also clear on pageshow for this tab (e.g. when user clicks browser Back button)
 window.addEventListener("pageshow", () => {
   clearParticipantSession();
 });
@@ -90,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
       /* =====================
          STORE AUTH DATA
       ===================== */
+      sessionStorage.setItem("token", data.token);
       localStorage.setItem("token", data.token);
 
       message.textContent = "Login successful. Redirecting to workspace...";

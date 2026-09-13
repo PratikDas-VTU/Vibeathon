@@ -141,12 +141,19 @@ async function createAdmin(adminData) {
  */
 async function createPrompt(promptData) {
     const promptRef = db.ref("prompts").push();
-    const teamId = promptData.teamId || promptData.id || promptData.vccId;
+    const teamId = promptData.teamId || promptData.vccId;
     promptData.teamId = teamId;
     promptData.vccId = teamId;
-    promptData.submittedAt = new Date().toISOString();
+    promptData.submittedAt = promptData.submittedAt || new Date().toISOString();
+    promptData.createdAt = promptData.createdAt || promptData.submittedAt;
 
     await promptRef.set(promptData);
+
+    // Atomically increment promptCount on teams/{teamId} in Firebase
+    if (teamId) {
+        await db.ref(`teams/${teamId}/promptCount`).transaction(current => (current || 0) + 1).catch(() => {});
+    }
+
     return { ...promptData, id: promptRef.key };
 }
 
@@ -171,7 +178,7 @@ async function getPromptsByTeamId(teamId) {
 
     return Object.keys(promptsObj).map(id => {
         const p = promptsObj[id];
-        const tId = p.teamId || p.id || p.vccId || teamId;
+        const tId = p.teamId || p.vccId || teamId;
         return {
             ...p,
             id,
@@ -179,7 +186,7 @@ async function getPromptsByTeamId(teamId) {
             vccId: tId,
             _id: id
         };
-    }).sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
+    }).sort((a, b) => new Date(a.submittedAt || a.createdAt) - new Date(b.submittedAt || b.createdAt));
 }
 
 const getPromptsByVccId = getPromptsByTeamId;
@@ -195,7 +202,7 @@ async function getAllPrompts() {
 
     return Object.keys(promptsObj).map(id => {
         const p = promptsObj[id];
-        const tId = p.teamId || p.id || p.vccId;
+        const tId = p.teamId || p.vccId;
         return {
             ...p,
             id,
@@ -203,7 +210,7 @@ async function getAllPrompts() {
             vccId: tId,
             _id: id
         };
-    }).sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
+    }).sort((a, b) => new Date(a.submittedAt || a.createdAt) - new Date(b.submittedAt || b.createdAt));
 }
 
 // ==================== PROMPT EVALUATION OPERATIONS ====================

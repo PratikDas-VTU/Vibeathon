@@ -14,7 +14,7 @@ export async function authFetch(url, options = {}) {
   const targetUrl = resolveApiUrl(url);
   console.log("🔐 authFetch called with URL:", targetUrl);
 
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
 
   if (!token) {
     console.error("❌ No token found, redirecting to login");

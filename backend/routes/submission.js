@@ -125,12 +125,18 @@ router.post("/prompt", auth, async (req, res) => {
       return res.status(403).json({ message: "Session ended" });
     }
 
+    const nowIso = new Date().toISOString();
     const newPrompt = await createPrompt({
       teamId,
       vccId: teamId,
+      teamName: team.teamName || team.name || teamId,
+      userId: req.team.uid || "",
+      userEmail: req.team.email || "",
       aiTool: aiTool,
       promptText,
-      evaluationStatus: "evaluating"
+      evaluationStatus: "queued",
+      createdAt: nowIso,
+      submittedAt: nowIso
     });
 
     await updateTeam(teamId, {

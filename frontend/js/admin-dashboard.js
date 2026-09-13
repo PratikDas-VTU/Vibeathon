@@ -248,7 +248,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       promptStats = {};
       prompts.forEach(p => {
-        const tId = p.teamId || p.id || p.vccId;
+        const tId = p.teamId || p.vccId;
+        if (!tId) return;
         if (!promptStats[tId]) {
           promptStats[tId] = {
             promptCount: 0,
@@ -304,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const compTime = getCompletionTime(team);
       const evalScore = computeTeamAIScore(tId, team.aiScore);
       const aiScore = typeof evalScore === "number" ? evalScore : (typeof team.aiScore === "number" ? team.aiScore : null);
-      const isEvaluating = Boolean(team.aiEvaluating) || (stats.promptCount > 0 && allPrompts.some(p => (p.teamId || p.id || p.vccId) === tId && (p.evaluationStatus === "evaluating" || (!p.evaluation && p.evaluationStatus !== "failed"))));
+      const isEvaluating = Boolean(team.aiEvaluating) || (stats.promptCount > 0 && allPrompts.some(p => (p.teamId || p.vccId) === tId && (p.evaluationStatus === "evaluating" || (!p.evaluation && p.evaluationStatus !== "failed"))));
 
       return {
         ...team,
@@ -570,7 +571,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     // 3. Team Prompts (Expandable Cards)
-    const teamPrompts = allPrompts.filter(p => (p.teamId || p.id || p.vccId) === selectedTeamId);
+    const teamPrompts = allPrompts.filter(p => (p.teamId || p.vccId) === selectedTeamId);
     if (modalPromptCount) modalPromptCount.textContent = `${teamPrompts.length} Prompt${teamPrompts.length === 1 ? "" : "s"}`;
 
     promptTable.innerHTML = "";

@@ -1,7 +1,7 @@
 import { authFetch } from "./authfetch.js";
 
 function enforceParticipantAuth() {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
 
   // 🚫 No token → force login immediately
   if (!token) {
