@@ -110,11 +110,30 @@ router.post("/deployment", auth, async (req, res) => {
    SUBMIT PROMPT (IMMUTABLE)
 ===================================================== */
 router.post("/prompt", auth, async (req, res) => {
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+  if (contentLength > 51200) {
+    return res.status(413).json({ message: "Payload too large. Maximum size is 50kb." });
+  }
+
   const { aiTool, promptText } = req.body;
 
-  if (!aiTool || !promptText) {
-    return res.status(400).json({ message: "Invalid prompt data" });
+  if (!aiTool || !promptText || typeof promptText !== 'string' || promptText.trim() === '') {
+    return res.status(400).json({ message: "Invalid prompt data: promptText must be a non-empty string" });
   }
+
+  if (promptText.length > 8000) {
+    return res.status(400).json({ message: "promptText exceeds maximum length of 8000 characters" });
+  }
+
+  if (typeof aiTool !== 'string' || aiTool.length > 100) {
+    return res.status(400).json({ message: "aiTool exceeds maximum length of 100 characters" });
+  }
+
+  const allowedAiTools = ["chatgpt", "claude", "gemini", "copilot", "perplexity", "grok", "mistral", "llama", "other"];
+  if (!allowedAiTools.includes(aiTool.toLowerCase())) {
+    return res.status(400).json({ message: "Invalid aiTool provided. Allowed tools are: ChatGPT, Claude, Gemini, Copilot, Perplexity, Grok, Mistral, Llama, Other." });
+  }
+
 
   try {
     const teamId = req.team.teamId || req.team.id || req.team.vccId;

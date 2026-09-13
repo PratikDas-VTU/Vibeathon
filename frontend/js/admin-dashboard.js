@@ -208,22 +208,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function escapeHtml(str) {
-    if (!str) return "";
-    return String(str).replace(/[&<>'"]/g, tag => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      "'": "&#39;",
-      '"': "&quot;"
-    }[tag] || tag));
+    const d = document.createElement('div');
+    d.textContent = String(str || '');
+    return d.innerHTML;
+  }
+
+  function isSafeUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const u = new URL(url);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch { return false; }
   }
 
   function formatExternalUrl(url) {
-    if (!url) return "";
+    if (!url) return "#";
     const trimmed = String(url).trim();
-    if (!trimmed) return "";
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
+    if (!trimmed) return "#";
+    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    return isSafeUrl(withProtocol) ? withProtocol : '#';
   }
 
   /* ==========================
@@ -495,10 +498,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 1. Team Info Box
-    const members = Array.isArray(team.members) ? team.members : [];
+    const members = (Array.isArray(team.members) && team.members.length > 0)
+      ? team.members
+      : [
+          ...(team.M1_Name ? [{
+            name: team.M1_Name,
+            email: team.M1_Email || team.email || "",
+            phone: team.M1_Phone || team.phone || "",
+            branch: team.M1_Branch || team.branch || "",
+            college: team.M1_College || team.college || "",
+            vtuNo: team.M1_VtuNo || team.m1VtuNo || "",
+            isLeader: true
+          }] : []),
+          ...(team.M2_Name ? [{
+            name: team.M2_Name,
+            email: team.M2_Email || "",
+            phone: team.M2_Phone || "",
+            branch: team.M2_Branch || "",
+            vtuNo: team.M2_VtuNo || "",
+            college: team.M2_College || team.college || "",
+            isLeader: false
+          }] : [])
+        ];
+
     const collegeDisplay = team.college || team.M1_College || "—";
     const emailDisplay = team.email || team.M1_Email || "—";
     const phoneDisplay = team.phone || team.M1_Phone || "—";
+    const branchDisplay = team.M1_Branch || team.branch || "";
+    const leaderVtuDisplay = team.M1_VtuNo || team.m1VtuNo || (members[0] && members[0].isLeader ? members[0].vtuNo : "");
 
     let deliverablesRow = "";
     if (team.githubUrl || team.deploymentUrl) {
@@ -524,6 +551,18 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="info-label">Team Leader</span>
           <span class="info-value">${escapeHtml(team.leaderName || team.M1_Name || "—")}</span>
         </div>
+        ${leaderVtuDisplay ? `
+        <div class="info-item">
+          <span class="info-label">Leader VTU No</span>
+          <span class="info-value" style="font-family: var(--font-mono);">${escapeHtml(leaderVtuDisplay)}</span>
+        </div>
+        ` : ""}
+        ${branchDisplay ? `
+        <div class="info-item">
+          <span class="info-label">Leader Department</span>
+          <span class="info-value">${escapeHtml(branchDisplay)}</span>
+        </div>
+        ` : ""}
         <div class="info-item">
           <span class="info-label">Institution / College</span>
           <span class="info-value">${escapeHtml(collegeDisplay)}</span>
@@ -546,7 +585,14 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="info-label">Registered Squad Members</span>
           <div class="member-pill-list">
             ${members.map((m, i) => `
-              <span class="member-tag"><i class="fas fa-user"></i> ${escapeHtml(m.name || "Member " + (i+1))} (${escapeHtml(m.email || "")})</span>
+              <span class="member-tag">
+                <i class="fas ${m.isLeader ? 'fa-crown' : 'fa-user'}"></i>
+                <strong>${escapeHtml(m.name || "Member " + (i+1))}</strong>
+                ${m.vtuNo ? `<span style="opacity:0.85;">[${escapeHtml(m.vtuNo)}]</span>` : ''}
+                ${m.branch ? `<span style="opacity:0.85;">(${escapeHtml(m.branch)})</span>` : ''}
+                ${m.email ? `&lt;${escapeHtml(m.email)}&gt;` : ''}
+                ${m.phone ? `· ${escapeHtml(m.phone)}` : ''}
+              </span>
             `).join("")}
           </div>
         </div>
@@ -856,53 +902,125 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ==========================
      EXPORT TO CSV
      ========================== */
+  function sanitizeCsvField(value) {
+    if (!value && value !== 0) return '';
+    const str = String(value);
+    if (/^[=+\-@|%]/.test(str)) {
+      return "'" + str;
+    }
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }
+
   function exportToCSV(rows, filename = "vibeathon_admin_telemetry.csv") {
     if (!rows.length) return window.showToast("No team data to export.", "info");
 
-    const csv = [
-      Object.keys(rows[0]).join(","),
-      ...rows.map(row =>
-        Object.values(row)
-          .map(v => `"${String(v ?? "").replace(/"/g, '""')}"`)
-          .join(",")
-      )
-    ].join("\n");
+    const headers = Object.keys(rows[0]);
+    const csvLines = [
+      headers.map(sanitizeCsvField).join(","),
+      ...rows.map(row => headers.map(h => sanitizeCsvField(row[h])).join(","))
+    ];
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvLines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   }
 
+  function exportToExcel(rows, filename = "vibeathon_admin_telemetry.xlsx", sheetName = "Telemetry") {
+    if (!rows.length) return window.showToast("No team data to export.", "info");
+    if (typeof XLSX === "undefined") {
+      exportToCSV(rows, filename.replace(/\.xlsx$/i, ".csv"));
+      return;
+    }
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const keys = Object.keys(rows[0]);
+    worksheet['!cols'] = keys.map(k => {
+      let maxLen = k.length;
+      for (let i = 0; i < Math.min(rows.length, 50); i++) {
+        const val = rows[i][k];
+        if (val !== undefined && val !== null) {
+          maxLen = Math.max(maxLen, String(val).length);
+        }
+      }
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+    });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    XLSX.writeFile(workbook, filename);
+  }
+
+  function buildTelemetryExportRow(team) {
+    const tId = team.teamId || team.id || team.vccId || "";
+    const stats = promptStats[tId] || { promptCount: 0, uniqueAITools: 0 };
+    const compTime = getCompletionTime(team);
+    const aiScore = computeTeamAIScore(tId, team.aiScore);
+    const isEnded = Boolean(team.sessionEnded);
+    const isLive = Boolean(team.hackathonStart && !isEnded);
+    const status = isEnded ? "Completed" : (isLive ? "Live Sprint" : "Registered");
+    const compFormatted = compTime ? formatDuration(compTime) : "—";
+    const compMins = compTime ? Math.round(compTime / 60000) : "—";
+    const startStr = team.hackathonStart ? new Date(team.hackathonStart).toLocaleString() : "—";
+    const endTs = team.completedAt || team.sessionEndedAt || (isEnded ? team.updatedAt : null);
+    const endStr = endTs ? new Date(endTs).toLocaleString() : "—";
+
+    let deliverablesStatus = "No Submission";
+    if (team.githubUrl && team.deploymentUrl) {
+      deliverablesStatus = "Full (Code + Live)";
+    } else if (team.githubUrl) {
+      deliverablesStatus = "Code Repository Only";
+    } else if (team.deploymentUrl) {
+      deliverablesStatus = "Live App Only";
+    }
+
+    const aiLevel = team.aiLevel || team.evaluation?.level || (aiScore !== null ? (aiScore >= 40 ? "Excellent" : aiScore >= 30 ? "Good" : aiScore >= 20 ? "Basic" : "Very Poor") : "Unrated");
+    const aiReasoning = (team.aiReasoning || team.evaluation?.reasoning || "").replace(/\s+/g, " ").trim() || "—";
+
+    return {
+      "Team ID": tId,
+      "Student 1 Name (Lead)": team.M1_Name || team.leaderName || "",
+      "Student 1 VTU No": team.M1_VtuNo || team.m1VtuNo || "",
+      "Student 1 Department": team.M1_Branch || team.branch || "",
+      "Student 1 Official Email": team.M1_Email || team.email || "",
+      "Student 1 Mobile No": team.M1_Phone || team.phone || "",
+      "College / Institution": team.college || team.M1_College || "",
+      "Student 2 Name (Member)": team.M2_Name || "—",
+      "Student 2 VTU No": team.M2_VtuNo || team.m2VtuNo || "—",
+      "Student 2 Department": team.M2_Branch || team.m2Branch || "—",
+      "Student 2 Official Email": team.M2_Email || team.m2Email || "—",
+      "Student 2 Mobile No": team.M2_Phone || team.m2Phone || "—",
+      "Team Size": team.teamSize || 2,
+      "Session Status": status,
+      "Sprint Start": startStr,
+      "Sprint End": endStr,
+      "Duration": compFormatted,
+      "Duration (Mins)": compMins,
+      "Total Prompts Logged": stats.promptCount || 0,
+      "Unique AI Tools": stats.uniqueAITools || 0,
+      "AI Jury Score (0-50)": aiScore !== null ? aiScore : "Not Graded",
+      "AI Rating Level": aiLevel,
+      "AI Evaluation Summary": aiReasoning,
+      "GitHub Repository": team.githubUrl || "Not Submitted",
+      "Live Deployment URL": team.deploymentUrl || "Not Submitted",
+      "Deliverables Status": deliverablesStatus
+    };
+  }
+
+  // 1. Export Summary to CSV
   if (exportBtn) {
     exportBtn.addEventListener("click", async () => {
       try {
-        const rows = teams.map(team => {
-          const tId = team.teamId || team.id || team.vccId;
-          const stats = promptStats[tId] || { promptCount: 0, uniqueAITools: 0 };
-          const compTime = getCompletionTime(team);
-          const aiScore = computeTeamAIScore(tId, team.aiScore);
-
-          return {
-            Team_ID: tId,
-            Leader_Name: team.leaderName || team.M1_Name || "",
-            College: team.college || team.M1_College || "",
-            Leader_Email: team.email || team.M1_Email || "",
-            Leader_Phone: team.phone || team.M1_Phone || "",
-            Session_Ended: team.sessionEnded ? "YES" : "NO",
-            Completion_Time_Minutes: compTime ? Math.round(compTime / 60000) : "—",
-            Total_Prompts: stats.promptCount,
-            Unique_AI_Tools: stats.uniqueAITools,
-            AI_Jury_Score: aiScore !== null ? aiScore : "Not Graded",
-            GitHub_URL: team.githubUrl || "Not Submitted",
-            Deployment_URL: team.deploymentUrl || "Not Submitted"
-          };
-        });
-
-        exportToCSV(rows);
+        const rows = teams.map(buildTelemetryExportRow);
+        const dateStr = new Date().toISOString().slice(0, 10);
+        exportToCSV(rows, `vibeathon_telemetry_${dateStr}.csv`);
+        window.showToast(`Exported telemetry for ${rows.length} teams to CSV.`, "success");
       } catch (err) {
         console.error("Export error:", err);
         window.showToast("Failed to export telemetry data.", "error");
@@ -910,6 +1028,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 2. Export Summary to Excel (.xlsx)
+  const exportExcelBtn = document.getElementById("exportExcelBtn");
+  if (exportExcelBtn) {
+    exportExcelBtn.addEventListener("click", async () => {
+      try {
+        const rows = teams.map(buildTelemetryExportRow);
+        const dateStr = new Date().toISOString().slice(0, 10);
+        exportToExcel(rows, `vibeathon_telemetry_${dateStr}.xlsx`, "Telemetry");
+        window.showToast(`Exported telemetry for ${rows.length} teams to Excel!`, "success");
+      } catch (err) {
+        console.error("Export error:", err);
+        window.showToast("Failed to export telemetry to Excel.", "error");
+      }
+    });
+  }
+
+  // 3. Export Detailed Prompt Audit Log
   if (exportDetailedBtn) {
     exportDetailedBtn.addEventListener("click", async () => {
       const originalText = exportDetailedBtn.innerHTML;
@@ -917,22 +1052,21 @@ document.addEventListener("DOMContentLoaded", () => {
       exportDetailedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
 
       try {
-        // 1. Refresh latest prompts and teams to guarantee authoritative data
+        // Refresh latest prompts and teams to guarantee authoritative data
         await fetchPrompts();
         await fetchTeams();
 
         const detailedRows = [];
 
-        // 2. Iterate through all teams
         teams.forEach(team => {
           const tId = team.teamId || team.id || team.vccId;
-          const leader = team.leaderName || team.M1_Name || "—";
+          const leader = team.M1_Name || team.leaderName || "—";
           const college = team.college || team.M1_College || "—";
-          const teamSize = team.teamSize || 1;
+          const teamSize = team.teamSize || 2;
           const status = team.sessionEnded ? "Completed" : (team.hackathonStart ? "Live Sprint" : "Registered");
-          const sessionStart = team.hackathonStart ? new Date(team.hackathonStart).toISOString() : "—";
+          const sessionStart = team.hackathonStart ? new Date(team.hackathonStart).toLocaleString() : "—";
           const endTimestamp = team.completedAt || team.sessionEndedAt || (team.sessionEnded ? team.updatedAt : null);
-          const sessionEnd = endTimestamp ? new Date(endTimestamp).toISOString() : "—";
+          const sessionEnd = endTimestamp ? new Date(endTimestamp).toLocaleString() : "—";
           const compTimeMs = getCompletionTime(team);
           const compTimeFormatted = formatDuration(compTimeMs) || "—";
           const teamCumulativeScore = computeTeamAIScore(tId, team.aiScore);
@@ -948,38 +1082,45 @@ document.addEventListener("DOMContentLoaded", () => {
             const promptNum = idx + 1;
             const promptId = p.id || p._id || `P-${idx + 1}`;
             const promptText = p.promptText || "";
-            const submittedAt = p.submittedAt || p.createdAt ? new Date(p.submittedAt || p.createdAt).toISOString() : "—";
+            const submittedAt = (p.submittedAt || p.createdAt) ? new Date(p.submittedAt || p.createdAt).toLocaleString() : "—";
             const aiTool = p.aiTool || "—";
             const evalStatus = p.evaluationStatus || (p.evaluation ? "evaluated" : "pending");
             const score = p.evaluation && typeof p.evaluation.score === "number" ? p.evaluation.score : "—";
             const level = p.evaluation?.level || "—";
-            const reasoning = p.evaluation?.reasoning || "—";
-            const evaluatedAt = p.evaluation?.evaluatedAt ? new Date(p.evaluation.evaluatedAt).toISOString() : "—";
+            const reasoning = (p.evaluation?.reasoning || "—").replace(/\s+/g, " ").trim();
+            const evaluatedAt = p.evaluation?.evaluatedAt ? new Date(p.evaluation.evaluatedAt).toLocaleString() : "—";
             const provider = p.evaluation?.evaluatorProvider || "—";
 
             detailedRows.push({
-              Team_ID: tId,
-              Team_Leader: leader,
-              Institution_College: college,
-              Team_Size: teamSize,
-              Team_Status: status,
-              Session_Start: sessionStart,
-              Session_End: sessionEnd,
-              Completion_Time: compTimeFormatted,
-              Prompt_Number: promptNum,
-              Prompt_ID: promptId,
-              AI_Tool: aiTool,
-              Prompt_Text: promptText,
-              Submitted_At: submittedAt,
-              Evaluation_Status: evalStatus,
-              AI_Score: score,
-              Score_Classification_Level: level,
-              Evaluation_Reasoning: reasoning,
-              Evaluated_At: evaluatedAt,
-              Evaluator_Provider: provider,
-              Team_Cumulative_AI_Score: teamCumulativeScore !== null ? teamCumulativeScore : "Not Graded",
-              Team_Total_Prompts: totalPrompts,
-              Team_Evaluated_Count: evaluatedCount
+              "Team ID": tId,
+              "Student 1 Lead": leader,
+              "Student 1 VTU No": team.M1_VtuNo || team.m1VtuNo || "—",
+              "Student 1 Department": team.M1_Branch || team.branch || "—",
+              "Student 2 Member": team.M2_Name || "—",
+              "Student 2 VTU No": team.M2_VtuNo || team.m2VtuNo || "—",
+              "Student 2 Department": team.M2_Branch || team.m2Branch || "—",
+              "College": college,
+              "Team Status": status,
+              "Sprint Start": sessionStart,
+              "Sprint End": sessionEnd,
+              "Completion Time": compTimeFormatted,
+              "Prompt Number": promptNum,
+              "Prompt ID": promptId,
+              "AI Tool Used": aiTool,
+              "Prompt Text": promptText,
+              "Prompt Characters": promptText.length,
+              "Prompt Words": promptText ? promptText.trim().split(/\s+/).length : 0,
+              "Submitted At": submittedAt,
+              "Evaluation Status": evalStatus,
+              "AI Score (0-50)": score,
+              "Score Level": level,
+              "Evaluation Reasoning": reasoning,
+              "Evaluated At": evaluatedAt,
+              "Evaluator Provider": provider,
+              "Team Cumulative Score": teamCumulativeScore !== null ? teamCumulativeScore : "Not Graded",
+              "Team Total Prompts": totalPrompts,
+              "GitHub Repository": team.githubUrl || "—",
+              "Live Deployment": team.deploymentUrl || "—"
             });
           });
         });
@@ -990,8 +1131,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const dateStr = new Date().toISOString().slice(0, 10);
-        exportToCSV(detailedRows, `vibeathon-prompt-audit-${dateStr}.csv`);
-        window.showToast(`Exported ${detailedRows.length} prompt audit records successfully.`, "success");
+        if (typeof XLSX !== "undefined") {
+          exportToExcel(detailedRows, `vibeathon_prompt_audit_${dateStr}.xlsx`, "PromptAudit");
+          window.showToast(`Exported ${detailedRows.length} prompt audit records to Excel!`, "success");
+        } else {
+          exportToCSV(detailedRows, `vibeathon_prompt_audit_${dateStr}.csv`);
+          window.showToast(`Exported ${detailedRows.length} prompt audit records to CSV.`, "success");
+        }
       } catch (err) {
         console.error("Detailed export error:", err);
         window.showToast("Failed to export detailed prompt audit.", "error");

@@ -8,24 +8,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const msgIcon = document.getElementById("msgIcon");
   const togglePwdBtn = document.getElementById("togglePwdBtn");
   const togglePwdIcon = document.getElementById("togglePwdIcon");
-  const quickFillBtn = document.getElementById("quickFillBtn");
-
   // Show/Hide Password Toggle
   if (togglePwdBtn && adminPasswordInput && togglePwdIcon) {
     togglePwdBtn.addEventListener("click", () => {
       const isPassword = adminPasswordInput.type === "password";
       adminPasswordInput.type = isPassword ? "text" : "password";
       togglePwdIcon.className = isPassword ? "far fa-eye-slash" : "far fa-eye";
-    });
-  }
-
-  // Quick-Fill Credentials Helper
-  if (quickFillBtn && adminIdInput && adminPasswordInput) {
-    quickFillBtn.addEventListener("click", () => {
-      adminIdInput.value = "admin";
-      adminPasswordInput.value = "admin123";
-      hideMessage();
-      adminPasswordInput.focus();
     });
   }
 

@@ -284,7 +284,13 @@ document.addEventListener("DOMContentLoaded", () => {
             <div style="font-weight: 600; color: var(--text-1); display:flex; align-items:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
               ${beaconIcon} <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.M1_Name || "Team Leader")}</span>
             </div>
-            <div style="font-size: 0.72rem; color: var(--text-3); padding-left: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.college || "—")}</div>
+            <div style="font-size: 0.72rem; color: var(--text-3); padding-left: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${escapeHtml(t.college || "—")}${t.M1_Branch ? ` · ${escapeHtml(t.M1_Branch)}` : ''}
+            </div>
+            ${t.M2_Name ? `
+            <div style="font-size: 0.70rem; color: var(--cyan); padding-left: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
+              <i class="fas fa-user-friends"></i> ${escapeHtml(t.M2_Name)}${t.M2_VtuNo ? ` [${escapeHtml(t.M2_VtuNo)}]` : ''}${t.M2_Branch ? ` · ${escapeHtml(t.M2_Branch)}` : ''}
+            </div>` : ''}
           </td>
           <td class="col-email">
             <span class="cred-chip" title="${escapeHtml(t.M1_Email || '')}"><i class="far fa-envelope"></i> ${escapeHtml(t.M1_Email || "—")}</span>
@@ -328,6 +334,10 @@ document.addEventListener("DOMContentLoaded", () => {
           (t.M1_Name && t.M1_Name.toLowerCase().includes(q)) ||
           (t.M1_Email && t.M1_Email.toLowerCase().includes(q)) ||
           (t.M1_Phone && t.M1_Phone.toLowerCase().includes(q)) ||
+          (t.M1_Branch && t.M1_Branch.toLowerCase().includes(q)) ||
+          (t.M2_Name && t.M2_Name.toLowerCase().includes(q)) ||
+          (t.M2_VtuNo && t.M2_VtuNo.toLowerCase().includes(q)) ||
+          (t.M2_Email && t.M2_Email.toLowerCase().includes(q)) ||
           (t.college && t.college.toLowerCase().includes(q))
         );
       });
@@ -357,8 +367,22 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("editCollege").value = team.college || "";
     document.getElementById("editEmail").value = team.M1_Email || "";
     document.getElementById("editPassword").value = team.M1_Phone || "";
-    document.getElementById("editTeamSize").value = team.teamSize || 2;
     document.getElementById("editBranch").value = team.M1_Branch || "";
+    const m1VtuEl = document.getElementById("editM1VtuNo");
+    if (m1VtuEl) m1VtuEl.value = team.M1_VtuNo || "";
+
+    const m2NameEl = document.getElementById("editM2Name");
+    if (m2NameEl) m2NameEl.value = team.M2_Name || "";
+    const m2VtuEl = document.getElementById("editM2VtuNo");
+    if (m2VtuEl) m2VtuEl.value = team.M2_VtuNo || "";
+    const m2BranchEl = document.getElementById("editM2Branch");
+    if (m2BranchEl) m2BranchEl.value = team.M2_Branch || "";
+    const m2EmailEl = document.getElementById("editM2Email");
+    if (m2EmailEl) m2EmailEl.value = team.M2_Email || "";
+    const m2PhoneEl = document.getElementById("editM2Phone");
+    if (m2PhoneEl) m2PhoneEl.value = team.M2_Phone || "";
+    const m2CollegeEl = document.getElementById("editM2College");
+    if (m2CollegeEl) m2CollegeEl.value = team.M2_College || "";
 
     if (editTeamModal) editTeamModal.classList.add("show");
   };
@@ -382,8 +406,19 @@ document.addEventListener("DOMContentLoaded", () => {
         M1_Phone: document.getElementById("editPassword").value.trim(),
         password: document.getElementById("editPassword").value.trim(),
         teamSize: parseInt(document.getElementById("editTeamSize").value) || 2,
-        M1_Branch: document.getElementById("editBranch").value.trim()
+        M1_Branch: document.getElementById("editBranch").value.trim(),
+        M1_VtuNo: (document.getElementById("editM1VtuNo")?.value || "").trim()
       };
+
+      const m2NameVal = (document.getElementById("editM2Name")?.value || "").trim();
+      if (m2NameVal) {
+        updates.M2_Name = m2NameVal;
+        updates.M2_VtuNo = (document.getElementById("editM2VtuNo")?.value || "").trim();
+        updates.M2_Branch = (document.getElementById("editM2Branch")?.value || "").trim();
+        updates.M2_Email = (document.getElementById("editM2Email")?.value || "").trim().toLowerCase();
+        updates.M2_Phone = (document.getElementById("editM2Phone")?.value || "").trim();
+        updates.M2_College = (document.getElementById("editM2College")?.value || "").trim();
+      }
 
       const btn = document.getElementById("saveTeamChangesBtn");
       if (btn) {
@@ -1077,6 +1112,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let parsedImportTeams = [];
   let lastImportedCredentials = [];
+  let lastSkippedDuplicates = [];
 
   // Robust phone number sanitizer for Indian & international formats
   function cleanPhoneNumber(raw) {
@@ -1087,10 +1123,38 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (digits.length === 11 && digits.startsWith("0")) {
       digits = digits.slice(1);
     }
-    if (digits.length < 6) {
-      digits = (digits + "123456").slice(0, 8);
-    }
     return digits;
+  }
+
+  // Robust email cleaner for Google Forms mobile typos and transposed addresses
+  function cleanEmail(raw, vtuNo, fallbackEmail) {
+    if (!raw) return (fallbackEmail || "").trim().toLowerCase();
+    let email = String(raw).trim().toLowerCase();
+
+    // Fix comma typos in domain: e.g. veltech,edu,in -> veltech.edu.in
+    if (email.includes("@")) {
+      const atIdx = email.indexOf("@");
+      const local = email.slice(0, atIdx);
+      const domain = email.slice(atIdx + 1).replace(/,/g, ".");
+      email = local + "@" + domain;
+    }
+
+    // Fix common mobile typo: <vtu>gmail@.com or <vtu>@gamil.com -> vtu<vtu>@veltech.edu.in
+    const malformedMatch = email.match(/^(\d+)gmail@\.com$/i) || email.match(/^(\d+)@?g[a-z]+@?\.com$/i);
+    if (malformedMatch) {
+      const digits = malformedMatch[1];
+      email = `vtu${digits}@veltech.edu.in`;
+    }
+
+    // Fix generic gamil typo
+    email = email.replace(/@gamil\.com$/i, "@gmail.com");
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email) && fallbackEmail && emailRegex.test(fallbackEmail)) {
+      email = fallbackEmail.trim().toLowerCase();
+    }
+
+    return email;
   }
 
   // Intelligent column detector for Google Forms & CSV
@@ -1104,20 +1168,27 @@ document.addEventListener("DOMContentLoaded", () => {
       m1Phone: -1,
       m1College: -1,
       m1Branch: -1,
+      m1VtuNo: -1,
       m2Name: -1,
       m2Email: -1,
       m2Phone: -1,
       m2College: -1,
+      m2VtuNo: -1,
+      m2Branch: -1,
       m3Name: -1,
       m3Email: -1,
       m3Phone: -1,
       m4Name: -1,
       m4Email: -1,
-      m4Phone: -1
+      m4Phone: -1,
+      fallbackEmail: -1
     };
 
     headers.forEach((raw, idx) => {
-      const h = raw.toLowerCase().trim();
+      const h = String(raw || "").toLowerCase().trim();
+      if (mapping.fallbackEmail === -1 && /^email(\s*address)?$/i.test(h)) {
+        mapping.fallbackEmail = idx;
+      }
 
       // Member 4
       if (/m4|member\s*4/i.test(h)) {
@@ -1135,23 +1206,46 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Member 2
-      if (/m2|member\s*2/i.test(h)) {
-        if (/email/i.test(h)) mapping.m2Email = idx;
-        else if (/phone|mobile|whatsapp|contact/i.test(h)) mapping.m2Phone = idx;
-        else if (/college|institution/i.test(h)) mapping.m2College = idx;
-        else if (/name/i.test(h)) mapping.m2Name = idx;
+      // Member 2 / Student 2
+      const isM2 = /m2|member\s*2|student\s*2|team\s*member/i.test(h);
+      if (isM2) {
+        if (/vtu|roll.*no|enrollment/i.test(h) && !/email/i.test(h)) {
+          mapping.m2VtuNo = idx;
+        } else if (/dept|department|branch|stream/i.test(h)) {
+          mapping.m2Branch = idx;
+        } else if (/email/i.test(h)) {
+          mapping.m2Email = idx;
+        } else if (/phone|mobile|whatsapp|contact/i.test(h)) {
+          mapping.m2Phone = idx;
+        } else if (/college|institution|university/i.test(h)) {
+          mapping.m2College = idx;
+        } else if (/name/i.test(h)) {
+          mapping.m2Name = idx;
+        }
+        return;
+      }
+
+      // Leader / Student 1 / Member 1 VTU Number
+      if (mapping.m1VtuNo === -1 && /vtu|roll.*no|enrollment/i.test(h) && (/leader|student\s*1|m1/i.test(h) || !/m2|member\s*2|student\s*2|team\s*member/i.test(h) && /lead/i.test(h))) {
+        mapping.m1VtuNo = idx;
+        return;
+      }
+
+      // Fallback check for M2 VTU number if header didn't match isM2 explicitly
+      if (mapping.m2VtuNo === -1 && /vtu.*(?:no|num|id)|roll.*no/i.test(h) && !/leader|student\s*1|m1/i.test(h)) {
+        mapping.m2VtuNo = idx;
         return;
       }
 
       // Team / Leader / Member 1
-      if (mapping.teamId === -1 && /team\s*id|team_id|id|vcc/i.test(h)) {
+      if (mapping.teamId === -1 && /team\s*id|team_id|\bid\b|vcc/i.test(h) && !/vtu/i.test(h)) {
         mapping.teamId = idx;
       } else if (mapping.teamNo === -1 && /team\s*no|team_no|s\.?no|sl\.?no/i.test(h)) {
         mapping.teamNo = idx;
       } else if (mapping.teamSize === -1 && /team\s*size|team_size|members\s*count/i.test(h)) {
         mapping.teamSize = idx;
-      } else if (mapping.m1Email === -1 && /email/i.test(h)) {
+      } else if (mapping.m1Email === -1 && (/official.*email|email.*official|vtu.*email|email.*vtu/i.test(h) || /leader.*email|email.*leader|student\s*1.*email/i.test(h))) {
+        // Priority 1: Authoritative Leader Official VTU Email
         mapping.m1Email = idx;
       } else if (mapping.m1Phone === -1 && /phone|mobile|whatsapp|contact/i.test(h)) {
         mapping.m1Phone = idx;
@@ -1159,12 +1253,144 @@ document.addEventListener("DOMContentLoaded", () => {
         mapping.m1College = idx;
       } else if (mapping.m1Branch === -1 && /branch|dept|department|stream|course/i.test(h)) {
         mapping.m1Branch = idx;
-      } else if (mapping.m1Name === -1 && /leader|m1|name/i.test(h)) {
+      } else if (mapping.m1Name === -1 && /leader|m1|student\s*1|name/i.test(h) && !/dept|department/i.test(h) && !/vtu/i.test(h)) {
         mapping.m1Name = idx;
       }
     });
 
+    // Fallback for m1Email: if no official/vtu email was found, look for first non-M2 email that is not just generic "Email Address"
+    if (mapping.m1Email === -1) {
+      const nonGenericIdx = headers.findIndex(raw => {
+        const h = String(raw || "").toLowerCase().trim();
+        return /email/i.test(h) && !/m2|member\s*2|student\s*2|team\s*member/i.test(h) && !/^email(\s*address)?$/i.test(h);
+      });
+      if (nonGenericIdx !== -1) {
+        mapping.m1Email = nonGenericIdx;
+      } else {
+        // Absolute last fallback: any non-M2 email column
+        const anyEmailIdx = headers.findIndex(raw => {
+          const h = String(raw || "").toLowerCase().trim();
+          return /email/i.test(h) && !/m2|member\s*2|student\s*2|team\s*member/i.test(h);
+        });
+        if (anyEmailIdx !== -1) mapping.m1Email = anyEmailIdx;
+      }
+    }
+
     return mapping;
+  }
+
+  function parseRowsArray(rows) {
+    if (!rows || rows.length < 2) return [];
+
+    const rawHeaders = (rows[0] || []).map(h => String(h || "").trim());
+    const colMap = detectColumns(rawHeaders);
+
+    const prefix = (importTeamPrefix ? importTeamPrefix.value.trim() : "VB").toUpperCase() || "VB";
+    const startNum = parseInt(importTeamStart ? importTeamStart.value : 1) || 1;
+
+    const teams = [];
+    const seenEmails = new Set();
+    const seenPhones = new Set();
+    lastSkippedDuplicates = [];
+    let autoIdIndex = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+      const vals = rows[i];
+      if (!vals || vals.length === 0 || vals.every(v => !String(v || "").trim())) continue;
+
+      const getVal = (idx) => (idx !== -1 && vals[idx] !== undefined) ? String(vals[idx]).trim() : "";
+
+      const leaderName = getVal(colMap.m1Name) || `Leader ${i}`;
+      const leaderVtuNo = getVal(colMap.m1VtuNo);
+      let leaderPhone = cleanPhoneNumber(getVal(colMap.m1Phone));
+      const fallbackEmail = getVal(colMap.fallbackEmail);
+      const leaderEmail = cleanEmail(getVal(colMap.m1Email), leaderVtuNo, fallbackEmail);
+      const college = getVal(colMap.m1College) || "School of Computing";
+      const branch = getVal(colMap.m1Branch) || "";
+
+      // Deduplicate: automatically skip duplicate submissions within the batch
+      if (seenEmails.has(leaderEmail) || (leaderPhone && seenPhones.has(leaderPhone))) {
+        lastSkippedDuplicates.push({
+          row: i + 1,
+          name: leaderName,
+          email: leaderEmail,
+          phone: leaderPhone,
+          reason: seenEmails.has(leaderEmail) ? `Duplicate Leader Email (${leaderEmail})` : `Duplicate Leader Phone (${leaderPhone})`
+        });
+        continue; // Exclude duplicate submission
+      }
+      if (leaderEmail) seenEmails.add(leaderEmail);
+      if (leaderPhone) seenPhones.add(leaderPhone);
+
+      let teamId = getVal(colMap.teamId).toUpperCase();
+      if (!teamId) {
+        autoIdIndex++;
+        const autoNum = startNum + (autoIdIndex - 1);
+        teamId = `${prefix}${String(autoNum).padStart(3, "0")}`;
+      }
+
+      const teamNo = parseInt(getVal(colMap.teamNo)) || (teams.length + 1);
+
+      const m2Name = getVal(colMap.m2Name);
+      const m2Email = cleanEmail(getVal(colMap.m2Email), getVal(colMap.m2VtuNo), "");
+      const m2Phone = cleanPhoneNumber(getVal(colMap.m2Phone));
+      const m2College = getVal(colMap.m2College) || college;
+      const m2VtuNo = getVal(colMap.m2VtuNo);
+      const m2Branch = getVal(colMap.m2Branch);
+
+      const m3Name = getVal(colMap.m3Name);
+      const m3Email = cleanEmail(getVal(colMap.m3Email), "", "");
+      const m3Phone = cleanPhoneNumber(getVal(colMap.m3Phone));
+
+      const m4Name = getVal(colMap.m4Name);
+      const m4Email = cleanEmail(getVal(colMap.m4Email), "", "");
+      const m4Phone = cleanPhoneNumber(getVal(colMap.m4Phone));
+
+      let calcSize = parseInt(getVal(colMap.teamSize)) || 1;
+      if (!getVal(colMap.teamSize)) {
+        if (m4Name) calcSize = 4;
+        else if (m3Name) calcSize = 3;
+        else if (m2Name) calcSize = 2;
+      }
+
+      const teamEntry = {
+        Team_ID: teamId,
+        teamId: teamId,
+        id: teamId,
+        VCC_ID: teamId,
+        Team_No: teamNo,
+        Team_Size: calcSize,
+        M1_College: college,
+        M1_Name: leaderName,
+        M1_Email: leaderEmail,
+        M1_Phone: leaderPhone,
+        M1_Branch: branch,
+        M1_VtuNo: leaderVtuNo
+      };
+
+      if (m2Name) {
+        teamEntry.M2_Name = m2Name;
+        teamEntry.M2_Email = m2Email;
+        teamEntry.M2_Phone = m2Phone;
+        teamEntry.M2_College = m2College;
+        teamEntry.M2_VtuNo = m2VtuNo;
+        teamEntry.M2_Branch = m2Branch;
+      }
+      if (m3Name) {
+        teamEntry.M3_Name = m3Name;
+        teamEntry.M3_Email = m3Email;
+        teamEntry.M3_Phone = m3Phone;
+      }
+      if (m4Name) {
+        teamEntry.M4_Name = m4Name;
+        teamEntry.M4_Email = m4Email;
+        teamEntry.M4_Phone = m4Phone;
+      }
+
+      teams.push(teamEntry);
+    }
+
+    return teams;
   }
 
   function parseCSV(text) {
@@ -1190,111 +1416,83 @@ document.addEventListener("DOMContentLoaded", () => {
       return result;
     }
 
-    const rawHeaders = splitCSVLine(lines[0]);
-    const colMap = detectColumns(rawHeaders);
+    const rows = lines.map(line => splitCSVLine(line));
+    return parseRowsArray(rows);
+  }
 
-    const prefix = (importTeamPrefix ? importTeamPrefix.value.trim() : "TEAM").toUpperCase() || "TEAM";
-    const startNum = parseInt(importTeamStart ? importTeamStart.value : 101) || 101;
+  function validateImportedTeams(teams) {
+    const errors = [];
+    const seenEmails = new Set();
+    const seenPhones = new Set();
+    const seenIds = new Set();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const teams = [];
+    teams.forEach((t, idx) => {
+      const rowNum = idx + 2;
+      const email = (t.M1_Email || "").trim().toLowerCase();
+      const phone = (t.M1_Phone || "").replace(/[^0-9]/g, "");
+      const teamId = (t.Team_ID || t.teamId || "").trim();
 
-    for (let i = 1; i < lines.length; i++) {
-      const vals = splitCSVLine(lines[i]);
-      if (vals.length === 0 || vals.every(v => !v)) continue;
-
-      const getVal = (idx) => (idx !== -1 && vals[idx] !== undefined) ? vals[idx].trim() : "";
-
-      const leaderEmail = getVal(colMap.m1Email).toLowerCase();
-      if (!leaderEmail) continue;
-
-      let leaderPhone = cleanPhoneNumber(getVal(colMap.m1Phone));
-      const leaderName = getVal(colMap.m1Name) || `Leader ${i}`;
-      const college = getVal(colMap.m1College) || "School of Computing";
-      const branch = getVal(colMap.m1Branch) || "Cyber Security";
-
-      let teamId = getVal(colMap.teamId).toUpperCase();
-      if (!teamId) {
-        teamId = `${prefix}${startNum + (i - 1)}`;
+      if (!email) {
+        errors.push(`Team ${teamId || rowNum}: Missing leader official email.`);
+      } else if (!emailRegex.test(email)) {
+        errors.push(`Team ${teamId || rowNum}: Invalid leader email format ("${email}").`);
+      } else if (seenEmails.has(email)) {
+        errors.push(`Team ${teamId || rowNum}: Duplicate leader email ("${email}").`);
+      } else {
+        seenEmails.add(email);
       }
 
-      const teamNo = parseInt(getVal(colMap.teamNo)) || i;
-
-      const m2Name = getVal(colMap.m2Name);
-      const m2Email = getVal(colMap.m2Email).toLowerCase();
-      const m2Phone = cleanPhoneNumber(getVal(colMap.m2Phone));
-      const m2College = getVal(colMap.m2College) || college;
-
-      const m3Name = getVal(colMap.m3Name);
-      const m3Email = getVal(colMap.m3Email).toLowerCase();
-      const m3Phone = cleanPhoneNumber(getVal(colMap.m3Phone));
-
-      const m4Name = getVal(colMap.m4Name);
-      const m4Email = getVal(colMap.m4Email).toLowerCase();
-      const m4Phone = cleanPhoneNumber(getVal(colMap.m4Phone));
-
-      let calcSize = parseInt(getVal(colMap.teamSize)) || 1;
-      if (!getVal(colMap.teamSize)) {
-        if (m4Name) calcSize = 4;
-        else if (m3Name) calcSize = 3;
-        else if (m2Name) calcSize = 2;
+      if (!phone || phone.length < 7) {
+        errors.push(`Team ${teamId || rowNum}: Missing or invalid leader phone number (need ≥7 digits).`);
+      } else if (seenPhones.has(phone)) {
+        errors.push(`Team ${teamId || rowNum}: Duplicate leader phone number in batch.`);
+      } else {
+        seenPhones.add(phone);
       }
 
-      const teamEntry = {
-        Team_ID: teamId,
-        teamId: teamId,
-        id: teamId,
-        VCC_ID: teamId,
-        Team_No: teamNo,
-        Team_Size: calcSize,
-        M1_College: college,
-        M1_Name: leaderName,
-        M1_Email: leaderEmail,
-        M1_Phone: leaderPhone,
-        M1_Branch: branch
-      };
-
-      if (m2Name) {
-        teamEntry.M2_Name = m2Name;
-        teamEntry.M2_Email = m2Email;
-        teamEntry.M2_Phone = m2Phone;
-        teamEntry.M2_College = m2College;
+      if (teamId && seenIds.has(teamId)) {
+        errors.push(`Team ${teamId}: Duplicate Team ID ("${teamId}").`);
+      } else if (teamId) {
+        seenIds.add(teamId);
       }
-      if (m3Name) {
-        teamEntry.M3_Name = m3Name;
-        teamEntry.M3_Email = m3Email;
-        teamEntry.M3_Phone = m3Phone;
-      }
-      if (m4Name) {
-        teamEntry.M4_Name = m4Name;
-        teamEntry.M4_Email = m4Email;
-        teamEntry.M4_Phone = m4Phone;
-      }
+    });
 
-      teams.push(teamEntry);
-    }
-
-    return teams;
+    return errors;
   }
 
   function handleParsedCSV(teams) {
     parsedImportTeams = teams;
     if (teams.length > 0) {
+      const validationErrors = validateImportedTeams(teams);
+
       if (importPreviewSection) importPreviewSection.style.display = "block";
-      if (importCountBadge) importCountBadge.textContent = `${teams.length} Teams Ready`;
-      if (importMappingSummary) {
-        importMappingSummary.textContent = `Auto-mapped Email, Phone, Leader & College fields`;
+      if (importCountBadge) importCountBadge.textContent = `${teams.length} Teams Detected`;
+
+      if (validationErrors.length > 0) {
+        if (importMappingSummary) {
+          importMappingSummary.innerHTML = `<span style="color:var(--rose); font-weight:600;"><i class="fas fa-exclamation-triangle"></i> Validation Failed (${validationErrors.length} issue${validationErrors.length > 1 ? "s" : ""}):<br><span style="font-size:0.75rem; font-weight:normal;">${validationErrors.slice(0, 6).map(e => escapeHtml(e)).join("<br>")}${validationErrors.length > 6 ? `<br>...and ${validationErrors.length - 6} more errors.` : ""}</span></span>`;
+        }
+        if (executeImportBtn) executeImportBtn.disabled = true;
+      } else {
+        if (importMappingSummary) {
+          const dupNote = (typeof lastSkippedDuplicates !== "undefined" && lastSkippedDuplicates.length > 0)
+            ? `<br><span style="color:var(--amber); font-size:0.75rem; font-weight:normal;"><i class="fas fa-info-circle"></i> Note: ${lastSkippedDuplicates.length} duplicate submission automatically excluded (${lastSkippedDuplicates.map(d => `Row ${d.row}: ${escapeHtml(d.name)}`).join(", ")}).</span>`
+            : "";
+          importMappingSummary.innerHTML = `<span style="color:var(--green); font-weight:600;"><i class="fas fa-check-circle"></i> Validation Passed! Leader VTU Email, Phone, Dept & Member 2 fields auto-mapped.</span>${dupNote}`;
+        }
+        if (executeImportBtn) executeImportBtn.disabled = false;
       }
-      if (executeImportBtn) executeImportBtn.disabled = false;
 
       if (importPreviewTableBody) {
         importPreviewTableBody.innerHTML = teams.slice(0, 8).map(t => `
           <tr>
             <td><strong style="color:var(--cyan); font-family:var(--font-mono);">${escapeHtml(t.Team_ID || t.teamId || t.VCC_ID)}</strong></td>
-            <td><strong>${escapeHtml(t.M1_Name)}</strong></td>
+            <td><strong>${escapeHtml(t.M1_Name)}</strong>${t.M1_VtuNo ? `<br><small style="color:var(--cyan); font-family:var(--font-mono); font-weight:600;">[${escapeHtml(t.M1_VtuNo)}]</small>` : ""}<br><small style="color:var(--text-3);">${escapeHtml(t.M1_Branch || "")}</small></td>
             <td><span class="cred-chip">${escapeHtml(t.M1_Email)}</span></td>
             <td><span class="cred-chip" style="color:var(--green); font-weight:700;">${escapeHtml(t.M1_Phone)}</span></td>
             <td style="color:var(--text-3);">${escapeHtml(t.M1_College)}</td>
-            <td><span class="team-badge">${t.Team_Size} Members</span></td>
+            <td><span class="team-badge">${t.Team_Size} Members</span>${t.M2_Name ? `<br><small style="color:var(--text-3);">${escapeHtml(t.M2_Name)}${t.M2_VtuNo ? ` (${escapeHtml(t.M2_VtuNo)})` : ""}</small>` : ""}</td>
           </tr>
         `).join("");
       }
@@ -1317,7 +1515,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (importPreviewSection) importPreviewSection.style.display = "none";
     if (importSuccessDownloadSection) importSuccessDownloadSection.style.display = "none";
     if (executeImportBtn) executeImportBtn.disabled = true;
-    if (dropZoneText) dropZoneText.textContent = "Click or Drag & Drop Google Forms CSV file here";
+    if (dropZoneText) dropZoneText.textContent = "Click or Drag & Drop Google Forms Excel (.xlsx) or CSV file here";
     parsedImportTeams = [];
   }
 
@@ -1361,14 +1559,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function processUploadedFile(file) {
       if (dropZoneText) dropZoneText.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const text = evt.target.result;
-        if (importRawCsvText) importRawCsvText.value = text;
-        const teams = parseCSV(text);
-        handleParsedCSV(teams);
-      };
-      reader.readAsText(file);
+      const isExcel = /\.(xlsx|xls)$/i.test(file.name) ||
+        file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        file.type === "application/vnd.ms-excel";
+
+      if (isExcel) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            if (typeof XLSX === "undefined") {
+              showToast("SheetJS library (XLSX) not available. Please ensure xlsx.full.min.js is loaded.", "error");
+              return;
+            }
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const csvText = XLSX.utils.sheet_to_csv(worksheet);
+            if (importRawCsvText) importRawCsvText.value = csvText;
+            const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+            const teams = parseRowsArray(rows);
+            handleParsedCSV(teams);
+          } catch (err) {
+            console.error("Failed to parse Excel file:", err);
+            showToast("Failed to parse Excel workbook: " + err.message, "error");
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const text = evt.target.result;
+          if (importRawCsvText) importRawCsvText.value = text;
+          const teams = parseCSV(text);
+          handleParsedCSV(teams);
+        };
+        reader.readAsText(file);
+      }
     }
   }
 
@@ -1424,29 +1651,189 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Instant Download of Generated Credentials CSV
+  // =========================================================================
+  // ENHANCED EXPORT ENGINE & PARAMETERS
+  // =========================================================================
+  function sanitizeCsvField(value) {
+    if (!value && value !== 0) return '';
+    const str = String(value);
+    if (/^[=+\-@|%]/.test(str)) {
+      return "'" + str;
+    }
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  }
+
+  function getCurrentParticipantList() {
+    const q = participantSearch ? participantSearch.value.toLowerCase().trim() : "";
+    if (!q) return allTeamsData;
+    return allTeamsData.filter(t => {
+      const teamId = (t.id || t.teamId || t.vccId || "").toLowerCase();
+      return (
+        teamId.includes(q) ||
+        (t.M1_Name && t.M1_Name.toLowerCase().includes(q)) ||
+        (t.M1_Email && t.M1_Email.toLowerCase().includes(q)) ||
+        (t.M1_Phone && t.M1_Phone.toLowerCase().includes(q)) ||
+        (t.M1_Branch && t.M1_Branch.toLowerCase().includes(q)) ||
+        (t.M1_VtuNo && t.M1_VtuNo.toLowerCase().includes(q)) ||
+        (t.M2_Name && t.M2_Name.toLowerCase().includes(q)) ||
+        (t.M2_VtuNo && t.M2_VtuNo.toLowerCase().includes(q)) ||
+        (t.M2_Email && t.M2_Email.toLowerCase().includes(q)) ||
+        (t.college && t.college.toLowerCase().includes(q))
+      );
+    });
+  }
+
+  function buildParticipantExportObjects(teamsList) {
+    return teamsList.map(t => {
+      const teamId = t.Team_ID || t.teamId || t.id || t.vccId || t.VCC_ID || "";
+      const isEnded = Boolean(t.sessionEnded);
+      const isLive = Boolean(t.hackathonStart && !isEnded);
+      const status = isEnded ? "Completed" : (isLive ? "Live Sprint" : "Registered");
+      const startTime = t.hackathonStart ? new Date(t.hackathonStart).toLocaleString() : "—";
+      const endTime = (t.completedAt || t.sessionEndedAt) ? new Date(t.completedAt || t.sessionEndedAt).toLocaleString() : "—";
+      const aiScoreVal = typeof t.aiScore === 'number' ? t.aiScore : (t.evaluation?.score ?? "—");
+      const promptCountVal = t.promptCount ?? (t.prompts ? (Array.isArray(t.prompts) ? t.prompts.length : Object.keys(t.prompts).length) : 0);
+      const passVal = t.password || t.M1_Phone || t.phone || "";
+
+      return {
+        "Team ID": teamId,
+        "Team Size": t.teamSize || t.Team_Size || 2,
+        "Student 1 Name (Lead)": t.M1_Name || t.leaderName || "",
+        "Student 1 VTU No": t.M1_VtuNo || t.m1VtuNo || "",
+        "Student 1 Department": t.M1_Branch || t.branch || "",
+        "Student 1 Official Email (Login ID)": t.M1_Email || t.email || "",
+        "Student 1 Mobile No": t.M1_Phone || t.phone || "",
+        "Student 1 Login Password": passVal,
+        "College / Campus": t.college || t.M1_College || "",
+        "Student 2 Name (Member)": t.M2_Name || "—",
+        "Student 2 VTU No": t.M2_VtuNo || t.m2VtuNo || "—",
+        "Student 2 Department": t.M2_Branch || t.m2Branch || "—",
+        "Student 2 Official Email": t.M2_Email || t.m2Email || "—",
+        "Student 2 Mobile No": t.M2_Phone || t.m2Phone || "—",
+        "Session Status": status,
+        "Sprint Start": startTime,
+        "Sprint End": endTime,
+        "GitHub Repository": t.githubUrl || "—",
+        "Live Deployment": t.deploymentUrl || "—",
+        "Total Prompts": promptCountVal,
+        "AI Score (0-50)": aiScoreVal,
+        "AI Rating Level": t.aiLevel || t.evaluation?.level || "—",
+        "Registered Timestamp": t.createdAt ? new Date(t.createdAt).toLocaleString() : "—"
+      };
+    });
+  }
+
+  function downloadCsvFile(rows, filename) {
+    if (!rows || rows.length === 0) {
+      showToast("No data available to export.", "info");
+      return;
+    }
+    const headers = Object.keys(rows[0]);
+    const csvContent = [
+      headers.map(sanitizeCsvField).join(","),
+      ...rows.map(r => headers.map(h => sanitizeCsvField(r[h])).join(","))
+    ].join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadExcelFile(rows, filename, sheetName = "Participants") {
+    if (!rows || rows.length === 0) {
+      showToast("No data available to export.", "info");
+      return;
+    }
+    if (typeof XLSX === "undefined") {
+      downloadCsvFile(rows, filename.replace(/\.xlsx$/i, ".csv"));
+      return;
+    }
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const keys = Object.keys(rows[0]);
+    worksheet['!cols'] = keys.map(k => {
+      let maxLen = k.length;
+      for (let i = 0; i < Math.min(rows.length, 50); i++) {
+        const val = rows[i][k];
+        if (val !== undefined && val !== null) {
+          maxLen = Math.max(maxLen, String(val).length);
+        }
+      }
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 45) };
+    });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    XLSX.writeFile(workbook, filename);
+  }
+
+  // 1. Tab 1 Toolbar: Export Credentials CSV
+  const exportCredsBtn = document.getElementById("exportCredsBtn");
+  if (exportCredsBtn) {
+    exportCredsBtn.addEventListener("click", () => {
+      const list = getCurrentParticipantList();
+      if (!list || list.length === 0) {
+        showToast("No participant data loaded to export.", "info");
+        return;
+      }
+      const rows = buildParticipantExportObjects(list);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadCsvFile(rows, `Vibeathon_Participant_Roster_${dateStr}.csv`);
+      showToast(`Exported ${rows.length} participant teams to CSV.`, "success");
+    });
+  }
+
+  // 2. Tab 1 Toolbar: Export Master Excel (.xlsx)
+  const exportExcelBtn = document.getElementById("exportExcelBtn");
+  if (exportExcelBtn) {
+    exportExcelBtn.addEventListener("click", () => {
+      const list = getCurrentParticipantList();
+      if (!list || list.length === 0) {
+        showToast("No participant data loaded to export.", "info");
+        return;
+      }
+      const rows = buildParticipantExportObjects(list);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadExcelFile(rows, `Vibeathon_Master_Roster_${dateStr}.xlsx`, "Roster");
+      showToast(`Exported ${rows.length} participant teams to Excel!`, "success");
+    });
+  }
+
+  // 3. Import Modal: Download CSV
   if (downloadImportedCredsBtn) {
     downloadImportedCredsBtn.addEventListener("click", () => {
-      if (lastImportedCredentials.length === 0) {
+      const list = (lastImportedCredentials && lastImportedCredentials.length > 0) ? lastImportedCredentials : allTeamsData;
+      if (!list || list.length === 0) {
         showToast("No credentials available to export", "error");
         return;
       }
+      const rows = buildParticipantExportObjects(list);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadCsvFile(rows, `Vibeathon_Imported_Credentials_${dateStr}.csv`);
+      showToast(`Downloaded ${rows.length} credentials to CSV!`, "success");
+    });
+  }
 
-      const header = "Team_ID,Leader_Name,Login_Email,Login_Password,College,Team_Size\n";
-      const rows = lastImportedCredentials.map(t => 
-        `"${t.Team_ID || t.teamId || t.id || t.vccId || t.VCC_ID}","${t.leaderName || t.M1_Name}","${t.email || t.M1_Email}","${t.password || t.M1_Phone}","${t.college || t.M1_College || ''}",${t.teamSize || t.Team_Size || 2}`
-      ).join("\n");
-
-      const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Vibeathon_Imported_Credentials_${new Date().toISOString().slice(0,10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showToast("Credentials CSV downloaded!", "success");
+  // 4. Import Modal: Download Excel (.xlsx)
+  const downloadImportedExcelBtn = document.getElementById("downloadImportedExcelBtn");
+  if (downloadImportedExcelBtn) {
+    downloadImportedExcelBtn.addEventListener("click", () => {
+      const list = (lastImportedCredentials && lastImportedCredentials.length > 0) ? lastImportedCredentials : allTeamsData;
+      if (!list || list.length === 0) {
+        showToast("No credentials available to export", "error");
+        return;
+      }
+      const rows = buildParticipantExportObjects(list);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadExcelFile(rows, `Vibeathon_Imported_Credentials_${dateStr}.xlsx`, "Credentials");
+      showToast(`Downloaded ${rows.length} credentials to Excel!`, "success");
     });
   }
 
@@ -1487,22 +1874,197 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Helper: HTML Escaping
   function escapeHtml(str) {
-    if (!str) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    const d = document.createElement('div');
+    d.textContent = String(str || '');
+    return d.innerHTML;
   }
 
-  // Helper: Format External URL (ensure protocol)
+  function isSafeUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const u = new URL(url);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch { return false; }
+  }
+
   function formatExternalUrl(url) {
-    if (!url) return "";
+    if (!url) return "#";
     const trimmed = String(url).trim();
-    if (!trimmed) return "";
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
+    if (!trimmed) return "#";
+    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    return isSafeUrl(withProtocol) ? withProtocol : '#';
+  }
+
+  // ================= VISUAL PURGE ALL PARTICIPANTS HANDLER =================
+  const purgeVisualModal = document.getElementById("purgeVisualModal");
+  const purgeProgressBar = document.getElementById("purgeProgressBar");
+  const purgeProgressPercent = document.getElementById("purgeProgressPercent");
+  const purgeProgressStepText = document.getElementById("purgeProgressStepText");
+  const purgeVisualIcon = document.getElementById("purgeVisualIcon");
+  const purgeModalTitle = document.getElementById("purgeModalTitle");
+  const purgeModalSubtitle = document.getElementById("purgeModalSubtitle");
+  const purgeTerminal = document.getElementById("purgeTerminal");
+  const purgeModalFooter = document.getElementById("purgeModalFooter");
+  const closePurgeVisualBtn = document.getElementById("closePurgeVisualBtn");
+  const deleteAllParticipantsBtn = document.getElementById("deleteAllParticipantsBtn");
+  const purgeAllParticipantsTabBtn = document.getElementById("purgeAllParticipantsTabBtn");
+
+  function logToPurgeTerminal(tag, message, level = 'info') {
+    if (!purgeTerminal) return;
+    const line = document.createElement('div');
+    line.className = 'term-line';
+    const now = new Date();
+    const timeStr = now.toTimeString().split(' ')[0];
+    const tagClass = level === 'danger' ? 'term-danger' : (level === 'success' ? 'term-success' : (level === 'warn' ? 'term-warn' : 'term-info'));
+    line.innerHTML = `<span class="term-time">[${timeStr}]</span> <span class="${tagClass}">[${tag}]</span> ${escapeHtml(message)}`;
+    purgeTerminal.appendChild(line);
+    purgeTerminal.scrollTop = purgeTerminal.scrollHeight;
+  }
+
+  function updatePurgeStep(stepNum, status) {
+    const stepEl = document.getElementById(`pipeStep${stepNum}`);
+    const statusEl = document.getElementById(`pipeStatus${stepNum}`);
+    if (!stepEl || !statusEl) return;
+
+    if (status === 'active') {
+      stepEl.className = 'purge-pipe-item active';
+      statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    } else if (status === 'completed') {
+      stepEl.className = 'purge-pipe-item completed';
+      statusEl.innerHTML = '<i class="fas fa-check-circle" style="color: #34d399;"></i>';
+    } else if (status === 'error') {
+      stepEl.className = 'purge-pipe-item active';
+      statusEl.innerHTML = '<i class="fas fa-times-circle" style="color: #fb7185;"></i>';
+    } else {
+      stepEl.className = 'purge-pipe-item';
+      statusEl.innerHTML = '<i class="far fa-circle"></i>';
+    }
+  }
+
+  function setPurgeProgress(percent, stepText) {
+    if (purgeProgressBar) purgeProgressBar.style.width = `${percent}%`;
+    if (purgeProgressPercent) purgeProgressPercent.textContent = `${percent}%`;
+    if (purgeProgressStepText) purgeProgressStepText.innerHTML = stepText;
+  }
+
+  async function executeVisualPurgeAll() {
+    const confirmed = await window.showConfirmDialog({
+      title: "CRITICAL: Wipe All Participants & Database",
+      message: "Are you absolutely certain you want to delete ALL participants, deliverables, prompts, evaluations, and Firebase Auth logins?",
+      details: "This permanently deletes all participant records from Firebase Realtime Database (/teams, /prompts, /promptEvaluations) and deletes participant auth accounts. Master administrator accounts are safely preserved. This action CANNOT be undone.",
+      type: "danger",
+      confirmText: "CONFIRM PURGE ALL",
+      icon: "fas fa-radiation"
+    });
+
+    if (!confirmed) return;
+
+    // Reset visual modal state
+    if (purgeVisualIcon) {
+      purgeVisualIcon.innerHTML = '<i class="fas fa-radiation"></i>';
+      purgeVisualIcon.style.removeProperty('background');
+      purgeVisualIcon.style.removeProperty('border-color');
+      purgeVisualIcon.style.removeProperty('color');
+      purgeVisualIcon.style.removeProperty('box-shadow');
+    }
+    if (purgeModalTitle) purgeModalTitle.textContent = "PURGING ALL PARTICIPANTS";
+    if (purgeModalSubtitle) purgeModalSubtitle.textContent = "Executing live wipe across Realtime Database & Firebase Authentication...";
+    if (purgeTerminal) purgeTerminal.innerHTML = '';
+    if (purgeModalFooter) purgeModalFooter.style.display = 'none';
+
+    updatePurgeStep(1, 'active');
+    updatePurgeStep(2, 'pending');
+    updatePurgeStep(3, 'pending');
+    updatePurgeStep(4, 'pending');
+    setPurgeProgress(10, '<i class="fas fa-spinner fa-spin"></i> Initializing security authorization gate...');
+
+    if (purgeVisualModal) purgeVisualModal.classList.add('active');
+
+    logToPurgeTerminal("INIT", "Purge protocol engaged by Administrator.");
+    logToPurgeTerminal("AUTH", "Verifying master admin authorization token...");
+
+    // Smooth visual delay
+    await new Promise(r => setTimeout(r, 450));
+    updatePurgeStep(1, 'completed');
+    logToPurgeTerminal("SEC", "Admin token verified. Master accounts protected.", "success");
+
+    updatePurgeStep(2, 'active');
+    setPurgeProgress(35, '<i class="fas fa-spinner fa-spin"></i> Wiping Realtime Database (/teams, /prompts, /evaluations)...');
+    logToPurgeTerminal("RTDB", "Transmitting cascade delete across Realtime Database nodes...");
+
+    try {
+      const res = await manageFetch("/api/manage/purge-participants", {
+        method: "POST"
+      });
+
+      if (!res) throw new Error("Server connection lost or request aborted");
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Backend purge failed");
+      }
+
+      // Stage 2 completed
+      updatePurgeStep(2, 'completed');
+      logToPurgeTerminal("RTDB", "Cleared /teams, /prompts, /promptEvaluations successfully.", "success");
+
+      // Stage 3: Firebase Auth
+      updatePurgeStep(3, 'active');
+      setPurgeProgress(70, '<i class="fas fa-spinner fa-spin"></i> Removing participant Firebase Auth logins...');
+      logToPurgeTerminal("AUTH", "Purging participant login credentials from Firebase Auth...");
+
+      await new Promise(r => setTimeout(r, 400));
+      updatePurgeStep(3, 'completed');
+      const count = data.deletedAuthCount || 0;
+      logToPurgeTerminal("AUTH", `Purged ${count} participant user account(s). Admin accounts preserved.`, "success");
+
+      // Stage 4: Refresh cache & UI
+      updatePurgeStep(4, 'active');
+      setPurgeProgress(90, '<i class="fas fa-spinner fa-spin"></i> Refreshing directory cache & dashboard counters...');
+      logToPurgeTerminal("CACHE", "Synchronizing local participant directory and resetting metrics...");
+
+      await loadParticipants();
+
+      await new Promise(r => setTimeout(r, 350));
+      updatePurgeStep(4, 'completed');
+      setPurgeProgress(100, '<i class="fas fa-check-circle" style="color:var(--emerald);"></i> Purge completed successfully!');
+      logToPurgeTerminal("COMPLETE", "Platform completely sanitized. Ready for new participant import.", "success");
+
+      // Final visual triumph state
+      if (purgeVisualIcon) {
+        purgeVisualIcon.innerHTML = '<i class="fas fa-check"></i>';
+        purgeVisualIcon.style.background = 'rgba(16, 185, 129, 0.2)';
+        purgeVisualIcon.style.borderColor = 'var(--emerald)';
+        purgeVisualIcon.style.color = 'var(--emerald)';
+        purgeVisualIcon.style.boxShadow = '0 0 25px rgba(16, 185, 129, 0.4)';
+      }
+      if (purgeModalTitle) purgeModalTitle.textContent = "PURGE COMPLETE";
+      if (purgeModalSubtitle) purgeModalSubtitle.textContent = `All participant records and ${count} Firebase logins wiped successfully.`;
+      if (purgeModalFooter) purgeModalFooter.style.display = 'flex';
+
+      showToast(`✅ Database purged: ${count} participant accounts removed.`, "success");
+    } catch (err) {
+      console.error("Visual purge error:", err);
+      logToPurgeTerminal("ERROR", err.message, "danger");
+      setPurgeProgress(100, `<i class="fas fa-times-circle" style="color:var(--rose);"></i> Error: ${escapeHtml(err.message)}`);
+      if (purgeModalSubtitle) purgeModalSubtitle.textContent = `Purge failed: ${err.message}`;
+      if (purgeModalFooter) purgeModalFooter.style.display = 'flex';
+      showToast("Purge failed: " + err.message, "error");
+    }
+  }
+
+  if (deleteAllParticipantsBtn) {
+    deleteAllParticipantsBtn.addEventListener("click", executeVisualPurgeAll);
+  }
+
+  if (purgeAllParticipantsTabBtn) {
+    purgeAllParticipantsTabBtn.addEventListener("click", executeVisualPurgeAll);
+  }
+
+  if (closePurgeVisualBtn) {
+    closePurgeVisualBtn.addEventListener("click", () => {
+      if (purgeVisualModal) purgeVisualModal.classList.remove("active");
+    });
   }
 
   // Initial Data Load

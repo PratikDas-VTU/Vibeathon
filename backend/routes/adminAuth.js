@@ -41,14 +41,13 @@ router.post("/login", async (req, res) => {
     // 🔍 Find admin (demo or real)
     let admin = await getAdminByUsername(username.toLowerCase());
 
-    const demoAdminUser = (process.env.DEMO_ADMIN_USER || process.env.ADMIN_USERNAME || "admin").toLowerCase();
+    const demoAdminUser = (process.env.DEMO_ADMIN_USER || process.env.ADMIN_USERNAME || "").toLowerCase();
     const demoAdminPass = process.env.DEMO_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
 
-
     /**
-     * DEMO ADMIN FALLBACK (Enabled only when DEMO_ADMIN_PASSWORD env var is configured)
+     * DEMO ADMIN FALLBACK (Enabled only when DEMO_ADMIN_PASSWORD env var is explicitly configured)
      */
-    if (!admin && demoAdminPass && username === demoAdminUser && password === demoAdminPass) {
+    if (!admin && demoAdminUser && demoAdminPass && username === demoAdminUser && password === demoAdminPass) {
       // Create Firebase user for demo admin
       const adminEmail = "admin@vibeathon.internal";
 

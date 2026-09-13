@@ -300,15 +300,9 @@
   };
 
   function escapeHtml(text) {
-    if (!text) return '';
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-    return String(text).replace(/[&<>"']/g, (m) => map[m]);
+    const d = document.createElement('div');
+    d.textContent = String(text || '');
+    return d.innerHTML;
   }
 
   // Ensure initialization when DOM is loaded

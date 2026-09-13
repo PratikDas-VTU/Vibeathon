@@ -33,7 +33,8 @@
   // Allow manual override via localStorage if needed
   let customBackend = null;
   try {
-    if (typeof localStorage !== "undefined") {
+    // Only allow localStorage override in local/dev environments, never in production
+    if (typeof localStorage !== "undefined" && (isLocal || isLiveServer)) {
       customBackend = localStorage.getItem("VIBEATHON_BACKEND_URL");
     }
   } catch (e) {

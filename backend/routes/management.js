@@ -54,7 +54,12 @@ router.get("/teams", verifyAdmin, async (req, res) => {
  */
 router.post("/teams", verifyAdmin, async (req, res) => {
   try {
-    const { teamId, id, vccId, leaderName, email, password, college, teamSize, branch } = req.body;
+    const {
+      teamId, id, vccId, leaderName, email, password, college, teamSize, branch,
+      M1_VtuNo, m1VtuNo,
+      M2_Name, m2Name, M2_Email, m2Email, M2_Phone, m2Phone, M2_College, m2College,
+      M2_VtuNo, m2VtuNo, M2_Branch, m2Branch
+    } = req.body;
     const resolvedId = (teamId || id || vccId || "").trim().toUpperCase();
 
     if (!resolvedId || !email || !password) {
@@ -72,17 +77,28 @@ router.post("/teams", verifyAdmin, async (req, res) => {
       teamId: resolvedId,
       vccId: resolvedId,
       teamNo: Math.floor(1000 + Math.random() * 9000),
-      teamSize: parseInt(teamSize) || 2,
+      teamSize: parseInt(teamSize) || (M2_Name || m2Name ? 2 : 1),
       college: college || "School of Computing",
       M1_Name: leaderName || "Team Leader",
       M1_Email: email.trim().toLowerCase(),
       M1_Phone: String(password).trim(),
       M1_Branch: branch || "Cyber Security",
+      M1_VtuNo: (M1_VtuNo || m1VtuNo || "").trim(),
       sessionEnded: false,
       hackathonStart: null,
       githubUrl: null,
       deploymentUrl: null
     };
+
+    const resolvedM2Name = (M2_Name || m2Name || "").trim();
+    if (resolvedM2Name) {
+      teamData.M2_Name = resolvedM2Name;
+      teamData.M2_Email = (M2_Email || m2Email || "").trim().toLowerCase();
+      teamData.M2_Phone = String(M2_Phone || m2Phone || "").replace(/[^0-9]/g, "").trim();
+      teamData.M2_College = (M2_College || m2College || teamData.college).trim();
+      teamData.M2_VtuNo = (M2_VtuNo || m2VtuNo || "").trim();
+      teamData.M2_Branch = (M2_Branch || m2Branch || "").trim();
+    }
 
     // 1. Create in Firebase Auth
     try {
@@ -177,6 +193,15 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: "No teams provided for import." });
     }
 
+    // ---- Determine next available VB number to avoid collisions ----
+    const snap = await db.ref("teams").once("value");
+    const existingTeams = snap.val() || {};
+    let maxVbNum = 0;
+    for (const key of Object.keys(existingTeams)) {
+      const m = key.match(/^VB(\d+)$/i);
+      if (m) maxVbNum = Math.max(maxVbNum, parseInt(m[1], 10));
+    }
+
     const results = {
       total: importedList.length,
       created: 0,
@@ -185,26 +210,54 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
       importedTeams: []
     };
 
+    // ---- Batch email deduplication ----
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const seenEmails = new Set();
+    let autoVbIndex = 0; // increments only for rows that need an auto-generated ID
+
     for (let i = 0; i < importedList.length; i++) {
       const row = importedList[i];
       try {
-        const leaderEmail = (row.M1_Email || row.email || row.leaderEmail || "").trim().toLowerCase();
-        let leaderPhone = String(row.M1_Phone || row.phone || row.leaderPhone || "").replace(/[^0-9]/g, "").trim();
+        let leaderEmail = (row.M1_Email || row.email || row.leaderEmail || "").trim().toLowerCase();
+        if (leaderEmail.includes("@")) {
+          const atIdx = leaderEmail.indexOf("@");
+          const local = leaderEmail.slice(0, atIdx);
+          const domain = leaderEmail.slice(atIdx + 1).replace(/,/g, ".");
+          leaderEmail = local + "@" + domain;
+        }
+        const malformedMatch = leaderEmail.match(/^(\d+)gmail@\.com$/i) || leaderEmail.match(/^(\d+)@?g[a-z]+@?\.com$/i);
+        if (malformedMatch) {
+          leaderEmail = `vtu${malformedMatch[1]}@veltech.edu.in`;
+        }
+        const leaderPhone = String(row.M1_Phone || row.phone || row.leaderPhone || "").replace(/[^0-9]/g, "").trim();
         const leaderName = (row.M1_Name || row.leaderName || row.name || `Team Lead ${i + 1}`).trim();
         let teamId = (row.Team_ID || row.teamId || row.id || row.VCC_ID || row.vccId || "").trim().toUpperCase();
 
+        // Auto-generate VB ID if none supplied
         if (!teamId) {
-          teamId = `TEAM${String(100 + i + 1)}`;
+          autoVbIndex++;
+          teamId = `VB${String(maxVbNum + autoVbIndex).padStart(3, "0")}`;
         }
 
+        // Validate leader email
         if (!leaderEmail) {
-          results.errors.push(`Row ${i + 1}: Skipped (Missing leader email).`);
+          results.errors.push(`Row ${i + 1}: Skipped — missing leader email.`);
           continue;
         }
+        if (!emailRegex.test(leaderEmail)) {
+          results.errors.push(`Row ${i + 1}: Skipped — invalid leader email format.`);
+          continue;
+        }
+        if (seenEmails.has(leaderEmail)) {
+          results.errors.push(`Row ${i + 1}: Skipped — duplicate leader email in this batch.`);
+          continue;
+        }
+        seenEmails.add(leaderEmail);
 
-        // Ensure phone is at least 6 characters for Firebase Auth password requirement
-        if (!leaderPhone || leaderPhone.length < 6) {
-          leaderPhone = (leaderPhone + "123456").slice(0, 8);
+        // Validate leader phone — reject instead of padding with fake digits
+        if (!leaderPhone || leaderPhone.length < 7) {
+          results.errors.push(`Row ${i + 1}: Skipped — leader phone is missing or too short (need ≥7 digits).`);
+          continue;
         }
 
         const teamData = {
@@ -213,37 +266,29 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
           vccId: teamId,
           teamNo: parseInt(row.Team_No || row.teamNo) || (i + 1),
           teamSize: parseInt(row.Team_Size || row.teamSize) || (row.M2_Name ? 2 : 1),
-          college: (row.M1_College || row.college || "School of Computing").trim(),
+          college: (row.M1_College || row.college || "").trim(),
           M1_Name: leaderName,
           M1_Email: leaderEmail,
           M1_Phone: leaderPhone,
-          M1_Branch: (row.M1_Branch || row.branch || "Cyber Security").trim(),
+          M1_VtuNo: (row.M1_VtuNo || row.m1VtuNo || row.M1_VTUNo || "").trim(),
+          M1_Branch: (row.M1_Branch || row.M1_Dept || row.branch || "").trim(),
           sessionEnded: false,
           hackathonStart: null,
           githubUrl: null,
           deploymentUrl: null
         };
 
+        // Member 2 — full schema including VTU number and branch
         if (row.M2_Name) {
           teamData.M2_Name = row.M2_Name.trim();
           teamData.M2_Email = (row.M2_Email || "").trim().toLowerCase();
-          teamData.M2_Phone = String(row.M2_Phone || "").trim();
-          teamData.M2_College = (row.M2_College || teamData.college).trim();
-        }
-        if (row.M3_Name) {
-          teamData.M3_Name = row.M3_Name.trim();
-          teamData.M3_Email = (row.M3_Email || "").trim().toLowerCase();
-          teamData.M3_Phone = String(row.M3_Phone || "").trim();
-          teamData.M3_College = (row.M3_College || teamData.college).trim();
-        }
-        if (row.M4_Name) {
-          teamData.M4_Name = row.M4_Name.trim();
-          teamData.M4_Email = (row.M4_Email || "").trim().toLowerCase();
-          teamData.M4_Phone = String(row.M4_Phone || "").trim();
-          teamData.M4_College = (row.M4_College || teamData.college).trim();
+          teamData.M2_Phone = String(row.M2_Phone || "").replace(/[^0-9]/g, "").trim();
+          teamData.M2_College = (row.M2_College || teamData.college || "").trim();
+          teamData.M2_VtuNo = (row.M2_VtuNo || row.M2_VTUNo || "").trim();
+          teamData.M2_Branch = (row.M2_Branch || row.M2_Dept || row.M2_Department || "").trim();
         }
 
-        // 1. Create or sync in Firebase Auth
+        // 1. Create or sync Firebase Auth (leader only — one login per team)
         try {
           await createTeamUser(teamData.M1_Email, teamData.M1_Phone);
         } catch (authErr) {
@@ -274,27 +319,38 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
           id: teamData.teamId,
           teamId: teamData.teamId,
           vccId: teamData.teamId,
+          teamNo: teamData.teamNo,
           leaderName: teamData.M1_Name,
           email: teamData.M1_Email,
-          password: teamData.M1_Phone,
+          password: teamData.password || teamData.M1_Phone,
           college: teamData.college,
-          teamSize: teamData.teamSize
+          teamSize: teamData.teamSize,
+          M1_Name: teamData.M1_Name,
+          M1_VtuNo: teamData.M1_VtuNo || "",
+          M1_Branch: teamData.M1_Branch || "",
+          M1_Email: teamData.M1_Email,
+          M1_Phone: teamData.M1_Phone,
+          M2_Name: teamData.M2_Name || "",
+          M2_VtuNo: teamData.M2_VtuNo || "",
+          M2_Branch: teamData.M2_Branch || "",
+          M2_Email: teamData.M2_Email || "",
+          M2_Phone: teamData.M2_Phone || ""
         });
 
       } catch (rowErr) {
-        results.errors.push(`Row ${i + 1} (${row.teamId || row.id || row.vccId || 'unknown'}): ${rowErr.message}`);
+        results.errors.push(`Row ${i + 1} (${row.teamId || row.id || row.vccId || "unknown"}): ${rowErr.message}`);
       }
     }
 
     await logActivity(
       "IMPORT_TEAMS_CSV",
-      `Imported ${results.created} new teams and updated ${results.updated} teams from CSV/Google Forms`,
+      `Imported ${results.created} new teams and updated ${results.updated} teams from CSV/Google Forms. Errors: ${results.errors.length}`,
       req.admin?.username || "Admin"
     );
 
     res.json({
       success: true,
-      message: `Import complete! Created ${results.created} teams, updated ${results.updated} teams.`,
+      message: `Import complete! Created ${results.created} teams, updated ${results.updated} teams.${results.errors.length ? ` ${results.errors.length} row(s) had errors.` : ""}`,
       results
     });
   } catch (err) {

@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const { db } = require("../firebaseConfig");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ router.get("/status", async (req, res) => {
  * GET /api/problem-statement/download
  * Downloads the active problem statement file
  */
-router.get("/download", async (req, res) => {
+router.get("/download", auth, async (req, res) => {
   try {
     const snap = await db.ref("settings/problemStatement").once("value");
     const val = snap.val() || {};

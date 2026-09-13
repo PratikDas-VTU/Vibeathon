@@ -154,8 +154,13 @@
             <i class="fas fa-file-export"></i> Export CSV
           </button>
 
+          <!-- Export Excel -->
+          <button id="exportExcelBtn" class="btn-tool" title="Export team telemetry to Excel">
+            <i class="fas fa-file-excel"></i> Export Excel
+          </button>
+
           <!-- Export Detailed Prompt Audit -->
-          <button id="exportDetailedBtn" class="btn-tool" title="Export detailed team-wise prompt audit to CSV">
+          <button id="exportDetailedBtn" class="btn-tool" title="Export detailed team-wise prompt audit to CSV / Excel">
             <i class="fas fa-file-invoice"></i> Export Prompt Audit
           </button>
 
@@ -374,6 +379,7 @@
     <span class="footer-badge"><i class="fas fa-lock"></i> Verified Admin Session</span>
   </footer>
 
+  <script src="js/libs/xlsx.full.min.js"></script>
   <script src="js/config.js"></script>
   <script src="js/dialogs.js"></script>
   <script src="js/admin-dashboard.js"></script>

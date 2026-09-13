@@ -16,11 +16,14 @@ node_modules/
 *firebase-service-account*.json
 *service-account*.json
 
-# Participant Data & PII (All real CSVs strictly ignored)
+# Participant Data & PII — All CSVs, Excel and credential dumps strictly ignored
 *.csv
-!backend/teams.sample.csv
+*.xlsx
+*.xls
 demo_credentials*
 */demo_credentials*
+*participants*.csv
+*participants*.xlsx
 
 # Competition Dumps, Prompt Logs & Confidential Materials
 *dump*.txt
@@ -32,11 +35,14 @@ Problem Statement.docx
 public/*.docx
 public/*.pdf
 
-# Documentation with Participant PII
+# Documentation with Participant PII or obsolete guides
 IMPORT_TEAMS_NOW.md
+AUTHENTICATION_REFACTORING.md
+NGROK_SETUP.md
+NGROK_WARNING_FIX.md
 DASHBOARD_TEAM_DATA.md
 
-# One-off Admin, Test & Migration Scripts (Internal only)
+# One-off Admin, Test & Migration Scripts (listed for history, files deleted)
 backend/addDummyParticipant.js
 backend/addFakePrompts.js
 backend/addFakeSubmissions.js

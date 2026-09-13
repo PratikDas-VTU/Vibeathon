@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 
@@ -9,7 +10,7 @@ const teamRoutes = require("./routes/team");
 const submissionRoutes = require("./routes/submission"); // ✅ ADD THIS
 const adminAuthRoutes = require("./routes/adminAuth");
 const adminRoutes = require("./routes/admin");
-
+const verifyAdmin = require("./middleware/verifyAdmin");
 
 
 const app = express();
@@ -40,7 +41,7 @@ app.use(
       if (origin.endsWith(".vercel.app") || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
         return callback(null, true);
       }
-      return callback(null, true);
+      return callback(new Error('CORS: origin not allowed'), false);
     },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
@@ -50,7 +51,7 @@ const path = require("path");
 
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-app.use(express.json());
+app.use(express.json({ limit: '50kb' }));
 app.disable("x-powered-by");
 
 // Bypass ngrok browser warning
@@ -64,6 +65,7 @@ app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self' blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
@@ -72,6 +74,33 @@ app.use((req, res, next) => {
   next();
 });
 
+/* =====================================================
+   RATE LIMITING
+===================================================== */
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api", apiLimiter);
+app.use("/api/auth/login", loginLimiter);
+app.use("/api/admin/login", adminLoginLimiter);
 
 /* =====================================================
    ROUTES
@@ -101,7 +130,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-app.get("/api/version", (req, res) => {
+app.get("/api/version", verifyAdmin, (req, res) => {
   res.json({
     version: "2.3.0",
     build: "production",

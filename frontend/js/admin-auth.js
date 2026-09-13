@@ -65,13 +65,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       console.log("✅ Admin login successful!");
-      console.log("🎫 Storing admin token:", data.token);
+      console.log("🎫 Storing admin token securely");
 
       // ✅ Store admin JWT
       localStorage.setItem("adminToken", data.token);
 
       console.log("✅ Admin token stored in localStorage");
-      console.log("🔍 Verifying token storage:", localStorage.getItem("adminToken"));
+      console.log("🔍 Verifying token storage successful");
 
       showMessage("Admin login successful", "success");
 

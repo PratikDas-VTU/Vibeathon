@@ -36,6 +36,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /* ===================== HELPERS ===================== */
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str || '');
+    return d.innerHTML;
+  }
+
   const isValidGitHubUrl = url =>
     /^https:\/\/(www\.)?github\.com\/[^\/]+\/[^\/]+/.test(url);
 
@@ -160,41 +166,72 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Populate Squad Roster
   const membersList = document.getElementById("teamMembersList");
-  if (membersList && team.members) {
+  if (membersList) {
     membersList.innerHTML = "";
 
-    team.members.forEach((m, index) => {
-      const li = document.createElement("li");
-      li.className = "squad-card";
+    const memberData = (team.members && team.members.length > 0)
+      ? team.members
+      : [
+          ...(team.M1_Name ? [{
+            name: team.M1_Name,
+            email: team.M1_Email,
+            phone: team.M1_Phone,
+            college: team.M1_College || team.college,
+            branch: team.M1_Branch,
+            vtuNo: team.M1_VtuNo || "",
+            isLeader: true
+          }] : []),
+          ...(team.M2_Name ? [{
+            name: team.M2_Name,
+            email: team.M2_Email,
+            phone: team.M2_Phone,
+            college: team.M2_College || team.college,
+            branch: team.M2_Branch,
+            vtuNo: team.M2_VtuNo,
+            isLeader: false
+          }] : [])
+        ];
 
-      const initials = (m.name || "U")
-        .trim()
-        .split(" ")
-        .map(p => p[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
+    if (memberData.length === 0) {
+      membersList.innerHTML = `<li class="squad-card" style="color:var(--text-3); font-style:italic;">No member details registered.</li>`;
+    } else {
+      memberData.forEach((m, index) => {
+        const li = document.createElement("li");
+        li.className = "squad-card";
 
-      const roleBadge = index === 0
-        ? '<span class="squad-role-tag leader"><i class="fas fa-crown"></i> LEADER</span>'
-        : '<span class="squad-role-tag member">MEMBER</span>';
+        const rawName = String(m.name || "Participant").trim();
+        const initials = rawName
+          .split(" ")
+          .filter(Boolean)
+          .map(p => p[0])
+          .slice(0, 2)
+          .join("")
+          .toUpperCase() || "P";
 
-      li.innerHTML = `
-        <div class="squad-avatar">${initials}</div>
-        <div class="squad-info">
-          <div class="squad-name-row">
-            <span class="squad-name">${m.name || "Participant"}</span>
-            ${roleBadge}
+        const isLeader = m.isLeader === true || index === 0;
+        const roleBadge = isLeader
+          ? '<span class="squad-role-tag leader"><i class="fas fa-crown"></i> LEADER</span>'
+          : '<span class="squad-role-tag member"><i class="fas fa-user"></i> MEMBER</span>';
+
+        li.innerHTML = `
+          <div class="squad-avatar">${escapeHtml(initials)}</div>
+          <div class="squad-info">
+            <div class="squad-name-row">
+              <span class="squad-name">${escapeHtml(m.name || "Participant")}</span>
+              ${roleBadge}
+            </div>
+            <div class="squad-meta">
+              ${m.email ? `<span class="squad-meta-item" title="Official VTU Email"><i class="fas fa-envelope"></i> ${escapeHtml(m.email)}</span>` : ""}
+              ${m.phone ? `<span class="squad-meta-item" title="Mobile / WhatsApp"><i class="fas fa-phone"></i> ${escapeHtml(m.phone)}</span>` : ""}
+              ${m.branch ? `<span class="squad-meta-item" title="Department / Branch"><i class="fas fa-code-branch"></i> ${escapeHtml(m.branch)}</span>` : ""}
+              ${m.vtuNo ? `<span class="squad-meta-item" title="VTU Roll Number"><i class="fas fa-id-card"></i> ${escapeHtml(m.vtuNo)}</span>` : ""}
+              ${m.college ? `<span class="squad-meta-item" title="College"><i class="fas fa-graduation-cap"></i> ${escapeHtml(m.college)}</span>` : ""}
+            </div>
           </div>
-          <div class="squad-meta">
-            ${m.email ? `<span class="squad-meta-item"><i class="fas fa-envelope"></i> ${m.email}</span>` : ""}
-            ${m.phone ? `<span class="squad-meta-item"><i class="fas fa-phone"></i> ${m.phone}</span>` : ""}
-            ${m.college ? `<span class="squad-meta-item"><i class="fas fa-graduation-cap"></i> ${m.college}</span>` : ""}
-          </div>
-        </div>
-      `;
-      membersList.appendChild(li);
-    });
+        `;
+        membersList.appendChild(li);
+      });
+    }
   }
 
   /* ===================== UPDATE ARTIFACT STATUS & PREVIEW LINKS ===================== */
@@ -724,13 +761,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function escapeHtml(str) {
-    return str.replace(/[&<>'"]/g, tag => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      "'": "&#39;",
-      '"': "&quot;"
-    }[tag] || tag));
+    const d = document.createElement('div');
+    d.textContent = String(str || '');
+    return d.innerHTML;
   }
 
   loadPrompts();
