@@ -16,15 +16,36 @@
 const BACKEND_HOST = "https://vibeathon-backend-g210.onrender.com";
 
 module.exports = async function handler(req, res) {
-  // Resolve target URL safely from req.url
-  let subPath = req.url || "";
-  if (subPath.startsWith("/api")) {
-    subPath = subPath.substring(4);
+  // Determine subPath from req.query.path or req.url
+  let subPath = "";
+  if (req.query && req.query.path) {
+    subPath = Array.isArray(req.query.path) ? req.query.path.join("/") : String(req.query.path);
+  } else if (req.url) {
+    const rawUrl = req.url.split("?")[0];
+    if (rawUrl.startsWith("/api")) {
+      subPath = rawUrl.substring(4);
+    } else {
+      subPath = rawUrl;
+    }
   }
-  if (!subPath.startsWith("/")) {
-    subPath = `/${subPath}`;
+
+  // Clean subPath formatting
+  subPath = subPath.replace(/^\/+/, "");
+
+  // Rebuild query parameters (excluding internal 'path' rewrite param)
+  const searchParams = new URLSearchParams();
+  if (req.query) {
+    for (const [key, value] of Object.entries(req.query)) {
+      if (key === "path") continue;
+      if (Array.isArray(value)) {
+        value.forEach((v) => searchParams.append(key, v));
+      } else if (value !== undefined) {
+        searchParams.append(key, value);
+      }
+    }
   }
-  const targetUrl = `${BACKEND_HOST}/api${subPath}`;
+  const queryString = searchParams.toString();
+  const targetUrl = `${BACKEND_HOST}/api/${subPath}${queryString ? `?${queryString}` : ""}`;
 
   // Build permissive CORS headers for the calling client
   const clientOrigin = req.headers["origin"] || "https://cs-vibeathon.vercel.app";

@@ -25,6 +25,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "/api?path=:path*"
+    },
+    {
       "source": "/public/:path*",
       "destination": "https://vibeathon-backend-g210.onrender.com/public/:path*"
     }
