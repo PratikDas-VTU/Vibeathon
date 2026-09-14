@@ -16,23 +16,15 @@
 const BACKEND_HOST = "https://vibeathon-backend-g210.onrender.com";
 
 module.exports = async function handler(req, res) {
-  // Extract path parameters from catch-all route
-  const { path = [] } = req.query;
-  const pathSegments = Array.isArray(path) ? path : [path].filter(Boolean);
-  const subPath = pathSegments.join("/");
-
-  // Rebuild query string preserving all other query parameters
-  const searchParams = new URLSearchParams();
-  for (const [key, value] of Object.entries(req.query)) {
-    if (key === "path") continue;
-    if (Array.isArray(value)) {
-      value.forEach((v) => searchParams.append(key, v));
-    } else if (value !== undefined) {
-      searchParams.append(key, value);
-    }
+  // Resolve target URL safely from req.url
+  let subPath = req.url || "";
+  if (subPath.startsWith("/api")) {
+    subPath = subPath.substring(4);
   }
-  const queryString = searchParams.toString();
-  const targetUrl = `${BACKEND_HOST}/api/${subPath}${queryString ? `?${queryString}` : ""}`;
+  if (!subPath.startsWith("/")) {
+    subPath = `/${subPath}`;
+  }
+  const targetUrl = `${BACKEND_HOST}/api${subPath}`;
 
   // Build permissive CORS headers for the calling client
   const clientOrigin = req.headers["origin"] || "https://cs-vibeathon.vercel.app";
