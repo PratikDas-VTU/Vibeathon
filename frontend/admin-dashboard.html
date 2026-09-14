@@ -297,70 +297,284 @@
         </button>
       </div>
 
+      <!-- MODAL SUBTAB SWITCHER -->
+      <div class="modal-subnav" style="display: flex; gap: 8px; padding: 0.75rem 1.75rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); flex-wrap: wrap;">
+        <button type="button" class="btn-tool admin-prob-tab active" data-tab="statement" id="adminTabBtnStatement" style="font-size: 0.8rem; padding: 6px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fas fa-eye" style="color: var(--cyan);"></i> Live Problem Statement
+        </button>
+        <button type="button" class="btn-tool admin-prob-tab" data-tab="rubric" id="adminTabBtnRubric" style="font-size: 0.8rem; padding: 6px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fas fa-balance-scale" style="color: var(--amber);"></i> AI Rubric (50 Marks)
+        </button>
+        <button type="button" class="btn-tool admin-prob-tab" data-tab="upload" id="adminTabBtnUpload" style="font-size: 0.8rem; padding: 6px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fas fa-sliders-h" style="color: var(--violet);"></i> Upload & Settings
+        </button>
+      </div>
+
       <div class="modal-scroll-body">
-        <!-- Section 1: Active Document Upload -->
-        <div class="modal-section-box">
-          <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-1); display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-cloud-upload-alt" style="color: var(--cyan);"></i> 1. Upload Challenge Document
-          </h3>
-          <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.85rem;">
-            Participants download this file when clicking "Download Problem Statement" on their dashboard. Supported: .docx, .pdf, .txt (Max 25MB).
-          </p>
-
-          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <input type="file" id="problemFileInput" accept=".docx,.pdf,.txt" style="display: none;" />
-            <button type="button" id="chooseFileBtn" class="btn-tool" style="cursor: pointer;">
-              <i class="fas fa-folder-open"></i> Choose File
-            </button>
-            <span id="selectedFileName" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-2);">No file selected</span>
-            <button type="button" id="uploadFileBtn" class="btn-primary" style="padding: 0.55rem 1.1rem; font-size: 0.8rem;" disabled>
-              <i class="fas fa-upload"></i> Upload & Deploy
-            </button>
-          </div>
-
-          <div id="currentDocStatus" style="margin-top: 0.85rem; padding: 0.6rem 0.85rem; background: rgba(0,0,0,0.25); border-radius: 8px; font-size: 0.76rem; color: var(--text-2); display: flex; align-items: center; justify-content: space-between;">
-            <span><i class="fas fa-file-alt" style="color: var(--cyan);"></i> Active File: <strong id="activeFileNameDisplay" style="color: var(--text-3);">No document uploaded yet</strong></span>
-            <span id="activeFileUpdatedDisplay" style="color: var(--text-3); font-family: var(--font-mono);"></span>
-          </div>
-
-          <!-- Synchronized Release Switch -->
-          <div style="margin-top: 0.85rem; padding: 0.85rem 1rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
-            <div>
-              <div style="font-size: 0.82rem; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 6px;">
-                <i class="fas fa-lock-open"></i> Participant Download Access:
+        <!-- SECTION 1: LIVE PROBLEM STATEMENT -->
+        <div id="adminSectionStatement" class="admin-prob-section">
+          <!-- Active Document Status Banner -->
+          <div style="background: rgba(255,255,255,0.03); padding: 1rem 1.25rem; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 40px; height: 40px; border-radius: 8px; background: var(--cyan-dim); border: 1px solid rgba(0, 240, 255, 0.25); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: var(--cyan);">
+                <i class="fas fa-file-alt"></i>
               </div>
-              <div style="font-size: 0.72rem; color: var(--text-2); margin-top: 2px;">
-                Toggle to immediately unlock or freeze problem statement download on all participant dashboards.
+              <div>
+                <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); font-weight: 700;">Active Problem Document</div>
+                <div id="adminLiveDocName" style="font-size: 0.95rem; font-weight: 700; color: var(--cyan); font-family: var(--font-mono);">Vibeathon_Problem_Statement.docx</div>
+                <div id="adminLiveDocMeta" style="font-size: 0.74rem; color: var(--text-2); margin-top: 1px;">Serving live to participants</div>
               </div>
             </div>
-            <label class="switch-wrap" style="display: flex; align-items: center; gap: 8px; margin: 0;">
-              <label class="switch">
-                <input type="checkbox" id="adminProblemReleaseToggle" />
-                <span class="slider"></span>
-              </label>
-              <span id="adminReleaseToggleLabel" style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: var(--rose);">LOCKED</span>
-            </label>
+
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span id="adminLiveReleaseBadge" style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); padding: 4px 10px; border-radius: 20px; background: var(--green-dim); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.3);">
+                <i class="fas fa-check-circle"></i> RELEASED
+              </span>
+              <button type="button" id="adminDownloadDocBtn" class="btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-download"></i> Download File
+              </button>
+            </div>
+          </div>
+
+          <!-- Problem Statement Reader Card -->
+          <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.6rem;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan);"></span>
+                <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-1); margin: 0;">Current Live Challenge Statement & Context</h3>
+              </div>
+              <button type="button" id="adminJumpToEditBtn" class="btn-tool" style="font-size: 0.72rem; padding: 4px 8px;">
+                <i class="fas fa-edit"></i> Edit Context
+              </button>
+            </div>
+
+            <div id="adminLiveStatementText" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: 8px; padding: 1.15rem; font-size: 0.85rem; line-height: 1.65; color: var(--text-1); max-height: 420px; overflow-y: auto; white-space: pre-wrap; font-family: var(--font-main);">Loading current live challenge context...</div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.85rem; font-size: 0.74rem; color: var(--text-3);">
+              <span><i class="fas fa-sync-alt"></i> Synchronized with Google Gemini evaluation workers</span>
+              <span id="adminStatementUpdatedTimestamp" style="font-family: var(--font-mono);"></span>
+            </div>
           </div>
         </div>
 
-        <!-- Section 2: Challenge Objectives for AI Evaluation -->
-        <div class="modal-section-box">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-            <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--text-1); display: flex; align-items: center; gap: 8px;">
-              <i class="fas fa-robot" style="color: var(--amber);"></i> 2. AI Evaluation Challenge Context
-            </h3>
-            <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--amber); background: var(--amber-dim); padding: 2px 7px; border-radius: 5px;">LIVE INJECTION</span>
+        <!-- SECTION 2: AI EVALUATION RUBRIC (50 MARKS) -->
+        <div id="adminSectionRubric" class="admin-prob-section" style="display: none;">
+          <!-- Rubric Header Banner -->
+          <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%); border: 1px solid rgba(245, 158, 11, 0.25); padding: 1rem 1.25rem; border-radius: 10px; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: var(--amber); color: #000; font-size: 0.68rem; font-weight: 800; padding: 2px 7px; border-radius: 4px; text-transform: uppercase;">Official Jury Matrix</span>
+                <span style="font-size: 0.76rem; color: var(--text-2); font-family: var(--font-mono);">5 Dimensions × 10 Points = 50 Marks Total</span>
+              </div>
+              <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--text-1); margin-top: 3px; margin-bottom: 0;">
+                Gemini AI Telemetry Evaluation Architecture
+              </h3>
+              <p style="font-size: 0.78rem; color: var(--text-2); margin-top: 2px; margin-bottom: 0;">
+                Automated prompt evaluations run across these 5 technical pillars to objectively benchmark engineering skill.
+              </p>
+            </div>
+
+            <div style="text-align: right;">
+              <div style="font-size: 0.68rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.8px;">Max Scale</div>
+              <div style="font-size: 1.5rem; font-weight: 800; color: var(--amber); font-family: var(--font-mono); line-height: 1;">50 <span style="font-size: 0.85rem; color: var(--text-2); font-weight: 500;">/ 50 PTS</span></div>
+            </div>
           </div>
-          <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.75rem;">
-            Gemini reads this text to judge whether participant prompts demonstrate proper requirements comprehension, role constraints, and technical depth.
-          </p>
 
-          <textarea id="problemContextInput" rows="7" style="width: 100%; padding: 0.85rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--text-1); font-family: var(--font-main); font-size: 0.85rem; line-height: 1.6; resize: vertical;" placeholder="Paste challenge description, user roles, core workflows, and system constraints here..."></textarea>
+          <!-- 5 Rubric Dimension Cards Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <!-- Dim 1 -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--cyan);">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+                <h4 style="font-size: 0.88rem; font-weight: 700; color: var(--text-1); margin: 0;">1. Problem Understanding & Requirements</h4>
+                <span style="font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); background: var(--cyan-dim); color: var(--cyan); padding: 2px 7px; border-radius: 4px;">0 - 10 PTS</span>
+              </div>
+              <p style="font-size: 0.76rem; color: var(--text-2); line-height: 1.45; margin-bottom: 0.5rem;">
+                Evaluates comprehensive comprehension of the challenge domain, user personas, and core business logic.
+              </p>
+              <ul style="font-size: 0.74rem; color: var(--text-2); padding-left: 1.1rem; line-height: 1.55; margin: 0;">
+                <li>Multi-role mapping (Coordinator, HOD, Dean, ITC Admin)</li>
+                <li>Multi-level approval chains and status states</li>
+                <li>Rejection flows with audit explanations</li>
+                <li>Venue, equipment, and resource conflict detection</li>
+              </ul>
+            </div>
 
-          <div style="display: flex; justify-content: flex-end; margin-top: 0.75rem;">
-            <button type="button" id="saveContextBtn" class="btn-primary" style="padding: 0.55rem 1.15rem; font-size: 0.8rem;">
-              <i class="fas fa-save"></i> Save Context for AI Evaluator
-            </button>
+            <!-- Dim 2 -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--violet, #8b5cf6);">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+                <h4 style="font-size: 0.88rem; font-weight: 700; color: var(--text-1); margin: 0;">2. Technical Depth & Architectural Precision</h4>
+                <span style="font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); background: rgba(139, 92, 246, 0.15); color: #a78bfa; padding: 2px 7px; border-radius: 4px;">0 - 10 PTS</span>
+              </div>
+              <p style="font-size: 0.76rem; color: var(--text-2); line-height: 1.45; margin-bottom: 0.5rem;">
+                Evaluates engineering rigor, database schema design, and exact system specifications.
+              </p>
+              <ul style="font-size: 0.74rem; color: var(--text-2); padding-left: 1.1rem; line-height: 1.55; margin: 0;">
+                <li>Explicit relational/document database schemas & contracts</li>
+                <li>REST / GraphQL API specifications & status codes</li>
+                <li>JWT / RBAC security models & authorization gates</li>
+                <li>State machines, transaction isolation, and error boundaries</li>
+              </ul>
+            </div>
+
+            <!-- Dim 3 -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--amber);">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+                <h4 style="font-size: 0.88rem; font-weight: 700; color: var(--text-1); margin: 0;">3. Prompt Engineering Technique</h4>
+                <span style="font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); background: var(--amber-dim); color: var(--amber); padding: 2px 7px; border-radius: 4px;">0 - 10 PTS</span>
+              </div>
+              <p style="font-size: 0.76rem; color: var(--text-2); line-height: 1.45; margin-bottom: 0.5rem;">
+                Evaluates structured prompt design, framing discipline, and instruction fidelity.
+              </p>
+              <ul style="font-size: 0.74rem; color: var(--text-2); padding-left: 1.1rem; line-height: 1.55; margin: 0;">
+                <li>Persona framing (e.g. <em>"Act as a Senior System Architect"</em>)</li>
+                <li>Explicit negative constraints (<em>"Strictly avoid dummy mocks"</em>)</li>
+                <li>Strict output formatting (JSON schemas, Markdown, step-by-step)</li>
+                <li>Chain-of-thought verification & edge case guidance</li>
+              </ul>
+            </div>
+
+            <!-- Dim 4 -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--green);">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+                <h4 style="font-size: 0.88rem; font-weight: 700; color: var(--text-1); margin: 0;">4. Strategic & Intentional AI Usage</h4>
+                <span style="font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); background: var(--green-dim); color: var(--green); padding: 2px 7px; border-radius: 4px;">0 - 10 PTS</span>
+              </div>
+              <p style="font-size: 0.76rem; color: var(--text-2); line-height: 1.45; margin-bottom: 0.5rem;">
+                Evaluates architectural guidance vs. naive copy-paste code requests.
+              </p>
+              <ul style="font-size: 0.74rem; color: var(--text-2); padding-left: 1.1rem; line-height: 1.55; margin: 0;">
+                <li>System decomposition and component boundaries</li>
+                <li>Architecture trade-off queries and security reviews</li>
+                <li>Modular iterative prompts rather than monolithic dumps</li>
+                <li>Active technical steering of model outputs</li>
+              </ul>
+            </div>
+
+            <!-- Dim 5 -->
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--pink, #ec4899);">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+                <h4 style="font-size: 0.88rem; font-weight: 700; color: var(--text-1); margin: 0;">5. Contextual Alignment with Scenario</h4>
+                <span style="font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); background: rgba(236, 72, 153, 0.15); color: #f472b6; padding: 2px 7px; border-radius: 4px;">0 - 10 PTS</span>
+              </div>
+              <p style="font-size: 0.76rem; color: var(--text-2); line-height: 1.45; margin-bottom: 0.5rem;">
+                Evaluates responsiveness to dynamic live hackathon conditions and constraints.
+              </p>
+              <ul style="font-size: 0.74rem; color: var(--text-2); padding-left: 1.1rem; line-height: 1.55; margin: 0;">
+                <li>Mid-event additional resource requests</li>
+                <li>Dynamic venue reallocation without constraint violations</li>
+                <li>Continuous state updates and audit trail compliance</li>
+                <li>Emergency override and fallback protocols</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Scoring Bands / Tiers Table -->
+          <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+            <h4 style="font-size: 0.86rem; font-weight: 700; color: var(--text-1); margin-bottom: 0.65rem; display: flex; align-items: center; gap: 7px; margin-top: 0;">
+              <i class="fas fa-award" style="color: var(--amber);"></i> Official Performance Tiers & Score Bands
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px;">
+              <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); padding: 0.75rem; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <strong style="color: var(--green); font-size: 0.8rem;">Tier 1: Excellent</strong>
+                  <span style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; color: var(--green);">42 - 50</span>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-2);">Deep domain coverage, robust schemas, persona framing, and zero naive dumps.</div>
+              </div>
+
+              <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); padding: 0.75rem; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <strong style="color: var(--cyan); font-size: 0.8rem;">Tier 2: Good</strong>
+                  <span style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; color: var(--cyan);">32 - 41</span>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-2);">Solid workflows and technical specs, structured prompts with minor role gaps.</div>
+              </div>
+
+              <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); padding: 0.75rem; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <strong style="color: var(--amber); font-size: 0.8rem;">Tier 3: Basic</strong>
+                  <span style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; color: var(--amber);">20 - 31</span>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-2);">Basic functional prompts; lacks explicit schemas or advanced prompt structure.</div>
+              </div>
+
+              <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.25); padding: 0.75rem; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <strong style="color: var(--rose); font-size: 0.8rem;">Needs Improvement</strong>
+                  <span style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; color: var(--rose);">0 - 19</span>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-2);">Vague, placeholder, or generic prompts without technical context.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 3: UPLOAD & SETTINGS (EXISTING ENGINE PRESERVED) -->
+        <div id="adminSectionUpload" class="admin-prob-section" style="display: none;">
+          <!-- Section 1: Active Document Upload -->
+          <div class="modal-section-box">
+            <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-1); display: flex; align-items: center; gap: 8px;">
+              <i class="fas fa-cloud-upload-alt" style="color: var(--cyan);"></i> 1. Upload Challenge Document
+            </h3>
+            <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.85rem;">
+              Participants download this file when clicking "Download Problem Statement" on their dashboard. Supported: .docx, .pdf, .txt (Max 25MB).
+            </p>
+
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <input type="file" id="problemFileInput" accept=".docx,.pdf,.txt" style="display: none;" />
+              <button type="button" id="chooseFileBtn" class="btn-tool" style="cursor: pointer;">
+                <i class="fas fa-folder-open"></i> Choose File
+              </button>
+              <span id="selectedFileName" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-2);">No file selected</span>
+              <button type="button" id="uploadFileBtn" class="btn-primary" style="padding: 0.55rem 1.1rem; font-size: 0.8rem;" disabled>
+                <i class="fas fa-upload"></i> Upload & Deploy
+              </button>
+            </div>
+
+            <div id="currentDocStatus" style="margin-top: 0.85rem; padding: 0.6rem 0.85rem; background: rgba(0,0,0,0.25); border-radius: 8px; font-size: 0.76rem; color: var(--text-2); display: flex; align-items: center; justify-content: space-between;">
+              <span><i class="fas fa-file-alt" style="color: var(--cyan);"></i> Active File: <strong id="activeFileNameDisplay" style="color: var(--text-3);">No document uploaded yet</strong></span>
+              <span id="activeFileUpdatedDisplay" style="color: var(--text-3); font-family: var(--font-mono);"></span>
+            </div>
+
+            <!-- Synchronized Release Switch -->
+            <div style="margin-top: 0.85rem; padding: 0.85rem 1rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 0.82rem; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 6px;">
+                  <i class="fas fa-lock-open"></i> Participant Download Access:
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-2); margin-top: 2px;">
+                  Toggle to immediately unlock or freeze problem statement download on all participant dashboards.
+                </div>
+              </div>
+              <label class="switch-wrap" style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                <label class="switch">
+                  <input type="checkbox" id="adminProblemReleaseToggle" />
+                  <span class="slider"></span>
+                </label>
+                <span id="adminReleaseToggleLabel" style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: var(--rose);">LOCKED</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 2: Challenge Objectives for AI Evaluation -->
+          <div class="modal-section-box">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+              <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--text-1); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-robot" style="color: var(--amber);"></i> 2. AI Evaluation Challenge Context
+              </h3>
+              <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--amber); background: var(--amber-dim); padding: 2px 7px; border-radius: 5px;">LIVE INJECTION</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.75rem;">
+              Gemini reads this text to judge whether participant prompts demonstrate proper requirements comprehension, role constraints, and technical depth.
+            </p>
+
+            <textarea id="problemContextInput" rows="7" style="width: 100%; padding: 0.85rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--text-1); font-family: var(--font-main); font-size: 0.85rem; line-height: 1.6; resize: vertical;" placeholder="Paste challenge description, user roles, core workflows, and system constraints here..."></textarea>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 0.75rem;">
+              <button type="button" id="saveContextBtn" class="btn-primary" style="padding: 0.55rem 1.15rem; font-size: 0.8rem;">
+                <i class="fas fa-save"></i> Save Context for AI Evaluator
+              </button>
+            </div>
           </div>
         </div>
       </div>

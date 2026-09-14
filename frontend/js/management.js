@@ -1045,20 +1045,186 @@ document.addEventListener("DOMContentLoaded", () => {
   const saveAiContextBtn = document.getElementById("saveAiContextBtn");
   const problemReleaseToggle = document.getElementById("problemReleaseToggle");
 
-  async function loadProblemStatementData() {
-    const res = await manageFetch("/api/admin/problem-statement");
-    if (!res) return;
-    if (mgmtActiveFileName) {
-      if (data.fileName) {
-        mgmtActiveFileName.textContent = data.fileName;
-        mgmtActiveFileName.style.color = "var(--cyan)";
+  const DEFAULT_PROBLEM_STATEMENT_TEXT = `Institutional Event Resource Management System (IERMS)
+Vibeathon 2026 Official Problem Statement
+
+Challenge Overview:
+Educational institutions frequently organize large-scale academic, cultural, and technical events requiring coordinated reservation of specialized facilities, high-value AV equipment, faculty supervisors, and guest speaker protocol. Inefficient manual coordination leads to severe double-booking collisions, unapproved budget escalations, and zero accountability when resources are damaged or unreturned.
+
+Core Functional Requirements:
+1. Multi-Role Workflow & RBAC:
+   • Event Coordinator: Submits multi-resource requisition proposals with event schedules, expected attendance, and equipment checklists.
+   • Head of Department (HOD): Evaluates academic merit and departmental calendar alignment.
+   • Dean of Student Affairs: Approves institutional priority and space allocations.
+   • IT & Campus Security Admin: Dispatches technical personnel, keys, and network provisioning.
+
+2. Conflict Detection Engine:
+   • Strict time-slot collision detection preventing double-booking across venues, specialized AV setups, and keynote auditoriums.
+   • Automated alternative resource recommendations upon conflict discovery.
+
+3. Rejection & Remediation Feedback Loops:
+   • Multi-tiered rejections must mandate explicit feedback notes with structured change requests.
+
+4. Dynamic Mid-Event Adjustments:
+   • Handle unexpected overflow capacity, emergency equipment dispatch, and audit logging.`;
+
+  const mgmtSubnavBtns = document.querySelectorAll(".mgmt-subnav-btn");
+  const mgmtSubpanelStatement = document.getElementById("mgmtSubpanelStatement");
+  const mgmtSubpanelRubric = document.getElementById("mgmtSubpanelRubric");
+  const mgmtSubpanelUpload = document.getElementById("mgmtSubpanelUpload");
+  const mgmtLiveDocName = document.getElementById("mgmtLiveDocName");
+  const mgmtLiveDocMeta = document.getElementById("mgmtLiveDocMeta");
+  const mgmtLiveReleaseBadge = document.getElementById("mgmtLiveReleaseBadge");
+  const mgmtLiveStatementText = document.getElementById("mgmtLiveStatementText");
+  const mgmtStatementUpdatedTimestamp = document.getElementById("mgmtStatementUpdatedTimestamp");
+  const mgmtDownloadDocBtn = document.getElementById("mgmtDownloadDocBtn");
+  const mgmtJumpToEditBtn = document.getElementById("mgmtJumpToEditBtn");
+
+  function switchMgmtSubtab(target) {
+    mgmtSubnavBtns.forEach(btn => {
+      const isTarget = btn.dataset.subtab === target;
+      btn.classList.toggle("active", isTarget);
+      if (isTarget) {
+        btn.style.background = "var(--cyan-dim)";
+        btn.style.borderColor = "var(--cyan)";
+        btn.style.color = "#fff";
       } else {
-        mgmtActiveFileName.textContent = "No document uploaded yet";
-        mgmtActiveFileName.style.color = "var(--text-3)";
+        btn.style.background = "";
+        btn.style.borderColor = "";
+        btn.style.color = "";
       }
+    });
+
+    if (mgmtSubpanelStatement) mgmtSubpanelStatement.style.display = target === "live-statement" ? "block" : "none";
+    if (mgmtSubpanelRubric) mgmtSubpanelRubric.style.display = target === "ai-rubric" ? "block" : "none";
+    if (mgmtSubpanelUpload) mgmtSubpanelUpload.style.display = target === "upload-manage" ? "block" : "none";
+  }
+
+  mgmtSubnavBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.subtab;
+      if (target) switchMgmtSubtab(target);
+    });
+  });
+
+  if (mgmtJumpToEditBtn) {
+    mgmtJumpToEditBtn.addEventListener("click", () => {
+      switchMgmtSubtab("upload-manage");
+      if (mgmtProblemContext) {
+        mgmtProblemContext.focus();
+        mgmtProblemContext.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }
+
+  async function loadProblemStatementData() {
+    try {
+      const res = await manageFetch("/api/admin/problem-statement");
+      if (!res) return;
+      const data = await res.json().catch(() => ({}));
+
+      const fileName = data.fileName || "Vibeathon_Problem_Statement.docx";
+      const hasUploadedFile = Boolean(data.fileName);
+
+      if (mgmtActiveFileName) {
+        mgmtActiveFileName.textContent = hasUploadedFile ? data.fileName : "No document uploaded yet";
+        mgmtActiveFileName.style.color = hasUploadedFile ? "var(--cyan)" : "var(--text-3)";
+      }
+
+      if (mgmtLiveDocName) {
+        mgmtLiveDocName.textContent = fileName;
+      }
+
+      if (mgmtLiveDocMeta) {
+        mgmtLiveDocMeta.textContent = hasUploadedFile
+          ? `Serving custom file to participants • Uploaded: ${data.updatedAt ? new Date(data.updatedAt).toLocaleDateString() : "Active"}`
+          : "Default document ready • Upload replacement file anytime";
+      }
+
+      const isReleased = Boolean(data.released || (currentSettings.problemStatement && currentSettings.problemStatement.released));
+      if (mgmtLiveReleaseBadge) {
+        if (isReleased) {
+          mgmtLiveReleaseBadge.innerHTML = '<i class="fas fa-check-circle"></i> RELEASED TO PARTICIPANTS';
+          mgmtLiveReleaseBadge.style.background = 'var(--green-dim)';
+          mgmtLiveReleaseBadge.style.color = 'var(--green)';
+          mgmtLiveReleaseBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        } else {
+          mgmtLiveReleaseBadge.innerHTML = '<i class="fas fa-lock"></i> LOCKED / HIDDEN';
+          mgmtLiveReleaseBadge.style.background = 'rgba(244, 63, 94, 0.12)';
+          mgmtLiveReleaseBadge.style.color = 'var(--rose)';
+          mgmtLiveReleaseBadge.style.borderColor = 'rgba(244, 63, 94, 0.3)';
+        }
+      }
+
+      const problemText = (data.text && data.text.trim()) ? data.text.trim() : DEFAULT_PROBLEM_STATEMENT_TEXT;
+      if (mgmtLiveStatementText) {
+        mgmtLiveStatementText.textContent = problemText;
+      }
+
+      if (mgmtStatementUpdatedTimestamp) {
+        mgmtStatementUpdatedTimestamp.textContent = data.updatedAt
+          ? "Last updated: " + new Date(data.updatedAt).toLocaleString()
+          : "Default active configuration";
+      }
+
+      if (mgmtProblemContext && data.text) {
+        mgmtProblemContext.value = data.text;
+      }
+
+      loadSettings();
+    } catch (err) {
+      console.warn("loadProblemStatementData error:", err);
     }
-    if (mgmtProblemContext && data.text) mgmtProblemContext.value = data.text;
-    loadSettings();
+  }
+
+  if (mgmtDownloadDocBtn) {
+    mgmtDownloadDocBtn.addEventListener("click", async () => {
+      try {
+        mgmtDownloadDocBtn.disabled = true;
+        mgmtDownloadDocBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+
+        const token = sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
+        const downloadUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/download") : "/api/admin/problem-statement/download";
+
+        const res = await fetch(downloadUrl, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          showToast(errData.message || "Failed to download problem statement file.", "error");
+          return;
+        }
+
+        const blob = await res.blob();
+        let downloadFileName = "Vibeathon_Problem_Statement.docx";
+        const disposition = res.headers.get("Content-Disposition");
+        if (disposition && disposition.includes("filename=")) {
+          const match = disposition.match(/filename="?([^";]+)"?/);
+          if (match && match[1]) downloadFileName = match[1];
+        } else if (mgmtLiveDocName && mgmtLiveDocName.textContent.trim()) {
+          downloadFileName = mgmtLiveDocName.textContent.trim();
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = downloadFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+        showToast("Problem statement file downloaded successfully!", "success");
+      } catch (err) {
+        console.error("Download problem statement error:", err);
+        showToast("Download error: " + err.message, "error");
+      } finally {
+        mgmtDownloadDocBtn.disabled = false;
+        mgmtDownloadDocBtn.innerHTML = '<i class="fas fa-download"></i> Download Active File';
+      }
+    });
   }
 
   if (mgmtChooseFileBtn && mgmtProblemFileInput) {
@@ -1130,6 +1296,20 @@ document.addEventListener("DOMContentLoaded", () => {
       if (releaseLabel) {
         releaseLabel.textContent = released ? "RELEASED" : "FROZEN / HIDDEN";
         releaseLabel.style.color = released ? "var(--green)" : "var(--rose)";
+      }
+
+      if (mgmtLiveReleaseBadge) {
+        if (released) {
+          mgmtLiveReleaseBadge.innerHTML = '<i class="fas fa-check-circle"></i> RELEASED TO PARTICIPANTS';
+          mgmtLiveReleaseBadge.style.background = 'var(--green-dim)';
+          mgmtLiveReleaseBadge.style.color = 'var(--green)';
+          mgmtLiveReleaseBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        } else {
+          mgmtLiveReleaseBadge.innerHTML = '<i class="fas fa-lock"></i> LOCKED / HIDDEN';
+          mgmtLiveReleaseBadge.style.background = 'rgba(244, 63, 94, 0.12)';
+          mgmtLiveReleaseBadge.style.color = 'var(--rose)';
+          mgmtLiveReleaseBadge.style.borderColor = 'rgba(244, 63, 94, 0.3)';
+        }
       }
 
       const res = await manageFetch("/api/manage/settings", {

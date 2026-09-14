@@ -747,13 +747,138 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ==========================
      PROBLEM STATEMENT MANAGER
      ========================== */
+  const DEFAULT_ADMIN_PROBLEM_TEXT = `Institutional Event Resource Management System (IERMS)
+Vibeathon 2026 Official Problem Statement
+
+Challenge Overview:
+Educational institutions frequently organize large-scale academic, cultural, and technical events requiring coordinated reservation of specialized facilities, high-value AV equipment, faculty supervisors, and guest speaker protocol. Inefficient manual coordination leads to severe double-booking collisions, unapproved budget escalations, and zero accountability when resources are damaged or unreturned.
+
+Core Functional Requirements:
+1. Multi-Role Workflow & RBAC:
+   • Event Coordinator: Submits multi-resource requisition proposals with event schedules, expected attendance, and equipment checklists.
+   • Head of Department (HOD): Evaluates academic merit and departmental calendar alignment.
+   • Dean of Student Affairs: Approves institutional priority and space allocations.
+   • IT & Campus Security Admin: Dispatches technical personnel, keys, and network provisioning.
+
+2. Conflict Detection Engine:
+   • Strict time-slot collision detection preventing double-booking across venues, specialized AV setups, and keynote auditoriums.
+   • Automated alternative resource recommendations upon conflict discovery.
+
+3. Rejection & Remediation Feedback Loops:
+   • Multi-tiered rejections must mandate explicit feedback notes with structured change requests.
+
+4. Dynamic Mid-Event Adjustments:
+   • Handle unexpected overflow capacity, emergency equipment dispatch, and audit logging.`;
+
+  const adminProbTabs = document.querySelectorAll(".admin-prob-tab");
+  const adminSectionStatement = document.getElementById("adminSectionStatement");
+  const adminSectionRubric = document.getElementById("adminSectionRubric");
+  const adminSectionUpload = document.getElementById("adminSectionUpload");
+  const adminLiveDocName = document.getElementById("adminLiveDocName");
+  const adminLiveDocMeta = document.getElementById("adminLiveDocMeta");
+  const adminLiveReleaseBadge = document.getElementById("adminLiveReleaseBadge");
+  const adminLiveStatementText = document.getElementById("adminLiveStatementText");
+  const adminStatementUpdatedTimestamp = document.getElementById("adminStatementUpdatedTimestamp");
+  const adminDownloadDocBtn = document.getElementById("adminDownloadDocBtn");
+  const adminJumpToEditBtn = document.getElementById("adminJumpToEditBtn");
+
+  function switchAdminProbTab(target) {
+    adminProbTabs.forEach(btn => {
+      const isTarget = btn.dataset.tab === target;
+      btn.classList.toggle("active", isTarget);
+      if (isTarget) {
+        btn.style.background = "rgba(34, 211, 238, 0.15)";
+        btn.style.borderColor = "rgba(34, 211, 238, 0.4)";
+        btn.style.color = "#fff";
+      } else {
+        btn.style.background = "";
+        btn.style.borderColor = "";
+        btn.style.color = "";
+      }
+    });
+
+    if (adminSectionStatement) adminSectionStatement.style.display = target === "statement" ? "block" : "none";
+    if (adminSectionRubric) adminSectionRubric.style.display = target === "rubric" ? "block" : "none";
+    if (adminSectionUpload) adminSectionUpload.style.display = target === "upload" ? "block" : "none";
+  }
+
+  adminProbTabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.tab;
+      if (target) switchAdminProbTab(target);
+    });
+  });
+
+  if (adminJumpToEditBtn) {
+    adminJumpToEditBtn.addEventListener("click", () => {
+      switchAdminProbTab("upload");
+      if (problemContextInput) {
+        problemContextInput.focus();
+        problemContextInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }
+
+  if (adminDownloadDocBtn) {
+    adminDownloadDocBtn.addEventListener("click", async () => {
+      try {
+        adminDownloadDocBtn.disabled = true;
+        adminDownloadDocBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+
+        const token = sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
+        const downloadUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/download") : "/api/admin/problem-statement/download";
+
+        const res = await fetch(downloadUrl, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          window.showToast(errData.message || "Failed to download problem statement file.", "error");
+          return;
+        }
+
+        const blob = await res.blob();
+        let downloadFileName = "Vibeathon_Problem_Statement.docx";
+        const disposition = res.headers.get("Content-Disposition");
+        if (disposition && disposition.includes("filename=")) {
+          const match = disposition.match(/filename="?([^";]+)"?/);
+          if (match && match[1]) downloadFileName = match[1];
+        } else if (adminLiveDocName && adminLiveDocName.textContent.trim()) {
+          downloadFileName = adminLiveDocName.textContent.trim();
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = downloadFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+        window.showToast("Problem statement document downloaded successfully!", "success");
+      } catch (err) {
+        console.error("Admin download problem statement error:", err);
+        window.showToast("Download error: " + err.message, "error");
+      } finally {
+        adminDownloadDocBtn.disabled = false;
+        adminDownloadDocBtn.innerHTML = '<i class="fas fa-download"></i> Download File';
+      }
+    });
+  }
+
   async function loadProblemStatementInfo() {
     try {
       const res = await adminFetch("/api/admin/problem-statement");
       if (res.ok) {
         const info = await res.json();
+        const hasFile = Boolean(info.fileName);
+        const fileName = info.fileName || "Vibeathon_Problem_Statement.docx";
+
         if (activeFileNameDisplay) {
-          if (info.fileName) {
+          if (hasFile) {
             activeFileNameDisplay.textContent = info.fileName;
             activeFileNameDisplay.style.color = "var(--cyan)";
           } else {
@@ -764,17 +889,53 @@ document.addEventListener("DOMContentLoaded", () => {
         if (activeFileUpdatedDisplay) {
           activeFileUpdatedDisplay.textContent = info.updatedAt ? "Updated " + new Date(info.updatedAt).toLocaleTimeString() : "";
         }
+
+        if (adminLiveDocName) {
+          adminLiveDocName.textContent = fileName;
+        }
+        if (adminLiveDocMeta) {
+          adminLiveDocMeta.textContent = hasFile
+            ? `Serving custom file to participants • Uploaded: ${info.updatedAt ? new Date(info.updatedAt).toLocaleDateString() : "Active"}`
+            : "Default document ready • Upload replacement file anytime";
+        }
+
         if (problemContextInput && info.text) {
           problemContextInput.value = info.text;
         }
 
+        const problemText = (info.text && info.text.trim()) ? info.text.trim() : DEFAULT_ADMIN_PROBLEM_TEXT;
+        if (adminLiveStatementText) {
+          adminLiveStatementText.textContent = problemText;
+        }
+        if (adminStatementUpdatedTimestamp) {
+          adminStatementUpdatedTimestamp.textContent = info.updatedAt
+            ? "Last updated: " + new Date(info.updatedAt).toLocaleString()
+            : "Default active configuration";
+        }
+
         const adminProblemReleaseToggle = document.getElementById("adminProblemReleaseToggle");
         const adminReleaseToggleLabel = document.getElementById("adminReleaseToggleLabel");
+        const isReleased = Boolean(info.released);
+
         if (adminProblemReleaseToggle) {
-          adminProblemReleaseToggle.checked = Boolean(info.released);
-          if (adminReleaseToggleLabel) {
-            adminReleaseToggleLabel.textContent = info.released ? "RELEASED" : "LOCKED";
-            adminReleaseToggleLabel.style.color = info.released ? "var(--green)" : "var(--rose)";
+          adminProblemReleaseToggle.checked = isReleased;
+        }
+        if (adminReleaseToggleLabel) {
+          adminReleaseToggleLabel.textContent = isReleased ? "RELEASED" : "LOCKED";
+          adminReleaseToggleLabel.style.color = isReleased ? "var(--green)" : "var(--rose)";
+        }
+
+        if (adminLiveReleaseBadge) {
+          if (isReleased) {
+            adminLiveReleaseBadge.innerHTML = '<i class="fas fa-check-circle"></i> RELEASED';
+            adminLiveReleaseBadge.style.background = 'var(--green-dim)';
+            adminLiveReleaseBadge.style.color = 'var(--green)';
+            adminLiveReleaseBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          } else {
+            adminLiveReleaseBadge.innerHTML = '<i class="fas fa-lock"></i> LOCKED';
+            adminLiveReleaseBadge.style.background = 'rgba(244, 63, 94, 0.12)';
+            adminLiveReleaseBadge.style.color = 'var(--rose)';
+            adminLiveReleaseBadge.style.borderColor = 'rgba(244, 63, 94, 0.3)';
           }
         }
       }
@@ -791,6 +952,20 @@ document.addEventListener("DOMContentLoaded", () => {
       if (adminReleaseToggleLabel) {
         adminReleaseToggleLabel.textContent = released ? "RELEASED" : "LOCKED";
         adminReleaseToggleLabel.style.color = released ? "var(--green)" : "var(--rose)";
+      }
+
+      if (adminLiveReleaseBadge) {
+        if (released) {
+          adminLiveReleaseBadge.innerHTML = '<i class="fas fa-check-circle"></i> RELEASED';
+          adminLiveReleaseBadge.style.background = 'var(--green-dim)';
+          adminLiveReleaseBadge.style.color = 'var(--green)';
+          adminLiveReleaseBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        } else {
+          adminLiveReleaseBadge.innerHTML = '<i class="fas fa-lock"></i> LOCKED';
+          adminLiveReleaseBadge.style.background = 'rgba(244, 63, 94, 0.12)';
+          adminLiveReleaseBadge.style.color = 'var(--rose)';
+          adminLiveReleaseBadge.style.borderColor = 'rgba(244, 63, 94, 0.3)';
+        }
       }
 
       try {
@@ -910,6 +1085,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!res.ok) throw new Error("Failed to save context: " + res.status);
         window.showToast("AI Evaluation challenge context updated! All subsequent evaluations will use this rubric.", "success");
+        await loadProblemStatementInfo();
 
       } catch (err) {
         console.error("Save context error:", err);

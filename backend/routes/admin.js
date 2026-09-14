@@ -235,4 +235,45 @@ router.post("/problem-statement/upload", verifyAdmin, upload.single("problemFile
   }
 });
 
+router.get("/problem-statement/download", verifyAdmin, async (req, res) => {
+  try {
+    const snap = await db.ref("settings/problemStatement").once("value");
+    const val = snap.val() || {};
+
+    function sanitizeFileName(name, fallback = "Vibeathon_Problem_Statement.docx") {
+      if (!name || typeof name !== "string") return fallback;
+      const base = path.basename(name).replace(/[\r\n\0\t"\\;]/g, "").replace(/[^\w\s.\-]/g, "_").trim();
+      return base.length > 0 && base.length <= 200 ? base : fallback;
+    }
+
+    // 1. If stored in Firebase RTDB
+    if (val.fileBase64) {
+      const buf = Buffer.from(val.fileBase64, "base64");
+      const downloadName = sanitizeFileName(val.fileName, "Vibeathon_Problem_Statement.docx");
+      res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+      res.setHeader("Content-Type", val.mimeType || "application/octet-stream");
+      return res.send(buf);
+    }
+
+    // 2. Check local disk in public directory
+    const publicDir = path.join(__dirname, "../public");
+    let targetFile = null;
+    if (val.storedName && fs.existsSync(path.join(publicDir, val.storedName))) {
+      targetFile = path.join(publicDir, val.storedName);
+    } else if (val.fileName && fs.existsSync(path.join(publicDir, val.fileName))) {
+      targetFile = path.join(publicDir, val.fileName);
+    }
+
+    if (!targetFile || !fs.existsSync(targetFile)) {
+      return res.status(404).json({ message: "No problem statement document has been uploaded yet" });
+    }
+
+    const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
+    res.download(targetFile, downloadName);
+  } catch (err) {
+    console.error("Admin download problem statement error:", err);
+    res.status(500).json({ message: "Failed to download problem statement: " + err.message });
+  }
+});
+
 module.exports = router;
