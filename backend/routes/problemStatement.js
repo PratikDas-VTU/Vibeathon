@@ -50,12 +50,25 @@ router.get("/status", async (req, res) => {
  * GET /api/problem-statement/download
  * Downloads the active problem statement file
  */
-router.get("/download", auth, async (req, res) => {
+router.get("/download", async (req, res) => {
   try {
     const snap = await db.ref("settings/problemStatement").once("value");
     const val = snap.val() || {};
 
-    if (val.released !== true) {
+    let isAuthorized = Boolean(val.released === true);
+    const authHeader = req.headers.authorization;
+    if (!isAuthorized && authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const { verifyIdToken } = require("../services/firebaseService");
+        const token = authHeader.split(" ")[1];
+        const decoded = await verifyIdToken(token);
+        if (decoded) isAuthorized = true;
+      } catch (e) {
+        // invalid token
+      }
+    }
+
+    if (!isAuthorized) {
       return res.status(403).json({ error: "The problem statement has not yet been released by the organizers." });
     }
 

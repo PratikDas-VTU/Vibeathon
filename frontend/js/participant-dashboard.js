@@ -476,11 +476,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         downloadBtn.disabled = true;
         downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>DOWNLOADING...</span>';
 
-        const res = await authFetch("/api/submission/problem-statement");
+        let res = await authFetch("/api/problem-statement/download");
+        if (!res.ok) {
+          res = await authFetch("/api/submission/problem-statement");
+        }
 
         if (!res.ok) {
           const errJson = await res.json().catch(() => ({}));
-          showToast(errJson.message || "Problem statement not available yet", "error");
+          showToast(errJson.message || errJson.error || "Problem statement not available yet", "error");
           downloadBtn.disabled = false;
           downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
           return;

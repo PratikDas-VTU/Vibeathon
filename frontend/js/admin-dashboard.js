@@ -826,17 +826,22 @@ Core Functional Requirements:
         adminDownloadDocBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
 
         const token = sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
-        const downloadUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/download") : "/api/admin/problem-statement/download";
+        const downloadUrl = window.getApiUrl ? window.getApiUrl("/api/problem-statement/download") : "/api/problem-statement/download";
 
-        const res = await fetch(downloadUrl, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
+        let res = await fetch(downloadUrl, {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
         });
 
         if (!res.ok) {
+          const adminDlUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/download") : "/api/admin/problem-statement/download";
+          res = await fetch(adminDlUrl, {
+            headers: token ? { "Authorization": `Bearer ${token}` } : {}
+          });
+        }
+
+        if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          window.showToast(errData.message || "Failed to download problem statement file.", "error");
+          window.showToast(errData.message || errData.error || "Failed to download problem statement file.", "error");
           return;
         }
 
