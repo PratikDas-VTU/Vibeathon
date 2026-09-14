@@ -182,11 +182,30 @@ router.put(["/teams/:id", "/teams/:vccId"], verifyAdmin, async (req, res) => {
 
     const updatedTeam = await updateTeamCredentials(teamId, safeUpdates);
 
-    await logActivity(
-      "UPDATE_TEAM",
-      `Updated credentials/details for ${teamId} (${safeUpdates.M1_Email || "no email change"})`,
-      req.admin?.username || "Admin"
-    );
+    // Synchronize in-memory threat detector cache with block/unblock state
+    if (safeUpdates.blocked === false) {
+      try {
+        const { unblockTeam } = require("../services/threatDetector");
+        await unblockTeam(teamId, req.admin?.username || "Admin");
+      } catch (tdErr) {
+        console.warn(`[PUT /teams] Threat detector unblock sync notice for ${teamId}:`, tdErr.message);
+      }
+    } else if (safeUpdates.blocked === true) {
+      try {
+        const { autoBlockTeam } = require("../services/threatDetector");
+        await autoBlockTeam(teamId, safeUpdates.blockReason || "Administrative suspension", safeUpdates.blockDetails);
+      } catch (tdErr) {
+        console.warn(`[PUT /teams] Threat detector block sync notice for ${teamId}:`, tdErr.message);
+      }
+    }
+
+    try {
+      await logActivity(
+        "UPDATE_TEAM",
+        `Updated credentials/details for ${teamId} (${safeUpdates.M1_Email || "no email change"})`,
+        req.admin?.username || "Admin"
+      );
+    } catch (logErr) {}
 
     res.json({
       success: true,

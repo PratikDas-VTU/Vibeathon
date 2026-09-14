@@ -140,19 +140,25 @@ async function unblockTeam(teamId, adminUser = "Admin") {
   console.log(`✅ [THREAT DETECTOR] Team ${normalizedId} unblocked by ${adminUser}.`);
 
   try {
-    // 3. Update Firebase RTDB
+    // 3. Update Firebase RTDB (clear block flags, reason, and details)
     await db.ref(`teams/${normalizedId}`).update({
       blocked: false,
+      blockReason: null,
+      blockDetails: null,
       unblockedAt: new Date().toISOString(),
       unblockedBy: adminUser
     });
 
-    // 4. Record audit log
-    await logActivity(
-      "MANUAL_UNBLOCK",
-      `Team ${normalizedId} manually unblocked and restored by ${adminUser}.`,
-      adminUser
-    );
+    // 4. Record audit log safely without interrupting unblock
+    try {
+      await logActivity(
+        "MANUAL_UNBLOCK",
+        `Team ${normalizedId} manually unblocked and restored by ${adminUser}.`,
+        adminUser
+      );
+    } catch (logErr) {
+      console.warn(`⚠️ [THREAT DETECTOR] Audit log error during unblock for ${normalizedId}:`, logErr.message);
+    }
 
   } catch (err) {
     console.error(`❌ [THREAT DETECTOR] Error during unblockTeam for ${normalizedId}:`, err.message);

@@ -124,6 +124,24 @@ async function getAdminByUsername(username) {
 }
 
 /**
+ * Get admin by email
+ */
+async function getAdminByEmail(email) {
+    if (!email) return null;
+    const cleanEmail = String(email).toLowerCase().trim();
+    const snapshot = await db.ref("admins")
+        .orderByChild("email")
+        .equalTo(cleanEmail)
+        .once("value");
+
+    const admins = snapshot.val();
+    if (!admins) return null;
+
+    const adminId = Object.keys(admins)[0];
+    return { ...admins[adminId], id: adminId };
+}
+
+/**
  * Create admin
  */
 async function createAdmin(adminData) {
@@ -836,6 +854,7 @@ module.exports = {
 
     // Admin operations
     getAdminByUsername,
+    getAdminByEmail,
     createAdmin,
     updateAdminPassword,
 

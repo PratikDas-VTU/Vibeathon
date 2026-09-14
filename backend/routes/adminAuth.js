@@ -113,7 +113,21 @@ router.post("/login", async (req, res) => {
       );
 
       // Get the Firebase ID token (contains custom claims)
-      const idToken = signInResponse.data.idToken;
+      let idToken = signInResponse.data.idToken;
+
+      // Ensure custom claims are set on Firebase user for role-based authorization
+      try {
+        const userRecord = await auth.getUserByEmail(adminEmail);
+        if (!userRecord.customClaims || userRecord.customClaims.role !== "admin") {
+          await auth.setCustomUserClaims(userRecord.uid, {
+            id: admin.id,
+            role: "admin",
+            username: admin.username
+          });
+        }
+      } catch (claimErr) {
+        console.warn("Notice: Custom claims sync for admin:", claimErr.message);
+      }
 
       return res.status(200).json({
         message: "Admin login successful",

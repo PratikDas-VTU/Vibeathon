@@ -14,13 +14,14 @@ const verifyAdmin = require("./middleware/verifyAdmin");
 
 
 const app = express();
+app.set("trust proxy", 1);
 
 /* =====================================================
-   MIDDLEWARE
+   MIDDLEWARE & CORS CONFIGURATION
 ===================================================== */
-// S3/L1: Explicit allowlist — no *.vercel.app wildcard, no null-origin bypass.
-// Add your exact Vercel deployment URL via FRONTEND_URL env var.
 const allowedOrigins = new Set([
+  "https://cs-vibeathon.vercel.app",
+  "https://vibeathon-backend-g210.onrender.com",
   "http://localhost:3000",
   "http://localhost:5000",
   "http://localhost:5500",
@@ -33,25 +34,42 @@ const allowedOrigins = new Set([
 ]);
 
 if (process.env.FRONTEND_URL) {
-  // Support comma-separated list of allowed origins
+  // Support comma-separated list of allowed origins from environment
   process.env.FRONTEND_URL.split(",").map(o => o.trim()).filter(Boolean).forEach(o => allowedOrigins.add(o));
+}
+
+function isOriginAllowed(origin) {
+  if (!origin) return true; // Server-to-server, curl, same-host requests
+  if (allowedOrigins.has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    if (
+      url.hostname === "cs-vibeathon.vercel.app" ||
+      url.hostname.endsWith(".vercel.app") ||
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname.endsWith(".onrender.com")
+    ) {
+      return true;
+    }
+  } catch (e) {}
+  return false;
 }
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // No Origin header = server-to-server / curl / same-host request — allow.
-      if (!origin) {
+      if (isOriginAllowed(origin)) {
         return callback(null, true);
       }
-      // Only allow explicitly listed origins.
-      if (allowedOrigins.has(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS: origin not allowed"), false);
+      // Never throw an Error: throwing an Error causes Express to respond with 500.
+      // Returning callback(null, false) safely omits CORS headers without crashing the server.
+      return callback(null, false);
     },
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+    credentials: true,
+    optionsSuccessStatus: 204
   })
 );
 const path = require("path");

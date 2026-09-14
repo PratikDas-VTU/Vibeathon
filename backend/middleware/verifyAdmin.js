@@ -1,4 +1,4 @@
-const { verifyIdToken } = require("../services/firebaseService");
+const { verifyIdToken, getAdminByEmail, getAdminByUsername } = require("../services/firebaseService");
 
 module.exports = async function verifyAdmin(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -12,7 +12,25 @@ module.exports = async function verifyAdmin(req, res, next) {
     const decoded = await verifyIdToken(token);
 
     if (decoded.role !== "admin") {
-      return res.status(403).json({ message: "Admin access only" });
+      // Fallback: Check if user exists in database admins list
+      let adminRecord = null;
+      if (decoded.email) {
+        adminRecord = await getAdminByEmail(decoded.email);
+      }
+      if (!adminRecord && decoded.username) {
+        adminRecord = await getAdminByUsername(decoded.username);
+      }
+
+      if (!adminRecord || adminRecord.role !== "admin") {
+        return res.status(403).json({ message: "Admin access only" });
+      }
+
+      req.admin = {
+        ...decoded,
+        role: "admin",
+        username: adminRecord.username || "Admin"
+      };
+      return next();
     }
 
     req.admin = decoded;

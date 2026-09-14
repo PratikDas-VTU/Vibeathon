@@ -586,7 +586,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (!confirmed) return;
 
-    let res = await manageFetch(`/api/manage/teams/${teamId}/unblock`, { method: "POST" });
+    let res = await manageFetch(`/api/manage/teams/${teamId}/unblock`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
 
     // Resilient Fallback: If Render backend does not have the dedicated /unblock route yet (404),
     // update the team's suspension flags directly via PUT /api/manage/teams/:id
@@ -613,6 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
         t.blockDetails = null;
         t.unblockedAt = new Date().toISOString();
       }
+      updateStats(allTeamsData);
       renderTeams(allTeamsData);
       loadParticipants();
     } else {
@@ -662,6 +666,7 @@ document.addEventListener("DOMContentLoaded", () => {
         t.blockReason = "Administrative suspension by organizer";
         t.blockedAt = new Date().toISOString();
       }
+      updateStats(allTeamsData);
       renderTeams(allTeamsData);
       loadParticipants();
     } else {
