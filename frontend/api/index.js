@@ -56,6 +56,7 @@ module.exports = async function handler(req, res) {
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control"
   );
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, Content-Length");
   res.setHeader("Access-Control-Max-Age", "86400");
 
   // Handle preflight OPTIONS requests immediately
@@ -128,6 +129,10 @@ module.exports = async function handler(req, res) {
       const upstreamContentType = upstreamRes.headers.get("content-type");
       if (upstreamContentType) {
         res.setHeader("Content-Type", upstreamContentType);
+      }
+      const upstreamDisposition = upstreamRes.headers.get("content-disposition");
+      if (upstreamDisposition) {
+        res.setHeader("Content-Disposition", upstreamDisposition);
       }
 
       const bodyBuffer = Buffer.from(await upstreamRes.arrayBuffer());

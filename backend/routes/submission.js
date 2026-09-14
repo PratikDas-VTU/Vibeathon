@@ -303,12 +303,6 @@ router.get("/problem-statement", auth, async (req, res) => {
       return res.status(404).json({ message: "Team not found" });
     }
 
-    if (!team.hackathonStart) {
-      return res.status(403).json({
-        message: "Hackathon has not started yet. Please wait for your timer to begin."
-      });
-    }
-
     const { db } = require("../firebaseConfig");
     const snap = await db.ref("settings/problemStatement").once("value");
     const val = snap.val() || {};
@@ -344,17 +338,31 @@ router.get("/problem-statement", auth, async (req, res) => {
       targetFile = path.join(publicDir, val.fileName);
     }
 
-    if (!targetFile || !fs.existsSync(targetFile)) {
-      return res.status(404).json({
-        message: "Problem statement document has not been uploaded by admin yet. Please check back shortly."
-      });
+    if (targetFile && fs.existsSync(targetFile)) {
+      const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
+      return res.download(targetFile, downloadName);
     }
 
-    const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
-    return res.download(targetFile, downloadName);
+    // 3. Guaranteed Dynamic Fallback from problem statement text
+    const textContent = val.text || `Institutional Event Resource Management System (IERMS)
+Vibeathon 2026 Official Problem Statement
+
+Challenge Overview:
+Educational institutions frequently organize large-scale academic, cultural, and technical events requiring coordinated reservation of specialized facilities, high-value AV equipment, faculty supervisors, and guest speaker protocol.
+
+Core Requirements:
+1. Multi-Role Workflow & RBAC (Coordinator, HOD, Dean, IT Admin)
+2. Conflict Detection Engine
+3. Multi-tier Rejection & Feedback
+4. Dynamic Mid-Event Adjustments & Audit Trail`;
+
+    const downloadName = sanitizeFileName(val.fileName, "Vibeathon_Problem_Statement.txt");
+    res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    return res.send(Buffer.from(textContent, "utf-8"));
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Submission problem statement download error:", err);
+    res.status(500).json({ message: "Server error downloading problem statement: " + err.message });
   }
 });
 

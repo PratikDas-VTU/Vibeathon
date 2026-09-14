@@ -1243,24 +1243,48 @@ Core Functional Requirements:
       const file = mgmtProblemFileInput.files[0];
       if (!file) return;
 
-      const formData = new FormData();
-      formData.append("problemFile", file);
-
       mgmtUploadFileBtn.disabled = true;
       mgmtUploadFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
 
-      const res = await manageFetch("/api/admin/problem-statement/upload", {
-        method: "POST",
-        body: formData
-      });
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = String(reader.result).split(",")[1];
+          const payload = {
+            fileName: file.name,
+            fileBase64: base64Data,
+            mimeType: file.type || "application/octet-stream",
+            fileSize: file.size
+          };
 
-      mgmtUploadFileBtn.disabled = false;
-      mgmtUploadFileBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Upload & Deploy';
+          const res = await manageFetch("/api/admin/problem-statement/upload", {
+            method: "POST",
+            body: JSON.stringify(payload)
+          });
 
-      if (res && res.ok) {
-        showToast("Problem statement document uploaded successfully!", "success");
-        loadProblemStatementData();
-      }
+          if (res && res.ok) {
+            showToast("Problem statement document uploaded and deployed successfully!", "success");
+            await loadProblemStatementData();
+          } else {
+            const errData = res ? await res.json().catch(() => ({})) : {};
+            showToast(errData.message || "Failed to upload problem statement document.", "error");
+          }
+        } catch (err) {
+          console.error("Upload error:", err);
+          showToast("Upload error: " + err.message, "error");
+        } finally {
+          mgmtUploadFileBtn.disabled = false;
+          mgmtUploadFileBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Upload & Deploy';
+        }
+      };
+
+      reader.onerror = () => {
+        mgmtUploadFileBtn.disabled = false;
+        mgmtUploadFileBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Upload & Deploy';
+        showToast("Failed to read file from disk.", "error");
+      };
+
+      reader.readAsDataURL(file);
     });
   }
 

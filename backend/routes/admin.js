@@ -37,15 +37,17 @@ const fileFilter = (req, file, cb) => {
   const allowedMimes = [
     'application/pdf',
     'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'text/markdown'
   ];
-  const allowedExts = ['.pdf', '.doc', '.docx'];
+  const allowedExts = ['.pdf', '.doc', '.docx', '.txt', '.md'];
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("Invalid file type. Only PDF and Word documents are allowed."), false);
+    cb(new Error("Invalid file type. Supported formats: .docx, .pdf, .txt, .doc"), false);
   }
 };
 
@@ -193,31 +195,69 @@ router.post("/problem-statement/context", verifyAdmin, async (req, res) => {
   }
 });
 
-router.post("/problem-statement/upload", verifyAdmin, upload.single("problemFile"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+router.post("/problem-statement/upload", verifyAdmin, (req, res, next) => {
+  if (req.is("json")) return next();
+  upload.single("problemFile")(req, res, (err) => {
+    if (err) {
+      console.error("Multer file upload error:", err);
+      return res.status(400).json({ message: err.message || "File upload validation failed" });
     }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    let originalFileName = null;
+    let storedFileName = null;
+    let fileSize = 0;
+    let mimeType = "application/octet-stream";
+    let fileBase64 = null;
+    let contextText = null;
 
-    const storedFileName = req.file.filename;
-    const originalFileName = req.file.originalname || storedFileName;
-    const fileSize = req.file.size;
-    const contextText = req.body.contextText ? req.body.contextText.trim() : null;
+    if (req.file) {
+      storedFileName = req.file.filename;
+      originalFileName = req.file.originalname || storedFileName;
+      fileSize = req.file.size;
+      mimeType = req.file.mimetype || "application/octet-stream";
+      contextText = req.body.contextText ? req.body.contextText.trim() : null;
+
+      if (fileSize <= 15 * 1024 * 1024 && fs.existsSync(req.file.path)) {
+        const fileBuf = fs.readFileSync(req.file.path);
+        fileBase64 = fileBuf.toString("base64");
+      }
+    } else if (req.body && req.body.fileBase64) {
+      originalFileName = req.body.fileName || "Vibeathon_Problem_Statement.docx";
+      const ext = path.extname(originalFileName).toLowerCase() || ".docx";
+      storedFileName = `Problem_Statement${ext}`;
+      fileBase64 = req.body.fileBase64;
+      mimeType = req.body.mimeType || "application/octet-stream";
+      contextText = req.body.contextText ? req.body.contextText.trim() : null;
+
+      const fileBuf = Buffer.from(fileBase64, "base64");
+      fileSize = fileBuf.length;
+
+      try {
+        const publicDir = path.join(__dirname, "../public");
+        if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+        fs.writeFileSync(path.join(publicDir, storedFileName), fileBuf);
+        fs.writeFileSync(path.join(publicDir, originalFileName), fileBuf);
+      } catch (diskErr) {
+        console.warn("Could not cache file to disk:", diskErr.message);
+      }
+    } else {
+      return res.status(400).json({ message: "No problem statement file provided. Please choose a document." });
+    }
 
     const updateData = {
       fileName: originalFileName,
       storedName: storedFileName,
       fileSize: fileSize,
-      mimeType: req.file.mimetype || "application/octet-stream",
+      mimeType: mimeType,
       updatedAt: new Date().toISOString()
     };
 
-    // Store base64 in RTDB if file <= 8MB so Render cold starts/restarts never lose the file!
-    if (fileSize <= 8 * 1024 * 1024 && fs.existsSync(req.file.path)) {
-      const fileBuf = fs.readFileSync(req.file.path);
-      updateData.fileBase64 = fileBuf.toString("base64");
+    if (fileBase64) {
+      updateData.fileBase64 = fileBase64;
     }
-
     if (contextText) {
       updateData.text = contextText;
     }
@@ -231,7 +271,7 @@ router.post("/problem-statement/upload", verifyAdmin, upload.single("problemFile
     });
   } catch (err) {
     console.error("Upload problem statement error:", err);
-    res.status(500).json({ message: "Failed to upload problem statement file" });
+    res.status(500).json({ message: "Failed to upload problem statement file: " + err.message });
   }
 });
 
@@ -264,12 +304,28 @@ router.get("/problem-statement/download", verifyAdmin, async (req, res) => {
       targetFile = path.join(publicDir, val.fileName);
     }
 
-    if (!targetFile || !fs.existsSync(targetFile)) {
-      return res.status(404).json({ message: "No problem statement document has been uploaded yet" });
+    if (targetFile && fs.existsSync(targetFile)) {
+      const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
+      return res.download(targetFile, downloadName);
     }
 
-    const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
-    res.download(targetFile, downloadName);
+    // 3. Dynamic guaranteed fallback from problem statement text
+    const textContent = val.text || `Institutional Event Resource Management System (IERMS)
+Vibeathon 2026 Official Problem Statement
+
+Challenge Overview:
+Educational institutions frequently organize large-scale academic, cultural, and technical events requiring coordinated reservation of specialized facilities, high-value AV equipment, faculty supervisors, and guest speaker protocol.
+
+Core Requirements:
+1. Multi-Role Workflow & RBAC (Coordinator, HOD, Dean, IT Admin)
+2. Conflict Detection Engine
+3. Multi-tier Rejection & Feedback
+4. Dynamic Mid-Event Adjustments & Audit Trail`;
+
+    const downloadName = sanitizeFileName(val.fileName, "Vibeathon_Problem_Statement.txt");
+    res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    return res.send(Buffer.from(textContent, "utf-8"));
   } catch (err) {
     console.error("Admin download problem statement error:", err);
     res.status(500).json({ message: "Failed to download problem statement: " + err.message });

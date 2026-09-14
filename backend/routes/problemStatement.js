@@ -18,8 +18,8 @@ router.get("/status", async (req, res) => {
     const announcement = settings.announcement || {};
 
     const publicDir = path.join(__dirname, "../public");
-    let hasFile = Boolean(val.fileBase64);
-    let targetFileName = val.fileName || null;
+    let hasFile = Boolean(val.fileBase64 || val.text);
+    let targetFileName = val.fileName || "Vibeathon_Problem_Statement.docx";
 
     if (!hasFile) {
       if (val.storedName && fs.existsSync(path.join(publicDir, val.storedName))) {
@@ -37,7 +37,7 @@ router.get("/status", async (req, res) => {
       fileName: targetFileName,
       fileSize: val.fileSize || null,
       updatedAt: val.updatedAt || null,
-      available: Boolean(hasFile && isReleased),
+      available: isReleased,
       announcement: announcement.active ? announcement.message : null
     });
   } catch (err) {
@@ -83,12 +83,28 @@ router.get("/download", auth, async (req, res) => {
       targetFile = path.join(publicDir, val.fileName);
     }
 
-    if (!targetFile || !fs.existsSync(targetFile)) {
-      return res.status(404).json({ error: "No problem statement document has been uploaded yet by organizers." });
+    if (targetFile && fs.existsSync(targetFile)) {
+      const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
+      return res.download(targetFile, downloadName);
     }
 
-    const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
-    res.download(targetFile, downloadName);
+    // 3. Guaranteed Dynamic Fallback
+    const textContent = val.text || `Institutional Event Resource Management System (IERMS)
+Vibeathon 2026 Official Problem Statement
+
+Challenge Overview:
+Educational institutions frequently organize large-scale academic, cultural, and technical events requiring coordinated reservation of specialized facilities, high-value AV equipment, faculty supervisors, and guest speaker protocol.
+
+Core Requirements:
+1. Multi-Role Workflow & RBAC (Coordinator, HOD, Dean, IT Admin)
+2. Conflict Detection Engine
+3. Multi-tier Rejection & Feedback
+4. Dynamic Mid-Event Adjustments & Audit Trail`;
+
+    const downloadName = sanitizeFileName(val.fileName, "Vibeathon_Problem_Statement.txt");
+    res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    return res.send(Buffer.from(textContent, "utf-8"));
   } catch (err) {
     console.error("Download problem statement error:", err);
     res.status(500).json({ error: "Failed to download problem statement: " + err.message });

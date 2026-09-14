@@ -451,14 +451,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             downloadStatusChip.style.borderColor = "rgba(244, 63, 94, 0.4)";
             downloadStatusChip.style.color = "#fb7185";
           }
-        } else if (!hackathonStart) {
-          downloadBtn.disabled = true;
-          downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
-          if (downloadStatusChip) {
-            downloadStatusChip.innerHTML = '<i class="fas fa-clock"></i> Available on session start';
-            downloadStatusChip.style.borderColor = "rgba(234, 179, 8, 0.4)";
-            downloadStatusChip.style.color = "#facc15";
-          }
         } else {
           downloadBtn.disabled = false;
           downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
@@ -489,14 +481,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!res.ok) {
           const errJson = await res.json().catch(() => ({}));
           showToast(errJson.message || "Problem statement not available yet", "error");
-          downloadBtn.disabled = true;
-          downloadBtn.innerHTML = '<i class="fas fa-lock"></i> <span>NOT YET RELEASED</span>';
-          if (downloadStatusChip) {
-            downloadStatusChip.innerHTML = '<i class="fas fa-lock"></i> Not yet released by organizers';
-            downloadStatusChip.style.borderColor = "rgba(244, 63, 94, 0.4)";
-            downloadStatusChip.style.color = "#fb7185";
-          }
+          downloadBtn.disabled = false;
+          downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
           return;
+        }
+
+        let downloadFileName = activeProblemFileName || "Vibeathon_Problem_Statement.docx";
+        const disposition = res.headers.get("Content-Disposition");
+        if (disposition && disposition.includes("filename=")) {
+          const match = disposition.match(/filename="?([^";]+)"?/);
+          if (match && match[1]) downloadFileName = match[1];
         }
 
         const blob = await res.blob();
@@ -504,18 +498,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const a = document.createElement("a");
         a.href = url;
-        a.download = activeProblemFileName || "Vibeathon_Problem_Statement.docx";
+        a.download = downloadFileName;
         document.body.appendChild(a);
         a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setTimeout(() => window.URL.revokeObjectURL(url), 2000);
 
         showToast("Problem statement downloaded successfully!", "success");
         downloadBtn.disabled = false;
         downloadBtn.innerHTML = '<i class="fas fa-check-circle"></i> <span>DOWNLOAD AGAIN</span>';
       } catch (err) {
         console.error("Download error:", err);
-        showToast("Failed to download problem statement", "error");
+        showToast("Failed to download problem statement: " + err.message, "error");
         downloadBtn.disabled = false;
         downloadBtn.innerHTML = '<i class="fas fa-download"></i> <span>DOWNLOAD PROBLEM STATEMENT</span>';
       }

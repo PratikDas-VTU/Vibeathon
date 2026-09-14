@@ -1027,45 +1027,61 @@ Core Functional Requirements:
       const file = problemFileInput.files[0];
       if (!file) return window.showToast("Please select a document file to upload.", "warning");
 
-      const formData = new FormData();
-      formData.append("problemFile", file);
-      if (problemContextInput && problemContextInput.value.trim()) {
-        formData.append("contextText", problemContextInput.value.trim());
-      }
-
       uploadFileBtn.disabled = true;
       uploadFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
 
-      try {
-        const adminToken = sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
-        const uploadUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/upload") : "/api/admin/problem-statement/upload";
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + adminToken,
-            "ngrok-skip-browser-warning": "true"
-          },
-          body: formData
-        });
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = String(reader.result).split(",")[1];
+          const payload = {
+            fileName: file.name,
+            fileBase64: base64Data,
+            mimeType: file.type || "application/octet-stream",
+            fileSize: file.size,
+            contextText: (problemContextInput && problemContextInput.value.trim()) ? problemContextInput.value.trim() : null
+          };
 
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error("Upload failed: " + errText);
+          const adminToken = sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
+          const uploadUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/upload") : "/api/admin/problem-statement/upload";
+
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": "Bearer " + adminToken,
+              "Content-Type": "application/json",
+              "ngrok-skip-browser-warning": "true"
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || "Upload failed: HTTP " + res.status);
+          }
+
+          const data = await res.json();
+          window.showToast(data.message || "Problem statement document uploaded and deployed successfully!", "success");
+          problemFileInput.value = "";
+          if (selectedFileName) selectedFileName.textContent = "No file selected";
+          await loadProblemStatementInfo();
+
+        } catch (err) {
+          console.error("Upload error:", err);
+          window.showToast("Error uploading problem statement: " + err.message, "error");
+        } finally {
+          uploadFileBtn.disabled = false;
+          uploadFileBtn.innerHTML = '<i class="fas fa-upload"></i> Upload & Deploy';
         }
+      };
 
-        const data = await res.json();
-        window.showToast(data.message || "Problem statement document uploaded successfully!", "success");
-        problemFileInput.value = "";
-        if (selectedFileName) selectedFileName.textContent = "No file selected";
-        await loadProblemStatementInfo();
-
-      } catch (err) {
-        console.error("Upload error:", err);
-        window.showToast("Error uploading problem statement: " + err.message, "error");
-      } finally {
+      reader.onerror = () => {
         uploadFileBtn.disabled = false;
         uploadFileBtn.innerHTML = '<i class="fas fa-upload"></i> Upload & Deploy';
-      }
+        window.showToast("Failed to read document file from disk.", "error");
+      };
+
+      reader.readAsDataURL(file);
     });
   }
 
