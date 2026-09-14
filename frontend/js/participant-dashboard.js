@@ -203,28 +203,46 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (membersList) {
     membersList.innerHTML = "";
 
-    const memberData = (team.members && team.members.length > 0)
-      ? team.members
+    let cachedProfile = null;
+    try {
+      cachedProfile = JSON.parse(sessionStorage.getItem("teamProfile") || "null");
+    } catch (e) {}
+
+    const sourceTeam = (cachedProfile && !team.M1_Name && (!team.members || team.members.length === 0))
+      ? { ...cachedProfile, ...team }
+      : team;
+
+    const rawMembers = Array.isArray(sourceTeam.members) && sourceTeam.members.length > 0
+      ? sourceTeam.members
       : [
-          ...(team.M1_Name ? [{
-            name: team.M1_Name,
-            email: team.M1_Email,
-            phone: team.M1_Phone,
-            college: team.M1_College || team.college,
-            branch: team.M1_Branch,
-            vtuNo: team.M1_VtuNo || "",
+          ...(sourceTeam.M1_Name || sourceTeam.leaderName || sourceTeam.name ? [{
+            name: sourceTeam.M1_Name || sourceTeam.leaderName || sourceTeam.name,
+            email: sourceTeam.M1_Email || sourceTeam.email || "",
+            phone: sourceTeam.M1_Phone || sourceTeam.phone || "",
+            college: sourceTeam.M1_College || sourceTeam.college || "",
+            branch: sourceTeam.M1_Branch || sourceTeam.branch || "",
+            vtuNo: sourceTeam.M1_VtuNo || sourceTeam.m1VtuNo || (sourceTeam.M1_Email && sourceTeam.M1_Email.match(/(vtu\d+)/i) ? sourceTeam.M1_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
             isLeader: true
           }] : []),
-          ...(team.M2_Name ? [{
-            name: team.M2_Name,
-            email: team.M2_Email,
-            phone: team.M2_Phone,
-            college: team.M2_College || team.college,
-            branch: team.M2_Branch,
-            vtuNo: team.M2_VtuNo,
+          ...(sourceTeam.M2_Name && sourceTeam.M2_Name !== "NA" && sourceTeam.M2_Name !== "undefined" ? [{
+            name: sourceTeam.M2_Name,
+            email: sourceTeam.M2_Email || sourceTeam.m2Email || "",
+            phone: sourceTeam.M2_Phone || sourceTeam.m2Phone || "",
+            college: sourceTeam.M2_College || sourceTeam.college || "",
+            branch: sourceTeam.M2_Branch || sourceTeam.m2Branch || sourceTeam.M1_Branch || "",
+            vtuNo: sourceTeam.M2_VtuNo || sourceTeam.m2VtuNo || (sourceTeam.M2_Email && sourceTeam.M2_Email.match(/(vtu\d+)/i) ? sourceTeam.M2_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
             isLeader: false
           }] : [])
         ];
+
+    const memberData = rawMembers.map((m, index) => {
+      const vtu = m.vtuNo || (m.email && m.email.match(/(vtu\d+)/i) ? m.email.match(/(vtu\d+)/i)[1].toUpperCase() : "");
+      return {
+        ...m,
+        vtuNo: vtu,
+        isLeader: m.isLeader !== undefined ? m.isLeader : (index === 0)
+      };
+    });
 
     if (memberData.length === 0) {
       membersList.innerHTML = `<li class="squad-card" style="color:var(--text-3); font-style:italic;">No member details registered.</li>`;

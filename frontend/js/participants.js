@@ -91,6 +91,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ===================== */
       sessionStorage.setItem("token", data.token);
       localStorage.setItem("token", data.token);
+      if (data.team) {
+        sessionStorage.setItem("teamProfile", JSON.stringify(data.team));
+        localStorage.setItem("teamProfile", JSON.stringify(data.team));
+      }
 
       message.textContent = "Login successful. Redirecting to workspace...";
       message.classList.add("success");

@@ -585,10 +585,30 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
             M1_Name: `Demo Lead ${leadIndex}`,
             M1_Email: email,
             M1_Phone: defaultPassword,
-            M1_Branch: "AI & Cyber Security",
             M2_Name: `Demo Builder ${leadIndex}`,
             M2_Email: `builder_${numStr}@vibeathon.internal`,
             M2_Phone: "9876543210",
+            M2_Branch: "AI & Cyber Security",
+            members: [
+                {
+                    name: `Demo Lead ${leadIndex}`,
+                    email: email,
+                    phone: defaultPassword,
+                    college: "Vibeathon Sandbox Academy",
+                    branch: "AI & Cyber Security",
+                    vtuNo: `DEMO${numStr}-1`,
+                    isLeader: true
+                },
+                {
+                    name: `Demo Builder ${leadIndex}`,
+                    email: `builder_${numStr}@vibeathon.internal`,
+                    phone: "9876543210",
+                    college: "Vibeathon Sandbox Academy",
+                    branch: "AI & Cyber Security",
+                    vtuNo: `DEMO${numStr}-2`,
+                    isLeader: false
+                }
+            ],
             sessionEnded: false,
             hackathonStart: null,
             githubUrl: null,

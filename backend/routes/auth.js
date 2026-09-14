@@ -155,6 +155,19 @@ router.post("/login", async (req, res) => {
         vccId: teamId,
         teamNo: targetTeam.teamNo,
         teamSize: targetTeam.teamSize,
+        college: targetTeam.college || targetTeam.M1_College || "",
+        M1_Name: targetTeam.M1_Name || targetTeam.leaderName || "",
+        M1_Email: targetTeam.M1_Email || targetTeam.email || "",
+        M1_Phone: targetTeam.M1_Phone || targetTeam.phone || "",
+        M1_Branch: targetTeam.M1_Branch || targetTeam.branch || "",
+        M1_VtuNo: targetTeam.M1_VtuNo || targetTeam.m1VtuNo || "",
+        M2_Name: targetTeam.M2_Name || "",
+        M2_Email: targetTeam.M2_Email || "",
+        M2_Phone: targetTeam.M2_Phone || "",
+        M2_College: targetTeam.M2_College || "",
+        M2_Branch: targetTeam.M2_Branch || "",
+        M2_VtuNo: targetTeam.M2_VtuNo || "",
+        members: targetTeam.members || [],
         sessionEnded: targetTeam.sessionEnded ?? false
       }
     });

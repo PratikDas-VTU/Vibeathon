@@ -378,6 +378,30 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
           teamData.M2_Branch = (row.M2_Branch || row.M2_Dept || row.M2_Department || "").trim();
         }
 
+        // Build normalized members array for instant frontend rendering
+        teamData.members = [
+          {
+            name: teamData.M1_Name,
+            email: teamData.M1_Email,
+            phone: teamData.M1_Phone,
+            college: teamData.M1_College || teamData.college,
+            branch: teamData.M1_Branch,
+            vtuNo: teamData.M1_VtuNo || (teamData.M1_Email && teamData.M1_Email.match(/(vtu\d+)/i) ? teamData.M1_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
+            isLeader: true
+          }
+        ];
+        if (teamData.M2_Name && teamData.M2_Name !== "NA" && teamData.M2_Name !== "undefined") {
+          teamData.members.push({
+            name: teamData.M2_Name,
+            email: teamData.M2_Email || "",
+            phone: teamData.M2_Phone || "",
+            college: teamData.M2_College || teamData.college,
+            branch: teamData.M2_Branch || teamData.M1_Branch,
+            vtuNo: teamData.M2_VtuNo || (teamData.M2_Email && teamData.M2_Email.match(/(vtu\d+)/i) ? teamData.M2_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
+            isLeader: false
+          });
+        }
+
         // 1. Create or sync Firebase Auth (leader only — one login per team) with immediate custom claims
         const teamClaims = {
           id: teamData.teamId,
