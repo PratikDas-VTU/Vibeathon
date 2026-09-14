@@ -1,6 +1,7 @@
 function enforceAdminAuth() {
-  const adminToken = localStorage.getItem("adminToken");
+  const adminToken = sessionStorage.getItem("adminToken");
   if (!adminToken) {
+    localStorage.removeItem("adminToken");
     window.location.replace("admin-login.html");
     return false;
   }
@@ -35,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const activeTeamsEl = document.getElementById("activeTeams");
   const totalSubmissionsEl = document.getElementById("totalSubmissions");
   const totalPromptsEl = document.getElementById("totalPrompts");
+  const suspendedTeamsEl = document.getElementById("suspendedTeams");
   const fastestTeamEl = document.getElementById("fastestTeam");
 
   const searchInput = document.getElementById("searchInput");
@@ -86,8 +88,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     confirmLogout.addEventListener("click", () => {
+      sessionStorage.removeItem("adminToken");
       localStorage.removeItem("adminToken");
       localStorage.removeItem("token");
+      sessionStorage.clear();
       window.location.replace("admin-login.html");
     });
 
@@ -117,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
      ADMIN FETCH HELPER
      ========================== */
   async function adminFetch(url, options = {}) {
-    const adminToken = localStorage.getItem("adminToken");
+    const adminToken = sessionStorage.getItem("adminToken");
     if (!adminToken) {
       window.location.replace("admin-login.html");
       throw new Error("No admin token found");
@@ -147,6 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (res.status === 401 || res.status === 403) {
+      sessionStorage.removeItem("adminToken");
       localStorage.removeItem("adminToken");
       window.location.replace("admin-login.html");
       throw new Error("Unauthorized admin access");
@@ -294,14 +299,16 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderDashboard() {
     // 1. Compute Stats
     const totalTeamsCount = teams.length;
-    const activeCount = teams.filter(t => t.hackathonStart && !t.sessionEnded).length;
+    const activeCount = teams.filter(t => t.hackathonStart && !t.sessionEnded && !t.blocked).length;
     const submissionCount = teams.filter(t => t.githubUrl || t.deploymentUrl || t.sessionEnded).length;
     const totalPromptsCount = allPrompts.length;
+    const suspendedCount = teams.filter(t => t.blocked === true).length;
 
     if (totalTeamsEl) totalTeamsEl.textContent = totalTeamsCount;
     if (activeTeamsEl) activeTeamsEl.textContent = activeCount;
     if (totalSubmissionsEl) totalSubmissionsEl.textContent = submissionCount;
     if (totalPromptsEl) totalPromptsEl.textContent = totalPromptsCount;
+    if (suspendedTeamsEl) suspendedTeamsEl.textContent = suspendedCount;
 
     // 2. Prepare teams with computed metrics
     let enrichedTeams = teams.map(team => {
@@ -400,6 +407,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     rankedTeams.forEach((team, idx) => {
       const row = document.createElement("tr");
+      if (team.blocked) row.className = "row-suspended";
 
       // Rank badge
       const rankNum = idx + 1;
@@ -411,7 +419,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Status pill
       let statusHtml = "";
-      if (team.sessionEnded) {
+      if (team.blocked) {
+        statusHtml = `<span class="status-pill blocked" title="SUSPENDED: ${escapeHtml(team.blockReason || 'Security violation detected')}"><i class="fas fa-ban"></i> SUSPENDED</span>`;
+      } else if (team.sessionEnded) {
         statusHtml = `<span class="status-pill ended"><i class="fas fa-check-circle"></i> Completed</span>`;
       } else if (team.hackathonStart) {
         statusHtml = `<span class="status-pill active"><span class="pulse-dot"></span> Live Sprint</span>`;
@@ -459,7 +469,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       row.innerHTML = `
         <td><span class="rank-badge ${rankClass}">${rankLabel}</span></td>
-        <td><span class="team-id-chip">${escapeHtml(teamId)}</span></td>
+        <td><span class="team-id-chip ${team.blocked ? 'badge-suspended' : ''}">${escapeHtml(teamId)}</span></td>
         <td>
           <div class="leader-cell">
             <span class="leader-name">${escapeHtml(team.leaderName || team.M1_Name || "—")}</span>
@@ -543,6 +553,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     teamInfo.innerHTML = `
       <div class="info-grid">
+        ${team.blocked ? `
+        <div style="grid-column: 1 / -1; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; color: #f87171; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <strong style="display:flex; align-items:center; gap:6px;"><i class="fas fa-ban"></i> SECURITY SUSPENSION ACTIVE</strong>
+            <div style="font-size:0.8rem; margin-top:3px; color:#fca5a5;">Reason: ${escapeHtml(team.blockReason || "Security violation detected")}</div>
+            ${team.blockDetails ? `<div style="font-size:0.75rem; opacity:0.85; margin-top:2px; font-family:var(--font-mono); color:var(--text-2);">${escapeHtml(team.blockDetails)}</div>` : ''}
+          </div>
+          <div style="font-size: 0.75rem; background: rgba(0,0,0,0.35); padding: 4px 10px; border-radius: 4px; color: var(--text-3);">
+            <i class="fas fa-lock"></i> Unblock restricted to Management Console
+          </div>
+        </div>
+        ` : ""}
         <div class="info-item">
           <span class="info-label">Team ID</span>
           <span class="info-value" style="color: var(--cyan); font-family: var(--font-mono); font-weight: 800;">${escapeHtml(selectedTeamId)}</span>
@@ -610,8 +632,8 @@ document.addEventListener("DOMContentLoaded", () => {
     teamStats.innerHTML = `
       <div class="m-stat-box">
         <span class="m-stat-label">Session Status</span>
-        <span class="m-stat-val ${team.sessionEnded ? "cyan" : team.hackathonStart ? "green" : ""}">
-          ${team.sessionEnded ? "Ended" : team.hackathonStart ? "Active" : "Registered"}
+        <span class="m-stat-val ${team.blocked ? "red" : team.sessionEnded ? "cyan" : team.hackathonStart ? "green" : ""}" style="${team.blocked ? "color:#f87171;" : ""}">
+          ${team.blocked ? "Suspended" : team.sessionEnded ? "Ended" : team.hackathonStart ? "Active" : "Registered"}
         </span>
       </div>
       <div class="m-stat-box">
@@ -840,7 +862,7 @@ document.addEventListener("DOMContentLoaded", () => {
       uploadFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
 
       try {
-        const adminToken = localStorage.getItem("adminToken");
+        const adminToken = sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
         const uploadUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/upload") : "/api/admin/problem-statement/upload";
         const res = await fetch(uploadUrl, {
           method: "POST",
@@ -903,12 +925,12 @@ document.addEventListener("DOMContentLoaded", () => {
      EXPORT TO CSV
      ========================== */
   function sanitizeCsvField(value) {
-    if (!value && value !== 0) return '';
-    const str = String(value);
+    if (value === null || value === undefined) return '';
+    let str = String(value);
     if (/^[=+\-@|%]/.test(str)) {
-      return "'" + str;
+      str = "'" + str;
     }
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
       return '"' + str.replace(/"/g, '""') + '"';
     }
     return str;
@@ -964,7 +986,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiScore = computeTeamAIScore(tId, team.aiScore);
     const isEnded = Boolean(team.sessionEnded);
     const isLive = Boolean(team.hackathonStart && !isEnded);
-    const status = isEnded ? "Completed" : (isLive ? "Live Sprint" : "Registered");
+    const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isLive ? "Live Sprint" : "Registered"));
+    const securityStatus = team.blocked ? `Suspended (${team.blockReason || 'Security Violation'})` : "Active / Clear";
     const compFormatted = compTime ? formatDuration(compTime) : "—";
     const compMins = compTime ? Math.round(compTime / 60000) : "—";
     const startStr = team.hackathonStart ? new Date(team.hackathonStart).toLocaleString() : "—";
@@ -998,6 +1021,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "Student 2 Mobile No": team.M2_Phone || team.m2Phone || "—",
       "Team Size": team.teamSize || 2,
       "Session Status": status,
+      "Security Status": securityStatus,
       "Sprint Start": startStr,
       "Sprint End": endStr,
       "Duration": compFormatted,
@@ -1063,7 +1087,8 @@ document.addEventListener("DOMContentLoaded", () => {
           const leader = team.M1_Name || team.leaderName || "—";
           const college = team.college || team.M1_College || "—";
           const teamSize = team.teamSize || 2;
-          const status = team.sessionEnded ? "Completed" : (team.hackathonStart ? "Live Sprint" : "Registered");
+          const status = team.blocked ? "Suspended" : (team.sessionEnded ? "Completed" : (team.hackathonStart ? "Live Sprint" : "Registered"));
+          const securityStatus = team.blocked ? `Suspended (${team.blockReason || 'Security Violation'})` : "Active / Clear";
           const sessionStart = team.hackathonStart ? new Date(team.hackathonStart).toLocaleString() : "—";
           const endTimestamp = team.completedAt || team.sessionEndedAt || (team.sessionEnded ? team.updatedAt : null);
           const sessionEnd = endTimestamp ? new Date(endTimestamp).toLocaleString() : "—";
@@ -1101,6 +1126,7 @@ document.addEventListener("DOMContentLoaded", () => {
               "Student 2 Department": team.M2_Branch || team.m2Branch || "—",
               "College": college,
               "Team Status": status,
+              "Security Status": securityStatus,
               "Sprint Start": sessionStart,
               "Sprint End": sessionEnd,
               "Completion Time": compTimeFormatted,

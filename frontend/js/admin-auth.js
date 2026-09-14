@@ -16,7 +16,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("adminForm");
 
   if (!form) {
-    console.error("Admin login form not found");
     return;
   }
 
@@ -32,8 +31,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const authFn = (typeof window !== "undefined" && window.safeAuthFetch) 
-        ? window.safeAuthFetch 
+      const authFn = (typeof window !== "undefined" && window.safeAuthFetch)
+        ? window.safeAuthFetch
         : async (endpoint, opts) => {
             const url = window.getApiUrl ? window.getApiUrl(endpoint) : endpoint;
             const r = await fetch(url, opts);
@@ -56,34 +55,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       );
 
-      console.log("📦 Admin login response data:", data);
-
       if (!res.ok) {
-        console.error("❌ Admin login failed:", data.message);
         showMessage(data.message || "Invalid admin credentials", "error");
         return;
       }
 
-      console.log("✅ Admin login successful!");
-      console.log("🎫 Storing admin token securely");
-
-      // ✅ Store admin JWT
-      localStorage.setItem("adminToken", data.token);
-
-      console.log("✅ Admin token stored in localStorage");
-      console.log("🔍 Verifying token storage successful");
+      // S4/H-2: Store admin token in sessionStorage (tab-scoped, not persisted across restarts).
+      // NOTE: HttpOnly Secure cookies would be stronger but require a backend auth-cookie endpoint.
+      sessionStorage.setItem("adminToken", data.token);
 
       showMessage("Admin login successful", "success");
 
-      // Small delay for UX, then redirect
-      console.log("⏳ Redirecting to admin dashboard in 600ms...");
       setTimeout(() => {
-        console.log("🔄 Redirecting now to admin-dashboard.html");
         window.location.replace("admin-dashboard.html");
       }, 600);
 
     } catch (err) {
-      console.error("Admin login error:", err);
       if (!navigator.onLine) {
         showMessage("No internet connection detected. Please connect to Wi-Fi / Internet and try again.", "error");
       } else {
@@ -110,3 +97,4 @@ document.addEventListener("DOMContentLoaded", () => {
     msg.style.color = type === "success" ? "#4ade80" : "#f87171";
   }
 });
+

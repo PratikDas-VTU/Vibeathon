@@ -18,7 +18,7 @@ module.exports = async function verifyAdmin(req, res, next) {
     req.admin = decoded;
     next();
   } catch (err) {
-    console.error("Admin token verification error:", err);
+    console.error("Admin token verification error:", err.message || "Invalid token");
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };

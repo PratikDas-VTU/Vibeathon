@@ -505,7 +505,7 @@ button:disabled {
 
 /* Column Width Bounds to Prevent Table Overflow */
 .manage-table .col-id { width: 90px; white-space: nowrap; }
-.manage-table .col-leader { min-width: 140px; }
+.manage-table .col-leader { width: 260px; min-width: 220px; max-width: 280px; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
 .manage-table .col-email { min-width: 160px; }
 .manage-table .col-phone { width: 115px; white-space: nowrap; }
 .manage-table .col-status { width: 155px; white-space: nowrap; }

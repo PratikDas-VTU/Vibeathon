@@ -59,10 +59,16 @@ router.get("/download", auth, async (req, res) => {
       return res.status(403).json({ error: "The problem statement has not yet been released by the organizers." });
     }
 
+    function sanitizeFileName(name, fallback = "Vibeathon_Problem_Statement.docx") {
+      if (!name || typeof name !== "string") return fallback;
+      const base = path.basename(name).replace(/[\r\n\0\t"\\;]/g, "").replace(/[^\w\s.\-]/g, "_").trim();
+      return base.length > 0 && base.length <= 200 ? base : fallback;
+    }
+
     // 1. If stored in Firebase RTDB (persisted across Render restarts)
     if (val.fileBase64) {
       const buf = Buffer.from(val.fileBase64, "base64");
-      const downloadName = val.fileName || "Vibeathon_Problem_Statement.docx";
+      const downloadName = sanitizeFileName(val.fileName, "Vibeathon_Problem_Statement.docx");
       res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
       res.setHeader("Content-Type", val.mimeType || "application/octet-stream");
       return res.send(buf);
@@ -81,7 +87,7 @@ router.get("/download", auth, async (req, res) => {
       return res.status(404).json({ error: "No problem statement document has been uploaded yet by organizers." });
     }
 
-    const downloadName = val.fileName || path.basename(targetFile);
+    const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
     res.download(targetFile, downloadName);
   } catch (err) {
     console.error("Download problem statement error:", err);

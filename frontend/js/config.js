@@ -12,6 +12,7 @@
 
 (function (global) {
   const PRODUCTION_BACKEND = "https://vibeathon-backend-g210.onrender.com";
+  const LOCAL_BACKEND = "http://localhost:5000";
 
   const isLocal = Boolean(
     typeof window !== "undefined" && (
@@ -43,15 +44,16 @@
 
   // Routing strategy:
   // 1. If customBackend set in localStorage -> use customBackend
-  // 2. If running inside VS Code Live Server (port 5500/5501) -> use PRODUCTION_BACKEND
+  // 2. In local dev (VS Code Live Server port 5500/5501) -> default to LOCAL_BACKEND (http://localhost:5000)
+  //    so local threat detection, auto-block, and rate limiting are active
   // 3. In production (Vercel) -> use "" (relative to let vercel.json proxy route to Render)
   let defaultBackend = "";
   if (isLiveServer) {
-    defaultBackend = PRODUCTION_BACKEND;
+    defaultBackend = LOCAL_BACKEND;
   } else if (isLocal && window.location.port === "5000") {
     defaultBackend = "";
   } else if (isLocal) {
-    defaultBackend = PRODUCTION_BACKEND;
+    defaultBackend = LOCAL_BACKEND;
   }
 
   const API_BASE = customBackend || defaultBackend;

@@ -5,13 +5,18 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   // 1. Session Verification
-  const token = localStorage.getItem("adminToken");
+  // FIX MED-1: use sessionStorage only — localStorage persists indefinitely and
+  // would expose the admin token to any future XSS on the same origin.
+  const token = sessionStorage.getItem("adminToken");
   if (!token) {
+    // Clean up any stale localStorage token left from older versions
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
     window.location.replace("manage-login.html");
     return;
   }
 
-  const adminUser = localStorage.getItem("adminUser") || "admin";
+  const adminUser = sessionStorage.getItem("adminUser") || "admin";
   const currentAdminUserDisplay = document.getElementById("currentAdminUserDisplay");
   if (currentAdminUserDisplay) currentAdminUserDisplay.value = adminUser;
 
@@ -60,7 +65,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (res.status === 401 || res.status === 403) {
+        sessionStorage.removeItem("adminToken");
         localStorage.removeItem("adminToken");
+        sessionStorage.removeItem("adminUser");
+        localStorage.removeItem("adminUser");
         showToast("Session expired or unauthorized. Please re-login.", "error");
         setTimeout(() => window.location.replace("manage-login.html"), 1000);
         return null;
@@ -72,6 +80,13 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("Network error communicating with server.", "error");
       return null;
     }
+  }
+
+  // Utility: HTML-escape untrusted strings before injecting into innerHTML
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = String(str == null ? "" : str);
+    return d.innerHTML;
   }
 
   // 3. Toast Notifications
@@ -86,11 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
 
-    let icon = "info-circle";
-    if (type === "success") icon = "check-circle";
-    if (type === "error") icon = "exclamation-circle";
+    // SECURITY: whitelist icon names to prevent injection; escape message
+    const ALLOWED_ICONS = { "info": "info-circle", "success": "check-circle", "error": "exclamation-circle", "warning": "exclamation-triangle" };
+    const icon = ALLOWED_ICONS[type] || "info-circle";
 
-    toast.innerHTML = `<i class="fas fa-${icon}"></i> <span>${message}</span>`;
+    // FIX HIGH-3: was `${message}` — now escaped to prevent XSS
+    toast.innerHTML = `<i class="fas fa-${icon}"></i> <span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
 
     setTimeout(() => {
@@ -101,35 +117,49 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3500);
   }
 
-  // 4. Tab Navigation Switching
+  // 3. Tab Navigation Switching
   const tabButtons = document.querySelectorAll(".tab-btn");
   const tabPanels = document.querySelectorAll(".tab-panel");
 
-  tabButtons.forEach(btn => {
+  tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = btn.dataset.tab;
+      if (!target) return;
 
-      tabButtons.forEach(b => b.classList.remove("active"));
-      tabPanels.forEach(p => p.classList.remove("active"));
+      tabButtons.forEach((b) => b.classList.remove("active"));
+      tabPanels.forEach((p) => p.classList.remove("active"));
 
       btn.classList.add("active");
       const targetPanel = document.getElementById(`tab-${target}`);
       if (targetPanel) targetPanel.classList.add("active");
 
-      // Contextual refresh
-      if (target === "logs") loadAuditLogs();
+      // Auto-refresh contextual data when switching tabs
       if (target === "participants") loadParticipants();
-      if (target === "problem") loadProblemStatementData();
       if (target === "sessions") loadSettings();
+      if (target === "problem") loadProblemStatementData();
+      if (target === "logs") loadAuditLogs();
     });
   });
+
+  // 4. Quick Refresh Button
+  const refreshAllBtn = document.getElementById("refreshAllBtn");
+  if (refreshAllBtn) {
+    refreshAllBtn.addEventListener("click", () => {
+      loadParticipants();
+      loadSettings();
+      showToast("Data refreshed from cloud database", "info");
+    });
+  }
 
   // 5. Logout
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
+      sessionStorage.removeItem("adminToken");
       localStorage.removeItem("adminToken");
+      sessionStorage.removeItem("adminUser");
       localStorage.removeItem("adminUser");
+      sessionStorage.clear();
       window.location.replace("manage-login.html");
     });
   }
@@ -189,16 +219,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const active = teams.filter(t => t.hackathonStart && !t.sessionEnded).length;
     const submitted = teams.filter(t => t.githubUrl || t.deploymentUrl).length;
     const demo = teams.filter(t => t.isDemo || ((t.id || t.teamId || t.vccId) && (t.id || t.teamId || t.vccId).toUpperCase().startsWith("DEMO"))).length;
+    const blocked = teams.filter(t => t.blocked === true).length;
 
     const statTotal = document.getElementById("statTotalTeams");
     const statActive = document.getElementById("statActiveTeams");
     const statSub = document.getElementById("statSubmissions");
     const statDemo = document.getElementById("statDemoTeams");
+    const statBlocked = document.getElementById("statBlockedTeams");
 
     if (statTotal) statTotal.textContent = total;
     if (statActive) statActive.textContent = active;
     if (statSub) statSub.textContent = submitted;
     if (statDemo) statDemo.textContent = demo;
+    if (statBlocked) statBlocked.textContent = blocked;
+  }
+
+  function formatDisplayEmail(emailStr) {
+    if (!emailStr || typeof emailStr !== "string") return "—";
+    return emailStr.replace(/^demo_demo_/i, "demo_");
+  }
+
+  function formatBranchWithLineBreak(branchStr) {
+    if (!branchStr) return "";
+    const escaped = escapeHtml(branchStr);
+    return escaped.replace(
+      /(Artificial\s+Intelligence)(\s*(?:-?\s*and\s*Machine\s*Learning|&amp;?\s*Machine\s*Learning))/i,
+      (match, p1, p2) => `${p1}<br>${p2}`
+    );
   }
 
   function renderTeams(teams) {
@@ -214,6 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const isEnded = Boolean(t.sessionEnded);
       const isLive = Boolean(t.hackathonStart && !isEnded);
       const isDemo = Boolean(t.isDemo || (teamId && teamId.startsWith("DEMO")));
+      const displayEmail = formatDisplayEmail(t.M1_Email);
 
       // Live sprint remaining time calculation
       let remainingStr = "";
@@ -236,7 +284,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Status pill determination
       let statusBadge = "";
-      if (isEnded) {
+      const isBlocked = Boolean(t.blocked === true);
+      if (isBlocked) {
+        statusBadge = `<span class="status-pill blocked" style="background:rgba(239,68,68,0.18); color:#f87171; border:1px solid rgba(239,68,68,0.4); font-weight:700;" title="SUSPENDED: ${escapeHtml(t.blockReason || 'Security violation detected')}"><i class="fas fa-ban"></i> SUSPENDED</span>`;
+      } else if (isEnded) {
         statusBadge = `<span class="status-pill ended"><i class="fas fa-flag-checkered"></i> CONCLUDED</span>`;
       } else if (isLive) {
         statusBadge = `<span class="status-pill active"><span class="online-beacon"></span> LIVE SPRINT ${remainingStr ? `(${remainingStr})` : ''}</span>`;
@@ -278,22 +329,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       return `
-        <tr>
-          <td class="col-id"><span class="team-badge">${teamId}</span></td>
+        <tr class="${isBlocked ? 'row-suspended' : ''}">
+          <td class="col-id"><span class="team-badge ${isBlocked ? 'badge-suspended' : ''}">${teamId}</span></td>
           <td class="col-leader">
-            <div style="font-weight: 600; color: var(--text-1); display:flex; align-items:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              ${beaconIcon} <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.M1_Name || "Team Leader")}</span>
+            <div style="font-weight: 600; color: var(--text-1); display:flex; align-items:center; line-height:1.35; word-break:break-word;">
+              ${beaconIcon} <span>${escapeHtml(t.M1_Name || "Team Leader")}</span>
             </div>
-            <div style="font-size: 0.72rem; color: var(--text-3); padding-left: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              ${escapeHtml(t.college || "—")}${t.M1_Branch ? ` · ${escapeHtml(t.M1_Branch)}` : ''}
+            <div style="font-size: 0.72rem; color: var(--text-3); padding-left: 14px; line-height:1.35; word-break:break-word; margin-top:2px;">
+              ${escapeHtml(t.college || "—")}${t.M1_Branch ? ` · ${formatBranchWithLineBreak(t.M1_Branch)}` : ''}
             </div>
             ${t.M2_Name ? `
-            <div style="font-size: 0.70rem; color: var(--cyan); padding-left: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
-              <i class="fas fa-user-friends"></i> ${escapeHtml(t.M2_Name)}${t.M2_VtuNo ? ` [${escapeHtml(t.M2_VtuNo)}]` : ''}${t.M2_Branch ? ` · ${escapeHtml(t.M2_Branch)}` : ''}
+            <div style="font-size: 0.70rem; color: var(--cyan); padding-left: 14px; margin-top:3px; line-height:1.35; word-break:break-word;">
+              <i class="fas fa-user-friends"></i> ${escapeHtml(t.M2_Name)}${t.M2_VtuNo ? ` [${escapeHtml(t.M2_VtuNo)}]` : ''}${t.M2_Branch ? ` · ${formatBranchWithLineBreak(t.M2_Branch)}` : ''}
             </div>` : ''}
           </td>
           <td class="col-email">
-            <span class="cred-chip" title="${escapeHtml(t.M1_Email || '')}"><i class="far fa-envelope"></i> ${escapeHtml(t.M1_Email || "—")}</span>
+            <span class="cred-chip" title="${escapeHtml(displayEmail)}"><i class="far fa-envelope"></i> ${escapeHtml(displayEmail)}</span>
           </td>
           <td class="col-phone">
             <span class="cred-chip"><i class="fas fa-key"></i> ${escapeHtml(t.M1_Phone || "—")}</span>
@@ -303,13 +354,23 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="col-score">${aiScoreBadge}</td>
           <td class="col-actions actions-cell">
             <div class="actions-wrap">
-              <button class="btn btn-secondary btn-sm" onclick="window.openEditTeamModal('${teamId}')" title="Edit Credentials">
+              ${isBlocked ? `
+              <!-- UNBLOCK BUTTON FOR SUSPENDED TEAMS -->
+              <button class="btn btn-success btn-sm js-team-unblock" data-id="${escapeHtml(teamId)}" title="Unblock Team & Restore Access" style="background:var(--green); color:#000; font-weight:700;">
+                <i class="fas fa-unlock"></i> Unblock
+              </button>
+              ` : `
+              <button class="btn btn-secondary btn-sm js-team-edit" data-id="${escapeHtml(teamId)}" title="Edit Credentials">
                 <i class="fas fa-edit"></i> Edit
               </button>
-              <button class="btn btn-warning btn-sm" onclick="window.resetTeamSessionSingle('${teamId}')" title="Reset Timer / Session">
+              <button class="btn btn-warning btn-sm js-team-reset" data-id="${escapeHtml(teamId)}" title="Reset Timer / Session">
                 <i class="fas fa-undo"></i> Reset
               </button>
-              <button class="btn btn-danger btn-sm" onclick="window.deleteTeamSingle('${teamId}')" title="Delete Team">
+              <button class="btn btn-danger btn-sm js-team-block" data-id="${escapeHtml(teamId)}" title="Suspend Team Account" style="opacity:0.85;">
+                <i class="fas fa-ban"></i>
+              </button>
+              `}
+              <button class="btn btn-danger btn-sm js-team-delete" data-id="${escapeHtml(teamId)}" title="Delete Team">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
@@ -317,6 +378,34 @@ document.addEventListener("DOMContentLoaded", () => {
         </tr>
       `;
     }).join("");
+  }
+
+  // Event delegation for team action buttons (Edit, Reset, Delete, Unblock, Block)
+  if (teamsTableBody) {
+    teamsTableBody.addEventListener("click", (e) => {
+      const editBtn = e.target.closest(".js-team-edit");
+      const resetBtn = e.target.closest(".js-team-reset");
+      const deleteBtn = e.target.closest(".js-team-delete");
+      const unblockBtn = e.target.closest(".js-team-unblock");
+      const blockBtn = e.target.closest(".js-team-block");
+
+      if (unblockBtn) {
+        const teamId = unblockBtn.dataset.id;
+        if (teamId && window.unblockTeamSingle) window.unblockTeamSingle(teamId);
+      } else if (blockBtn) {
+        const teamId = blockBtn.dataset.id;
+        if (teamId && window.blockTeamSingle) window.blockTeamSingle(teamId);
+      } else if (editBtn) {
+        const teamId = editBtn.dataset.id;
+        if (teamId && window.openEditTeamModal) window.openEditTeamModal(teamId);
+      } else if (resetBtn) {
+        const teamId = resetBtn.dataset.id;
+        if (teamId && window.resetTeamSessionSingle) window.resetTeamSessionSingle(teamId);
+      } else if (deleteBtn) {
+        const teamId = deleteBtn.dataset.id;
+        if (teamId && window.deleteTeamSingle) window.deleteTeamSingle(teamId);
+      }
+    });
   }
 
   // Filter Search
@@ -338,7 +427,8 @@ document.addEventListener("DOMContentLoaded", () => {
           (t.M2_Name && t.M2_Name.toLowerCase().includes(q)) ||
           (t.M2_VtuNo && t.M2_VtuNo.toLowerCase().includes(q)) ||
           (t.M2_Email && t.M2_Email.toLowerCase().includes(q)) ||
-          (t.college && t.college.toLowerCase().includes(q))
+          (t.college && t.college.toLowerCase().includes(q)) ||
+          (t.blocked && ("suspended".includes(q) || "blocked".includes(q) || (t.blockReason && t.blockReason.toLowerCase().includes(q))))
         );
       });
       renderTeams(filtered);
@@ -484,6 +574,51 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Single Team Unblock (Organizer Recovery Action)
+  window.unblockTeamSingle = async (teamId) => {
+    const confirmed = await window.showConfirmDialog({
+      title: "Restore & Unblock Team Access",
+      message: `Are you sure you want to unblock Team ${teamId}?`,
+      details: "This will remove the automated security suspension, clear rate-limit violation penalties, and immediately re-enable their dashboard and terminal access.",
+      type: "success",
+      confirmText: "Unblock & Restore Access",
+      icon: "fas fa-unlock"
+    });
+    if (!confirmed) return;
+
+    const res = await manageFetch(`/api/manage/teams/${teamId}/unblock`, { method: "POST" });
+    if (res && res.ok) {
+      showToast(`Team ${teamId} has been successfully restored and unblocked!`, "success");
+      loadParticipants();
+    } else {
+      showToast(`Failed to unblock Team ${teamId}.`, "error");
+    }
+  };
+
+  // Single Team Manual Suspend / Block
+  window.blockTeamSingle = async (teamId) => {
+    const confirmed = await window.showConfirmDialog({
+      title: "Suspend Team Account",
+      message: `Manually suspend Team ${teamId}?`,
+      details: "This blocks the team from submitting prompts, deliverables, or accessing sprint features, and cancels any pending evaluation jobs.",
+      type: "danger",
+      confirmText: "Suspend Team",
+      icon: "fas fa-ban"
+    });
+    if (!confirmed) return;
+
+    const res = await manageFetch(`/api/manage/teams/${teamId}/block`, {
+      method: "POST",
+      body: JSON.stringify({ reason: "Administrative suspension by organizer" })
+    });
+    if (res && res.ok) {
+      showToast(`Team ${teamId} account suspended.`, "warning");
+      loadParticipants();
+    } else {
+      showToast(`Failed to suspend Team ${teamId}.`, "error");
+    }
+  };
+
   // Add New Team Modal
   const addTeamModal = document.getElementById("addTeamModal");
   const addTeamBtn = document.getElementById("addTeamBtn");
@@ -606,18 +741,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     demoCredentialsSection.style.display = "block";
+    // FIX HIGH-2: escape teamId and use data-copy with event delegation instead of inline onclick
     demoTableBody.innerHTML = list.map(item => `
       <tr>
-        <td><span class="team-badge">${item.teamId || item.id || item.vccId}</span></td>
+        <td><span class="team-badge">${escapeHtml(item.teamId || item.id || item.vccId)}</span></td>
         <td><code>${escapeHtml(item.email)}</code></td>
         <td><code>${escapeHtml(item.password)}</code></td>
         <td>
-          <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${item.email} | ${item.password}')">
+          <button class="btn btn-secondary btn-sm js-copy-demo" data-copy="${escapeHtml(`${item.email} | ${item.password}`)}">
             <i class="far fa-copy"></i> Copy
           </button>
         </td>
       </tr>
     `).join("");
+  }
+
+  // FIX HIGH-2: Event delegation for demo copy buttons (replaces inline onclick)
+  if (demoTableBody) {
+    demoTableBody.addEventListener("click", (e) => {
+      const copyBtn = e.target.closest(".js-copy-demo");
+      if (copyBtn && copyBtn.dataset.copy) {
+        navigator.clipboard.writeText(copyBtn.dataset.copy);
+        showToast("Demo credentials copied to clipboard!", "success");
+      }
+    });
   }
 
   if (copyAllDemoBtn) {
@@ -1655,10 +1802,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // ENHANCED EXPORT ENGINE & PARAMETERS
   // =========================================================================
   function sanitizeCsvField(value) {
-    if (!value && value !== 0) return '';
-    const str = String(value);
+    if (value === null || value === undefined) return '';
+    let str = String(value);
     if (/^[=+\-@|%]/.test(str)) {
-      return "'" + str;
+      str = "'" + str;
     }
     if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
       return '"' + str.replace(/"/g, '""') + '"';
@@ -1691,7 +1838,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const teamId = t.Team_ID || t.teamId || t.id || t.vccId || t.VCC_ID || "";
       const isEnded = Boolean(t.sessionEnded);
       const isLive = Boolean(t.hackathonStart && !isEnded);
-      const status = isEnded ? "Completed" : (isLive ? "Live Sprint" : "Registered");
+      const status = t.blocked ? "Suspended" : (isEnded ? "Completed" : (isLive ? "Live Sprint" : "Registered"));
+      const securityStatus = t.blocked ? `Suspended (${t.blockReason || 'Security Violation'})` : "Active / Clear";
       const startTime = t.hackathonStart ? new Date(t.hackathonStart).toLocaleString() : "—";
       const endTime = (t.completedAt || t.sessionEndedAt) ? new Date(t.completedAt || t.sessionEndedAt).toLocaleString() : "—";
       const aiScoreVal = typeof t.aiScore === 'number' ? t.aiScore : (t.evaluation?.score ?? "—");
@@ -1714,6 +1862,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "Student 2 Official Email": t.M2_Email || t.m2Email || "—",
         "Student 2 Mobile No": t.M2_Phone || t.m2Phone || "—",
         "Session Status": status,
+        "Security Status": securityStatus,
         "Sprint Start": startTime,
         "Sprint End": endTime,
         "GitHub Repository": t.githubUrl || "—",

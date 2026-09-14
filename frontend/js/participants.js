@@ -103,7 +103,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 400);
 
     } catch (err) {
-      console.error("Login error:", err);
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = '<span>ENTER DASHBOARD</span> <i class="fas fa-arrow-right"></i>';

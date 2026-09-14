@@ -9,14 +9,40 @@ const {
   getPromptsByVccId
 } = require("../services/firebaseService");
 const { enqueuePromptEvaluation } = require("../services/evaluationQueue");
+const { checkPromptSubmission, checkDeliverableSubmission } = require("../services/threatDetector");
 
 const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 
 /* =====================================================
-   HELPER — MARK TEAM AS ACTIVE
+   S6/H-4: SERVER-SIDE URL VALIDATION
+   Frontend validation is UX-only; server must validate independently.
 ===================================================== */
+const MAX_URL_LENGTH = 2048;
+
+function isValidHttpUrl(str) {
+  if (!str || typeof str !== "string") return false;
+  if (str.length > MAX_URL_LENGTH) return false;
+  try {
+    const url = new URL(str);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function isValidGithubUrl(str) {
+  if (!isValidHttpUrl(str)) return false;
+  try {
+    const url = new URL(str);
+    return url.hostname === "github.com" || url.hostname.endsWith(".github.com") || url.hostname.endsWith(".github.io");
+  } catch {
+    return false;
+  }
+}
+
+
 async function markActive(teamId) {
   await updateTeam(teamId, {
     lastActiveAt: new Date().toISOString()
@@ -54,12 +80,28 @@ router.post("/start", auth, async (req, res) => {
 router.post("/github", auth, async (req, res) => {
   const { githubUrl } = req.body;
 
-  if (!githubUrl) {
-    return res.status(400).json({ message: "GitHub URL required" });
+  if (!githubUrl || typeof githubUrl !== "string") {
+    return res.status(400).json({ message: "GitHub URL required as a valid string" });
+  }
+
+  const cleanUrl = githubUrl.trim();
+
+  // S6/H-4: Server-side URL validation
+  if (!isValidGithubUrl(cleanUrl)) {
+    return res.status(400).json({
+      message: "Invalid GitHub URL. Must be a valid http(s) URL pointing to github.com or github.io."
+    });
   }
 
   try {
     const teamId = req.team.teamId || req.team.id || req.team.vccId;
+
+    // Security check for malicious payloads or excessive updating
+    const secCheck = await checkDeliverableSubmission(teamId, cleanUrl, "github");
+    if (!secCheck.allowed) {
+      return res.status(403).json({ message: secCheck.reason, blocked: secCheck.blocked });
+    }
+
     const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
@@ -67,7 +109,7 @@ router.post("/github", auth, async (req, res) => {
       return res.status(403).json({ message: "Session ended. Locked." });
     }
 
-    await updateTeam(teamId, { githubUrl });
+    await updateTeam(teamId, { githubUrl: cleanUrl });
     await markActive(teamId);
 
     res.json({ message: "GitHub URL saved" });
@@ -83,12 +125,28 @@ router.post("/github", auth, async (req, res) => {
 router.post("/deployment", auth, async (req, res) => {
   const { deploymentUrl } = req.body;
 
-  if (!deploymentUrl) {
-    return res.status(400).json({ message: "Deployment URL required" });
+  if (!deploymentUrl || typeof deploymentUrl !== "string") {
+    return res.status(400).json({ message: "Deployment URL required as a valid string" });
+  }
+
+  const cleanUrl = deploymentUrl.trim();
+
+  // S6/H-4: Server-side URL validation — must be http: or https:, no javascript:, data:, file:
+  if (!isValidHttpUrl(cleanUrl)) {
+    return res.status(400).json({
+      message: "Invalid Deployment URL. Must be a valid http(s) URL."
+    });
   }
 
   try {
     const teamId = req.team.teamId || req.team.id || req.team.vccId;
+
+    // Security check for malicious payloads or excessive updating
+    const secCheck = await checkDeliverableSubmission(teamId, cleanUrl, "deployment");
+    if (!secCheck.allowed) {
+      return res.status(403).json({ message: secCheck.reason, blocked: secCheck.blocked });
+    }
+
     const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
@@ -96,7 +154,7 @@ router.post("/deployment", auth, async (req, res) => {
       return res.status(403).json({ message: "Session ended. Locked." });
     }
 
-    await updateTeam(teamId, { deploymentUrl });
+    await updateTeam(teamId, { deploymentUrl: cleanUrl });
     await markActive(teamId);
 
     res.json({ message: "Deployment URL saved" });
@@ -125,18 +183,35 @@ router.post("/prompt", auth, async (req, res) => {
     return res.status(400).json({ message: "promptText exceeds maximum length of 8000 characters" });
   }
 
-  if (typeof aiTool !== 'string' || aiTool.length > 100) {
-    return res.status(400).json({ message: "aiTool exceeds maximum length of 100 characters" });
+  if (typeof aiTool !== 'string' || aiTool.trim().length === 0 || aiTool.length > 100) {
+    return res.status(400).json({ message: "aiTool must be a valid string between 1 and 100 characters" });
   }
 
-  const allowedAiTools = ["chatgpt", "claude", "gemini", "copilot", "perplexity", "grok", "mistral", "llama", "other"];
-  if (!allowedAiTools.includes(aiTool.toLowerCase())) {
-    return res.status(400).json({ message: "Invalid aiTool provided. Allowed tools are: ChatGPT, Claude, Gemini, Copilot, Perplexity, Grok, Mistral, Llama, Other." });
+  // Sanitize aiTool to clean text, removing any HTML or control characters
+  const cleanAiTool = aiTool.replace(/[<>"'`]/g, "").trim();
+  if (cleanAiTool.length === 0) {
+    return res.status(400).json({ message: "Invalid aiTool provided." });
   }
-
 
   try {
     const teamId = req.team.teamId || req.team.id || req.team.vccId;
+
+    // Automated threat detection: burst flood, duplicate spam, adversarial jailbreak, exploit payload
+    const secCheck = await checkPromptSubmission(teamId, promptText, cleanAiTool);
+    if (secCheck.blocked) {
+      return res.status(403).json({
+        message: secCheck.reason,
+        blocked: true,
+        blockReason: secCheck.reason
+      });
+    }
+    if (secCheck.throttled) {
+      return res.status(429).json({
+        message: secCheck.message,
+        waitSeconds: secCheck.waitSeconds
+      });
+    }
+
     const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
@@ -151,7 +226,7 @@ router.post("/prompt", auth, async (req, res) => {
       teamName: team.teamName || team.name || teamId,
       userId: req.team.uid || "",
       userEmail: req.team.email || "",
-      aiTool: aiTool,
+      aiTool: cleanAiTool,
       promptText,
       evaluationStatus: "queued",
       createdAt: nowIso,
@@ -165,7 +240,7 @@ router.post("/prompt", auth, async (req, res) => {
 
     // Trigger instant asynchronous evaluation in background
     if (newPrompt && newPrompt.id) {
-      enqueuePromptEvaluation(newPrompt.id, teamId, promptText, aiTool);
+      enqueuePromptEvaluation(newPrompt.id, teamId, promptText, cleanAiTool);
     }
 
     res.json({ message: "Prompt submitted successfully", promptId: newPrompt?.id });
@@ -244,10 +319,17 @@ router.get("/problem-statement", auth, async (req, res) => {
       });
     }
 
+    // S7/M-1: Sanitize filename to prevent Content-Disposition header injection
+    function sanitizeFileName(name, fallback = "Vibeathon_Problem_Statement.docx") {
+      if (!name || typeof name !== "string") return fallback;
+      const base = path.basename(name).replace(/[\r\n\0\t"\\;]/g, "").replace(/[^\w\s.\-]/g, "_").trim();
+      return base.length > 0 && base.length <= 200 ? base : fallback;
+    }
+
     // 1. If stored in RTDB base64 (survives Render restarts)
     if (val.fileBase64) {
       const buf = Buffer.from(val.fileBase64, "base64");
-      const downloadName = val.fileName || "Vibeathon_Problem_Statement.docx";
+      const downloadName = sanitizeFileName(val.fileName, "Vibeathon_Problem_Statement.docx");
       res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
       res.setHeader("Content-Type", val.mimeType || "application/octet-stream");
       return res.send(buf);
@@ -268,7 +350,7 @@ router.get("/problem-statement", auth, async (req, res) => {
       });
     }
 
-    const downloadName = val.fileName || path.basename(targetFile);
+    const downloadName = sanitizeFileName(val.fileName, path.basename(targetFile));
     return res.download(targetFile, downloadName);
   } catch (err) {
     console.error(err);

@@ -1,4 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // Clear any existing session upon landing on login page
+  localStorage.removeItem("adminToken");
+  localStorage.removeItem("adminUser");
+  sessionStorage.clear();
+
   const form = document.getElementById("manageLoginForm");
   const adminIdInput = document.getElementById("adminId");
   const adminPasswordInput = document.getElementById("adminPassword");
@@ -82,9 +87,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Store tokens and admin username
-      localStorage.setItem("adminToken", data.token);
-      localStorage.setItem("adminUser", data.admin?.username || username);
+      // S4/H-2: Store tokens and admin username in sessionStorage
+      sessionStorage.setItem("adminToken", data.token);
+      sessionStorage.setItem("adminUser", data.admin?.username || username);
 
       showMessage("Credentials verified. Access granted! Launching console...", "success");
 
@@ -93,11 +98,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 500);
 
     } catch (err) {
-      console.error("Management auth error:", err);
       showMessage("Unable to connect to authentication gateway. Please check network connection.", "error");
       if (loginBtn) {
         loginBtn.disabled = false;
-
         loginBtn.innerHTML = '<i class="fas fa-terminal"></i> <span class="btn-text">Authenticate to Gateway</span>';
       }
     }

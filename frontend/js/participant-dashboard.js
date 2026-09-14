@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? "fa-exclamation-circle"
         : "fa-info-circle";
 
-    toast.innerHTML = `<i class="fas ${iconClass}"></i><span>${message}</span>`;
+    toast.innerHTML = `<i class="fas ${iconClass}"></i><span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
 
     setTimeout(() => {
@@ -87,6 +87,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  function showSuspendedUI(reason) {
+    stopTimer();
+    freezeUI();
+    if (timerEl) {
+      timerEl.textContent = "SUSPENDED";
+      timerEl.classList.add("session-ended");
+      timerEl.style.color = "var(--rose-400)";
+    }
+
+    const arenaStatus = document.getElementById("arenaStatus");
+    if (arenaStatus) {
+      arenaStatus.innerHTML = `<span style="color:var(--rose-400); font-weight:700;"><i class="fas fa-ban"></i> ACCOUNT SUSPENDED</span>`;
+      arenaStatus.classList.remove("status-active");
+    }
+
+    let banner = document.getElementById("securitySuspensionBanner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "securitySuspensionBanner";
+      banner.style.cssText = "position:fixed; top:0; left:0; right:0; z-index:99999; background:#7f1d1d; color:#fecaca; padding:14px 20px; text-align:center; font-family:var(--font-sans, sans-serif); font-size:14px; font-weight:600; box-shadow:0 4px 25px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; gap:12px;";
+      document.body.prepend(banner);
+    }
+    banner.innerHTML = `<i class="fas fa-shield-alt" style="font-size:1.3rem; color:#f87171;"></i> <span><strong>ACCOUNT SUSPENDED:</strong> Suspicious activity detected (${escapeHtml(reason || "Security violation")}). Please visit the Event Coordinator / ITC Desk to review your account.</span>`;
+  }
+
   /* ===================== LOAD TEAM ===================== */
   console.log("🔍 Starting team load process...");
 
@@ -96,6 +121,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
 
     if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      if (res.status === 403 && errData.blocked) {
+        showSuspendedUI(errData.blockReason || errData.message);
+        return;
+      }
       throw new Error(`Server returned status ${res.status}`);
     }
 
@@ -104,6 +134,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     TEAM_ID = team.teamId || team.id || team.vccId;
     VCC_ID = TEAM_ID;
     sessionEnded = team.sessionEnded === true;
+
+    if (team.blocked === true) {
+      showSuspendedUI(team.blockReason);
+    }
 
     console.log("✅ Team loaded successfully:", TEAM_ID);
 
@@ -514,8 +548,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateArtifactTelemetry();
       } else {
         const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 && errData.blocked) {
+          showSuspendedUI(errData.blockReason || errData.message);
+          showToast(errData.message || "Account suspended due to security violation.", "error");
+          return;
+        }
         githubError.textContent = errData.message || "Failed to save GitHub URL.";
-        showToast("Failed to save GitHub URL", "error");
+        showToast(errData.message || "Failed to save GitHub URL", "error");
       }
     } catch (err) {
       console.error("GitHub submit error:", err);
@@ -564,8 +603,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateArtifactTelemetry();
       } else {
         const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 && errData.blocked) {
+          showSuspendedUI(errData.blockReason || errData.message);
+          showToast(errData.message || "Account suspended due to security violation.", "error");
+          return;
+        }
         deployError.textContent = errData.message || "Failed to save deployment URL.";
-        showToast("Failed to save deployment URL", "error");
+        showToast(errData.message || "Failed to save deployment URL", "error");
       }
     } catch (err) {
       console.error("Deploy submit error:", err);
@@ -640,20 +684,59 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       );
 
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
         showToast("Prompt logged to telemetry stream!", "success");
         promptInput.value = "";
         if (charCountEl) charCountEl.textContent = "0 characters";
         await loadPrompts();
+
+        // 10s pacing cooldown countdown on button
+        let remainingSeconds = 10;
+        submitPromptBtn.disabled = true;
+        submitPromptBtn.innerHTML = `<i class="fas fa-hourglass-half fa-spin"></i> <span>COOLDOWN (${remainingSeconds}s)</span>`;
+        const cdInterval = setInterval(() => {
+          remainingSeconds--;
+          if (remainingSeconds <= 0) {
+            clearInterval(cdInterval);
+            submitPromptBtn.disabled = false;
+            submitPromptBtn.innerHTML = '<i class="fas fa-paper-plane"></i> <span>LOG PROMPT TO TELEMETRY</span>';
+          } else {
+            submitPromptBtn.innerHTML = `<i class="fas fa-hourglass-half fa-spin"></i> <span>COOLDOWN (${remainingSeconds}s)</span>`;
+          }
+        }, 1000);
+        return;
+      } else if (res.status === 403 && data.blocked) {
+        showSuspendedUI(data.blockReason || data.message);
+        showToast(data.message || "Account suspended due to detected security violation.", "error");
+      } else if (res.status === 429) {
+        const waitSec = data.waitSeconds || 10;
+        showToast(data.message || `Please wait ${waitSec}s between prompt submissions.`, "warning");
+        let remainingSeconds = waitSec;
+        submitPromptBtn.disabled = true;
+        submitPromptBtn.innerHTML = `<i class="fas fa-hourglass-half fa-spin"></i> <span>COOLDOWN (${remainingSeconds}s)</span>`;
+        const cdInterval = setInterval(() => {
+          remainingSeconds--;
+          if (remainingSeconds <= 0) {
+            clearInterval(cdInterval);
+            submitPromptBtn.disabled = false;
+            submitPromptBtn.innerHTML = '<i class="fas fa-paper-plane"></i> <span>LOG PROMPT TO TELEMETRY</span>';
+          } else {
+            submitPromptBtn.innerHTML = `<i class="fas fa-hourglass-half fa-spin"></i> <span>COOLDOWN (${remainingSeconds}s)</span>`;
+          }
+        }, 1000);
+        return;
       } else {
-        showToast("Failed to log prompt to server", "error");
+        showToast(data.message || "Failed to log prompt to server", "error");
       }
     } catch (err) {
       console.error("Submit prompt error:", err);
       showToast("Network error submitting prompt", "error");
     } finally {
-      submitPromptBtn.disabled = false;
-      submitPromptBtn.innerHTML = '<i class="fas fa-paper-plane"></i> <span>LOG PROMPT TO TELEMETRY</span>';
+      if (!submitPromptBtn.disabled) {
+        submitPromptBtn.innerHTML = '<i class="fas fa-paper-plane"></i> <span>LOG PROMPT TO TELEMETRY</span>';
+      }
     }
   };
 

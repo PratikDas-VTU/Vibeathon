@@ -100,9 +100,16 @@ router.post("/teams", verifyAdmin, async (req, res) => {
       teamData.M2_Branch = (M2_Branch || m2Branch || "").trim();
     }
 
-    // 1. Create in Firebase Auth
+    // 1. Create in Firebase Auth with immediate custom claims
     try {
-      await createTeamUser(teamData.M1_Email, teamData.M1_Phone);
+      const claims = {
+        id: resolvedId,
+        teamId: resolvedId,
+        vccId: resolvedId,
+        teamNo: teamData.teamNo,
+        role: "participant"
+      };
+      await createTeamUser(teamData.M1_Email, teamData.M1_Phone, claims);
     } catch (authErr) {
       if (authErr.code !== "auth/email-already-exists") {
         console.warn("Auth creation note:", authErr.message);
@@ -136,13 +143,48 @@ router.post("/teams", verifyAdmin, async (req, res) => {
 router.put(["/teams/:id", "/teams/:vccId"], verifyAdmin, async (req, res) => {
   try {
     const teamId = req.params.id || req.params.vccId;
-    const updates = req.body;
+    
+    // FIX MED-2: Explicit allowlist of permissible update fields
+    const ALLOWED_FIELDS = [
+      "leaderName", "M1_Name", "name",
+      "email", "M1_Email",
+      "password", "M1_Phone", "phone",
+      "college", "M1_College",
+      "branch", "M1_Branch",
+      "M1_VtuNo", "m1VtuNo",
+      "M2_Name", "m2Name",
+      "M2_Email", "m2Email",
+      "M2_Phone", "m2Phone",
+      "M2_College", "m2College",
+      "M2_Branch", "m2Branch",
+      "M2_VtuNo", "m2VtuNo",
+      "teamSize",
+      "githubUrl",
+      "deploymentUrl",
+      "sessionEnded",
+      "hackathonStart",
+      "blocked",
+      "blockReason",
+      "blockedAt",
+      "unblockedAt"
+    ];
 
-    const updatedTeam = await updateTeamCredentials(teamId, updates);
+    const safeUpdates = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (req.body[key] !== undefined) {
+        safeUpdates[key] = req.body[key];
+      }
+    }
+
+    if (Object.keys(safeUpdates).length === 0) {
+      return res.status(400).json({ success: false, message: "No valid updatable fields provided." });
+    }
+
+    const updatedTeam = await updateTeamCredentials(teamId, safeUpdates);
 
     await logActivity(
       "UPDATE_TEAM",
-      `Updated credentials/details for ${teamId} (${updates.M1_Email || "no email change"})`,
+      `Updated credentials/details for ${teamId} (${safeUpdates.M1_Email || "no email change"})`,
       req.admin?.username || "Admin"
     );
 
@@ -154,6 +196,54 @@ router.put(["/teams/:id", "/teams/:vccId"], verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error(`Update team ${req.params.id || req.params.vccId} error:`, err);
     res.status(500).json({ success: false, message: "Failed to update team: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/teams/:id/unblock
+ * Restore and unblock a suspended team
+ */
+router.post(["/teams/:id/unblock", "/teams/:vccId/unblock"], verifyAdmin, async (req, res) => {
+  try {
+    const teamId = req.params.id || req.params.vccId;
+    const adminUser = req.admin?.username || "Admin";
+
+    const { unblockTeam } = require("../services/threatDetector");
+    await unblockTeam(teamId, adminUser);
+
+    res.json({
+      success: true,
+      message: `Team ${teamId} has been unblocked and restored!`,
+      teamId
+    });
+  } catch (err) {
+    console.error("Unblock team error:", err);
+    res.status(500).json({ success: false, message: "Failed to unblock team: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/teams/:id/block
+ * Manually suspend a team
+ */
+router.post(["/teams/:id/block", "/teams/:vccId/block"], verifyAdmin, async (req, res) => {
+  try {
+    const teamId = req.params.id || req.params.vccId;
+    const reason = (req.body?.reason || "Administrative suspension by organizer").trim();
+    const adminUser = req.admin?.username || "Admin";
+
+    const { autoBlockTeam } = require("../services/threatDetector");
+    await autoBlockTeam(teamId, reason, `Manually suspended by ${adminUser}`);
+
+    res.json({
+      success: true,
+      message: `Team ${teamId} has been suspended.`,
+      teamId,
+      reason
+    });
+  } catch (err) {
+    console.error("Block team error:", err);
+    res.status(500).json({ success: false, message: "Failed to suspend team: " + err.message });
   }
 });
 
@@ -288,20 +378,21 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
           teamData.M2_Branch = (row.M2_Branch || row.M2_Dept || row.M2_Department || "").trim();
         }
 
-        // 1. Create or sync Firebase Auth (leader only — one login per team)
+        // 1. Create or sync Firebase Auth (leader only — one login per team) with immediate custom claims
+        const teamClaims = {
+          id: teamData.teamId,
+          teamId: teamData.teamId,
+          vccId: teamData.teamId,
+          teamNo: teamData.teamNo,
+          role: "participant"
+        };
         try {
-          await createTeamUser(teamData.M1_Email, teamData.M1_Phone);
-        } catch (authErr) {
-          if (authErr.code === "auth/email-already-exists") {
-            try {
-              const userRec = await auth.getUserByEmail(teamData.M1_Email);
-              await auth.updateUser(userRec.uid, { password: teamData.M1_Phone });
-            } catch (syncErr) {
-              console.warn("Auth sync notice for", teamData.M1_Email, syncErr.message);
-            }
-          } else {
-            console.warn("Auth creation error for", teamData.M1_Email, authErr.message);
+          const userRec = await createTeamUser(teamData.M1_Email, teamData.M1_Phone, teamClaims);
+          if (userRec) {
+            await auth.setCustomUserClaims(userRec.uid, teamClaims);
           }
+        } catch (authErr) {
+          console.warn("Auth creation/sync error for", teamData.M1_Email, authErr.message);
         }
 
         // 2. Save in RTDB
@@ -649,13 +740,14 @@ router.post("/announcement", verifyAdmin, async (req, res) => {
 
 /**
  * PUT /api/manage/admin/password
- * Change admin password
+ * Change admin password (enforces 12-character minimum)
  */
 router.put("/admin/password", verifyAdmin, async (req, res) => {
   try {
     const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    // S9/M-3: Enforce minimum 12 characters for admin passwords
+    if (!newPassword || newPassword.length < 12) {
+      return res.status(400).json({ success: false, message: "Admin password must be at least 12 characters" });
     }
 
     const username = req.admin?.username || "admin";
@@ -687,7 +779,9 @@ router.put("/admin/password", verifyAdmin, async (req, res) => {
  */
 router.get("/logs", verifyAdmin, async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
+    // S12/M-6: Bound limit to safe maximum of 500 to prevent large RTDB reads/memory spikes
+    const rawLimit = parseInt(req.query.limit, 10);
+    const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 50 : rawLimit), 500);
     const logs = await getAuditLogs(limit);
     res.json({
       success: true,

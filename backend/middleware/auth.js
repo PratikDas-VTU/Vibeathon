@@ -34,10 +34,22 @@ module.exports = async function (req, res, next) {
       email: decoded.email
     };
 
+    // Fast sub-millisecond check if team has been suspended / auto-blocked
+    const { isTeamBlocked, getTeamBlockInfo } = require("../services/threatDetector");
+    if (teamId && isTeamBlocked(teamId)) {
+      const blockInfo = getTeamBlockInfo(teamId);
+      return res.status(403).json({
+        message: "Account suspended: " + (blockInfo?.blockReason || "Security violation detected."),
+        blocked: true,
+        blockReason: blockInfo?.blockReason || "Security violation",
+        blockedAt: blockInfo?.blockedAt
+      });
+    }
+
     next();
 
   } catch (err) {
-    console.error("Token verification error:", err);
+    console.error("Token verification error:", err.message || "Invalid token");
     return res.status(403).json({ message: "Invalid or expired token" });
   }
 };

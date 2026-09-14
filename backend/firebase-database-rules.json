@@ -26,8 +26,35 @@
       }
     },
     "settings": {
-      ".read": "auth != null",
-      ".write": "auth != null && auth.token.role == 'admin'"
+      ".write": "auth != null && auth.token.role == 'admin'",
+      "announcement": {
+        ".read": "auth != null"
+      },
+      "problemStatement": {
+        "released": {
+          ".read": "auth != null"
+        },
+        "text": {
+          ".read": "auth != null && auth.token.role == 'admin'"
+        },
+        "fileBase64": {
+          ".read": "auth != null && auth.token.role == 'admin'"
+        },
+        "storedName": {
+          ".read": "auth != null && auth.token.role == 'admin'"
+        },
+        "fileName": {
+          ".read": "auth != null && auth.token.role == 'admin'"
+        }
+      }
+    },
+    "systemLogs": {
+      ".read": "auth != null && auth.token.role == 'admin'",
+      ".write": false
+    },
+    "auditLogs": {
+      ".read": "auth != null && auth.token.role == 'admin'",
+      ".write": false
     }
   }
 }

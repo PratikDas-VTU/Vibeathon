@@ -82,7 +82,10 @@ router.get("/me", auth, async (req, res) => {
       M2_VtuNo: team.M2_VtuNo || "",
       githubUrl: team.githubUrl || null,
       deploymentUrl: team.deploymentUrl || null,
-      sessionEnded: team.sessionEnded ?? false
+      sessionEnded: team.sessionEnded ?? false,
+      blocked: Boolean(team.blocked === true),
+      blockReason: team.blockReason || null,
+      blockedAt: team.blockedAt || null
     });
   } catch (err) {
     console.error("TEAM ME ERROR:", err);

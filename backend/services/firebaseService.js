@@ -256,27 +256,46 @@ async function getEvaluatedPromptIds() {
 // ==================== FIREBASE AUTH OPERATIONS ====================
 
 /**
- * Create Firebase user for team
+ * Create Firebase user for team and assign custom claims immediately
  */
-async function createTeamUser(email, phone) {
+async function createTeamUser(email, phone, claims = null) {
     try {
-        const userRecord = await auth.createUser({
-            email: email,
-            password: phone,
-            emailVerified: true
-        });
+        let userRecord;
+        try {
+            userRecord = await auth.createUser({
+                email: email,
+                password: String(phone),
+                emailVerified: true
+            });
+        } catch (err) {
+            if (err.code === "auth/email-already-exists") {
+                userRecord = await auth.getUserByEmail(email);
+                if (phone) {
+                    await auth.updateUser(userRecord.uid, { password: String(phone) });
+                }
+            } else {
+                throw err;
+            }
+        }
+
+        if (userRecord && claims) {
+            await auth.setCustomUserClaims(userRecord.uid, claims);
+        }
 
         return userRecord;
     } catch (error) {
-        console.error("Error creating team user:", error);
+        console.error("Error creating team user:", error.message);
         throw error;
     }
 }
 
 /**
- * Create Firebase user for admin
+ * Create Firebase user for admin (enforces minimum 12 characters)
  */
 async function createAdminUser(email, password) {
+    if (!password || password.length < 12) {
+        throw new Error("Admin password must be at least 12 characters");
+    }
     try {
         const userRecord = await auth.createUser({
             email: email,
@@ -289,7 +308,7 @@ async function createAdminUser(email, password) {
 
         return userRecord;
     } catch (error) {
-        console.error("Error creating admin user:", error);
+        console.error("Error creating admin user:", error.message);
         throw error;
     }
 }
@@ -344,9 +363,13 @@ async function updateTeamCredentials(teamId, updates) {
             } catch (err) {
                 // User may not exist in Firebase Auth yet, try creating
                 if (err.code === "auth/user-not-found") {
+                    const accountPassword = newPassword || existing.M1_Phone;
+                    if (!accountPassword) {
+                        throw new Error(`Cannot create auth account for team ${teamId}: No password or phone number provided`);
+                    }
                     userRecord = await auth.createUser({
                         email: newEmail,
-                        password: String(newPassword || existing.M1_Phone || "12345678"),
+                        password: String(accountPassword),
                         emailVerified: true
                     });
                 } else {
@@ -361,6 +384,16 @@ async function updateTeamCredentials(teamId, updates) {
                 if (Object.keys(authUpdates).length > 0) {
                     await auth.updateUser(userRecord.uid, authUpdates);
                 }
+
+                // S2: Ensure custom claims are always preserved/updated
+                const tId = existing.teamId || existing.id || existing.vccId || teamId;
+                await auth.setCustomUserClaims(userRecord.uid, {
+                    id: tId,
+                    teamId: tId,
+                    vccId: tId,
+                    teamNo: existing.teamNo,
+                    role: "participant"
+                });
             }
         } catch (authErr) {
             console.warn(`[updateTeamCredentials] Warning during Firebase Auth update for ${teamId}:`, authErr.message);
@@ -537,7 +570,9 @@ async function generateDemoTeams(count = 3, prefix = "DEMO", defaultPassword = "
         const currentNum = maxNum + i;
         const numStr = String(currentNum);
         const teamId = `${prefixUpper}${numStr}`;
-        const email = `demo_${prefixUpper.toLowerCase()}_${numStr}@vibeathon.internal`;
+        const pLower = prefixUpper.toLowerCase().replace(/_+$/, "");
+        const emailUser = pLower === "demo" ? `demo_${numStr}` : (pLower.startsWith("demo") ? `${pLower}_${numStr}` : `demo_${pLower}_${numStr}`);
+        const email = `${emailUser.replace(/_+/g, "_")}@vibeathon.internal`;
         const leadIndex = maxLeadIndex + i;
 
         const teamData = {
@@ -748,9 +783,12 @@ async function getAuditLogs(limit = 60) {
 }
 
 /**
- * Update Admin Password in Firebase Auth
+ * Update Admin Password in Firebase Auth (enforces minimum 12 characters)
  */
 async function updateAdminPassword(username, newPassword) {
+    if (!newPassword || newPassword.length < 12) {
+        throw new Error("Admin password must be at least 12 characters");
+    }
     const admin = await getAdminByUsername(username);
     const email = admin?.email || `${username}@vibeathon.internal`;
 
