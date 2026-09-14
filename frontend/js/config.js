@@ -135,13 +135,14 @@
   if (typeof window !== "undefined") {
     setTimeout(() => {
       try {
-        fetch(`${PRODUCTION_BACKEND}/api/health`, {
+        const pingUrl = getApiUrl("/api/health");
+        fetch(pingUrl, {
           method: "GET",
           cache: "no-store",
-          mode: "cors"
+          mode: "no-cors"
         }).catch(() => {});
       } catch (e) {}
-    }, 150);
+    }, 200);
   }
 
   // Attach to global window object

@@ -79,7 +79,13 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       if (!res.ok) {
-        showMessage(data.message || "Invalid administrative credentials.", "error");
+        let errorMsg = data.message || data.error || "";
+        if (typeof errorMsg === "string" && (errorMsg.includes("<") || errorMsg.includes(">") || errorMsg.toLowerCase().includes("internal server error"))) {
+          errorMsg = "Authentication gateway is initializing. Please wait a moment and try again.";
+        } else if (res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504) {
+          errorMsg = "Authentication gateway is waking up. Please retry in a few seconds.";
+        }
+        showMessage(errorMsg || "Invalid administrative credentials.", "error");
         if (loginBtn) {
           loginBtn.disabled = false;
           loginBtn.innerHTML = '<i class="fas fa-terminal"></i> <span class="btn-text">Authenticate to Gateway</span>';

@@ -18,11 +18,12 @@
       ]
     }
   ],
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://vibeathon-backend-g210.onrender.com/api/:path*"
-    },
     {
       "source": "/public/:path*",
       "destination": "https://vibeathon-backend-g210.onrender.com/public/:path*"

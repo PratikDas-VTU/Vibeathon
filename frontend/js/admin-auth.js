@@ -56,7 +56,13 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       if (!res.ok) {
-        showMessage(data.message || "Invalid admin credentials", "error");
+        let errorMsg = data.message || data.error || "";
+        if (typeof errorMsg === "string" && (errorMsg.includes("<") || errorMsg.includes(">") || errorMsg.toLowerCase().includes("internal server error"))) {
+          errorMsg = "Authentication service is initializing. Please wait a moment and try again.";
+        } else if (res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504) {
+          errorMsg = "Authentication gateway is waking up. Please retry in a few seconds.";
+        }
+        showMessage(errorMsg || "Invalid admin credentials", "error");
         return;
       }
 

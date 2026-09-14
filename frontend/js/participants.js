@@ -77,7 +77,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         let errorText = data.error || data.message || "";
-        if (!errorText || errorText.toLowerCase().includes("server error") || res.status === 500) {
+        if (typeof errorText === "string" && (errorText.includes("<") || errorText.includes(">") || errorText.toLowerCase().includes("internal server error"))) {
+          errorText = "Authentication service is initializing. Please wait a few seconds and try again.";
+        } else if (res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504) {
+          errorText = "Authentication service is initializing. Please wait a few seconds and try again.";
+        } else if (!errorText) {
           errorText = "Wrong password or invalid credentials. Please check and try again.";
         }
 
