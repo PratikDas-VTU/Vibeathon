@@ -172,6 +172,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const confirmEndBtn = document.getElementById("confirmEnd");
   const cancelEndBtn = document.getElementById("cancelEnd");
   const sessionModal = document.getElementById("sessionModal");
+  const backToHomeBtn = document.getElementById("backToHomeBtn");
+
+  if (backToHomeBtn) {
+    backToHomeBtn.onclick = () => {
+      stopTimer();
+      location.href = "index.html";
+    };
+  }
 
   const downloadBtn = document.getElementById("downloadProblem");
   const copyTeamIdBtn = document.getElementById("copyTeamIdBtn");
