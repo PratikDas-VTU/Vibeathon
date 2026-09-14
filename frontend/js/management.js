@@ -586,9 +586,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (!confirmed) return;
 
-    const res = await manageFetch(`/api/manage/teams/${teamId}/unblock`, { method: "POST" });
+    let res = await manageFetch(`/api/manage/teams/${teamId}/unblock`, { method: "POST" });
+
+    // Resilient Fallback: If Render backend does not have the dedicated /unblock route yet (404),
+    // update the team's suspension flags directly via PUT /api/manage/teams/:id
+    if (!res || !res.ok) {
+      console.warn(`[Unblock] POST /teams/${teamId}/unblock returned ${res?.status || 'error'}, applying PUT fallback...`);
+      res = await manageFetch(`/api/manage/teams/${teamId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blocked: false,
+          blockReason: null,
+          blockDetails: null,
+          unblockedAt: new Date().toISOString()
+        })
+      });
+    }
+
     if (res && res.ok) {
       showToast(`Team ${teamId} has been successfully restored and unblocked!`, "success");
+      const t = allTeamsData.find(x => (x.id || x.teamId || x.vccId) === teamId);
+      if (t) {
+        t.blocked = false;
+        t.blockReason = null;
+        t.blockDetails = null;
+        t.unblockedAt = new Date().toISOString();
+      }
+      renderTeams(allTeamsData);
       loadParticipants();
     } else {
       showToast(`Failed to unblock Team ${teamId}.`, "error");
@@ -607,12 +632,37 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (!confirmed) return;
 
-    const res = await manageFetch(`/api/manage/teams/${teamId}/block`, {
+    let res = await manageFetch(`/api/manage/teams/${teamId}/block`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason: "Administrative suspension by organizer" })
     });
+
+    // Resilient Fallback: If Render backend does not have the dedicated /block route yet (404),
+    // apply PUT fallback directly
+    if (!res || !res.ok) {
+      console.warn(`[Block] POST /teams/${teamId}/block returned ${res?.status || 'error'}, applying PUT fallback...`);
+      res = await manageFetch(`/api/manage/teams/${teamId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blocked: true,
+          blockReason: "Administrative suspension by organizer",
+          blockDetails: "Manually suspended by organizer from Management Console",
+          blockedAt: new Date().toISOString()
+        })
+      });
+    }
+
     if (res && res.ok) {
       showToast(`Team ${teamId} account suspended.`, "warning");
+      const t = allTeamsData.find(x => (x.id || x.teamId || x.vccId) === teamId);
+      if (t) {
+        t.blocked = true;
+        t.blockReason = "Administrative suspension by organizer";
+        t.blockedAt = new Date().toISOString();
+      }
+      renderTeams(allTeamsData);
       loadParticipants();
     } else {
       showToast(`Failed to suspend Team ${teamId}.`, "error");
