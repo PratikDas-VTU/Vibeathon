@@ -166,7 +166,8 @@ router.put(["/teams/:id", "/teams/:vccId"], verifyAdmin, async (req, res) => {
       "blocked",
       "blockReason",
       "blockedAt",
-      "unblockedAt"
+      "unblockedAt",
+      "juryScore"
     ];
 
     const safeUpdates = {};
