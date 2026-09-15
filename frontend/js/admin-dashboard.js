@@ -492,9 +492,18 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${promptChip}</td>
         <td>${aiScoreHtml}</td>
         <td style="text-align:center;">
-          ${typeof team.aiScore === "number"
-            ? `<span style="font-family:var(--font-mono); font-weight:800; font-size:1rem; color:${team.aiScore >= 40 ? 'var(--green)' : team.aiScore >= 25 ? 'var(--amber)' : 'var(--rose)'};">${team.aiScore}<span style="font-size:0.7rem; opacity:0.7;">/50</span></span>`
-            : `<span style="color:var(--text-3); font-size:0.82rem;">—</span>`}
+          <input
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            class="jury-score-input"
+            data-teamid="${escapeHtml(teamId)}"
+            value="${(team.juryScore !== null && team.juryScore !== undefined) ? team.juryScore : ''}"
+            placeholder="—"
+            title="Enter Jury Marks (0-100)"
+            style="width:64px; background:transparent; border:1px solid rgba(255,255,255,0.12); border-radius:6px; color:var(--text-1); font-family:var(--font-mono); font-weight:700; font-size:0.92rem; text-align:center; padding:4px 6px; outline:none;"
+          />
         </td>
         <td style="text-align: right;">
           <button class="view-btn" data-id="${escapeHtml(teamId)}" title="Inspect Team Activity & Prompts">
@@ -506,6 +515,45 @@ document.addEventListener("DOMContentLoaded", () => {
       teamTable.appendChild(row);
     });
   }
+
+  /* ==========================
+     JURY SCORE SAVE
+     ========================== */
+  teamTable.addEventListener("change", async (e) => {
+    const input = e.target.closest(".jury-score-input");
+    if (!input) return;
+    const teamId = input.dataset.teamid;
+    const raw = input.value.trim();
+    const score = raw === "" ? null : Number(raw);
+    if (score !== null && (isNaN(score) || score < 0 || score > 100)) {
+      window.showToast("Jury score must be 0–100.", "error");
+      return;
+    }
+    try {
+      const res = await adminFetch(`/api/manage/teams/${teamId}`, {
+        method: "PUT",
+        body: JSON.stringify({ juryScore: score })
+      });
+      if (res && res.ok) {
+        const t = teams.find(x => (x.teamId || x.id || x.vccId) === teamId);
+        if (t) t.juryScore = score;
+        input.style.borderColor = "rgba(52,211,153,0.5)";
+        setTimeout(() => { input.style.borderColor = "rgba(255,255,255,0.12)"; }, 1500);
+        window.showToast(`Jury marks saved for ${teamId}.`, "success");
+      } else {
+        window.showToast(`Failed to save jury marks for ${teamId}.`, "error");
+      }
+    } catch (err) {
+      window.showToast("Network error saving jury marks.", "error");
+    }
+  });
+
+  teamTable.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const input = e.target.closest(".jury-score-input");
+      if (input) { input.blur(); }
+    }
+  });
 
   /* ==========================
      TEAM DETAILS MODAL

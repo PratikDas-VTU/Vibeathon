@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       banner.style.cssText = "position:fixed; top:0; left:0; right:0; z-index:99999; background:#7f1d1d; color:#fecaca; padding:14px 20px; text-align:center; font-family:var(--font-sans, sans-serif); font-size:14px; font-weight:600; box-shadow:0 4px 25px rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; gap:12px;";
       document.body.prepend(banner);
     }
-    banner.innerHTML = `<i class="fas fa-shield-alt" style="font-size:1.3rem; color:#f87171;"></i> <span><strong>ACCOUNT SUSPENDED:</strong> Suspicious activity detected (${escapeHtml(reason || "Security violation")}). Please visit the Event Coordinator / ITC Desk to review your account.</span>`;
+    banner.innerHTML = `<i class="fas fa-shield-alt" style="font-size:1.3rem; color:#f87171;"></i> <span><strong>ACCOUNT SUSPENDED:</strong> Suspicious activity detected (${escapeHtml(reason || "Security violation")}). Please visit the Event Coordinator / Vel Tech Admin Desk to review your account.</span>`;
   }
 
   /* ===================== LOAD TEAM ===================== */
