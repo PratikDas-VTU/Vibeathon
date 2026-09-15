@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const fastestTeamEl = document.getElementById("fastestTeam");
 
   const searchInput = document.getElementById("searchInput");
-  const exportBtn = document.getElementById("exportBtn");
+  const exportPdfBtn = document.getElementById("exportPdfBtn");
   const exportDetailedBtn = document.getElementById("exportDetailedBtn");
   const evaluateAIBtn = document.getElementById("evaluateAI");
 
@@ -403,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (rankedTeams.length === 0) {
       teamTable.innerHTML = `
         <tr>
-          <td colspan="8" style="text-align:center; padding: 2.5rem; color: var(--text-3);">
+          <td colspan="10" style="text-align:center; padding: 2.5rem; color: var(--text-3);">
             No teams match the current criteria.
           </td>
         </tr>
@@ -483,7 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>
           <div class="leader-cell">
             <span class="leader-name">${escapeHtml(team.leaderName || team.M1_Name || "—")}</span>
-            <span class="college-name"><i class="fas fa-graduation-cap"></i> ${escapeHtml(collegeDisplay)}</span>
+            ${team.M1_VtuNo ? `<span class="college-name" style="font-size:0.72rem; color: var(--text-3);">${escapeHtml(team.M1_VtuNo)}</span>` : ''}
           </div>
         </td>
         <td>${statusHtml}</td>
@@ -491,6 +491,11 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${delHtml}</td>
         <td>${promptChip}</td>
         <td>${aiScoreHtml}</td>
+        <td style="text-align:center;">
+          ${typeof team.aiScore === "number"
+            ? `<span style="font-family:var(--font-mono); font-weight:800; font-size:1rem; color:${team.aiScore >= 40 ? 'var(--green)' : team.aiScore >= 25 ? 'var(--amber)' : 'var(--rose)'};">${team.aiScore}<span style="font-size:0.7rem; opacity:0.7;">/50</span></span>`
+            : `<span style="color:var(--text-3); font-size:0.82rem;">—</span>`}
+        </td>
         <td style="text-align: right;">
           <button class="view-btn" data-id="${escapeHtml(teamId)}" title="Inspect Team Activity & Prompts">
             <i class="fas fa-eye"></i> View
@@ -1201,67 +1206,127 @@ Core Functional Requirements:
     const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= 2 * 60 * 60 * 1000));
     const isLive = Boolean(team.hackathonStart && !isEnded && !isTimedOut);
     const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isLive ? "Live Sprint" : "Registered")));
-    const securityStatus = team.blocked ? `Suspended (${team.blockReason || 'Security Violation'})` : "Active / Clear";
-    const compFormatted = compTime ? formatDuration(compTime) : "—";
-    const compMins = compTime ? Math.round(compTime / 60000) : "—";
-    const startStr = team.hackathonStart ? new Date(team.hackathonStart).toLocaleString() : "—";
-    const endTs = team.completedAt || team.sessionEndedAt || (isEnded ? team.updatedAt : null);
-    const endStr = endTs ? new Date(endTs).toLocaleString() : "—";
-
-    let deliverablesStatus = "No Submission";
-    if (team.githubUrl && team.deploymentUrl) {
-      deliverablesStatus = "Full (Code + Live)";
-    } else if (team.githubUrl) {
-      deliverablesStatus = "Code Repository Only";
-    } else if (team.deploymentUrl) {
-      deliverablesStatus = "Live App Only";
-    }
-
-    const aiLevel = team.aiLevel || team.evaluation?.level || (aiScore !== null ? (aiScore >= 40 ? "Excellent" : aiScore >= 30 ? "Good" : aiScore >= 20 ? "Basic" : "Very Poor") : "Unrated");
-    const aiReasoning = (team.aiReasoning || team.evaluation?.reasoning || "").replace(/\s+/g, " ").trim() || "—";
+    const compFormatted = compTime ? formatDuration(compTime) : (isTimedOut ? "2h 00m 00s" : "—");
 
     return {
       "Team ID": tId,
-      "Student 1 Name (Lead)": team.M1_Name || team.leaderName || "",
-      "Student 1 VTU No": team.M1_VtuNo || team.m1VtuNo || "",
-      "Student 1 Department": team.M1_Branch || team.branch || "",
-      "Student 1 Official Email": team.M1_Email || team.email || "",
-      "Student 1 Mobile No": team.M1_Phone || team.phone || "",
-      "College / Institution": team.college || team.M1_College || "",
-      "Student 2 Name (Member)": team.M2_Name || "—",
-      "Student 2 VTU No": team.M2_VtuNo || team.m2VtuNo || "—",
-      "Student 2 Department": team.M2_Branch || team.m2Branch || "—",
-      "Student 2 Official Email": team.M2_Email || team.m2Email || "—",
-      "Student 2 Mobile No": team.M2_Phone || team.m2Phone || "—",
-      "Team Size": team.teamSize || 2,
-      "Session Status": status,
-      "Security Status": securityStatus,
-      "Sprint Start": startStr,
-      "Sprint End": endStr,
-      "Duration": compFormatted,
-      "Duration (Mins)": compMins,
-      "Total Prompts Logged": stats.promptCount || 0,
-      "Unique AI Tools": stats.uniqueAITools || 0,
-      "AI Jury Score (0-50)": aiScore !== null ? aiScore : "Not Graded",
-      "AI Rating Level": aiLevel,
-      "AI Evaluation Summary": aiReasoning,
+      "Team Lead Name": team.M1_Name || team.leaderName || "",
+      "VTU Reg. No. (Lead)": team.M1_VtuNo || team.m1VtuNo || "",
+      "Branch": team.M1_Branch || team.branch || "",
+      "Lead Email": team.M1_Email || team.email || "",
+      "Lead Mobile": team.M1_Phone || team.phone || "",
+      "Member 2 Name": team.M2_Name || "—",
+      "Member 2 VTU No.": team.M2_VtuNo || team.m2VtuNo || "—",
+      "Participation Status": status,
+      "Sprint Duration": compFormatted,
+      "AI Prompts Logged": stats.promptCount || 0,
+      "Distinct AI Tools": stats.uniqueAITools || 0,
+      "AI Jury Score /50": aiScore !== null ? aiScore : "Not Graded",
       "GitHub Repository": team.githubUrl || "Not Submitted",
-      "Live Deployment URL": team.deploymentUrl || "Not Submitted",
-      "Deliverables Status": deliverablesStatus
+      "Live Deployment URL": team.deploymentUrl || "Not Submitted"
     };
   }
 
-  // 1. Export Summary to CSV
-  if (exportBtn) {
-    exportBtn.addEventListener("click", async () => {
+  // 1. Export PDF — Official Evaluation Report
+  function exportToPDF(rows) {
+    if (!rows || rows.length === 0) return window.showToast("No team data to export.", "info");
+    if (typeof window.jspdf === "undefined" && typeof jsPDF === "undefined") {
+      window.showToast("PDF library unavailable. Please check your connection.", "error");
+      return;
+    }
+    const { jsPDF } = window.jspdf || window;
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
+
+    const dateStr = new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    // Header
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text("Vibeathon 2026 — Official Participant Evaluation Report", 14, 16);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`School of Computing  |  Generated: ${dateStr}`, 14, 23);
+    doc.text(`Total Teams: ${rows.length}`, doc.internal.pageSize.getWidth() - 14, 23, { align: "right" });
+
+    // Separator line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, 26, doc.internal.pageSize.getWidth() - 14, 26);
+
+    const columns = [
+      { header: "Team ID", dataKey: "Team ID" },
+      { header: "Team Lead", dataKey: "Team Lead Name" },
+      { header: "VTU No.", dataKey: "VTU Reg. No. (Lead)" },
+      { header: "Branch", dataKey: "Branch" },
+      { header: "Member 2", dataKey: "Member 2 Name" },
+      { header: "M2 VTU No.", dataKey: "Member 2 VTU No." },
+      { header: "Status", dataKey: "Participation Status" },
+      { header: "Duration", dataKey: "Sprint Duration" },
+      { header: "Prompts", dataKey: "AI Prompts Logged" },
+      { header: "Jury Score /50", dataKey: "AI Jury Score /50" },
+      { header: "GitHub", dataKey: "GitHub Repository" },
+      { header: "Live URL", dataKey: "Live Deployment URL" }
+    ];
+
+    doc.autoTable({
+      columns,
+      body: rows,
+      startY: 30,
+      margin: { left: 14, right: 14 },
+      styles: { fontSize: 7.5, cellPadding: 2.5, overflow: "linebreak" },
+      headStyles: { fillColor: [15, 23, 42], textColor: [200, 200, 200], fontStyle: "bold", fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 247, 252] },
+      columnStyles: {
+        0: { cellWidth: 20, fontStyle: "bold" },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 22, font: "courier" },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 30 },
+        5: { cellWidth: 22, font: "courier" },
+        6: { cellWidth: 20 },
+        7: { cellWidth: 20, halign: "center" },
+        8: { cellWidth: 16, halign: "center" },
+        9: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+        10: { cellWidth: 35 },
+        11: { cellWidth: 35 }
+      },
+      didParseCell(data) {
+        if (data.column.index === 9 && data.section === "body") {
+          const v = Number(data.cell.raw);
+          if (!isNaN(v)) {
+            data.cell.styles.textColor = v >= 40 ? [22, 163, 74] : v >= 25 ? [217, 119, 6] : [220, 38, 38];
+          }
+        }
+      },
+      didDrawPage(data) {
+        const pageCount = doc.internal.getNumberOfPages();
+        const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(
+          `Page ${pageNum} of ${pageCount}  |  Vibeathon 2026  |  School of Computing  |  Confidential Academic Record`,
+          doc.internal.pageSize.getWidth() / 2,
+          doc.internal.pageSize.getHeight() - 8,
+          { align: "center" }
+        );
+      }
+    });
+
+    doc.save(`Vibeathon_Evaluation_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
+
+  if (exportPdfBtn) {
+    exportPdfBtn.addEventListener("click", () => {
       try {
+        if (teams.length === 0) { window.showToast("No team data to export.", "info"); return; }
         const rows = teams.map(buildTelemetryExportRow);
-        const dateStr = new Date().toISOString().slice(0, 10);
-        exportToCSV(rows, `vibeathon_telemetry_${dateStr}.csv`);
-        window.showToast(`Exported telemetry for ${rows.length} teams to CSV.`, "success");
+        exportToPDF(rows);
+        window.showToast(`PDF report generated for ${rows.length} teams.`, "success");
       } catch (err) {
-        console.error("Export error:", err);
-        window.showToast("Failed to export telemetry data.", "error");
+        console.error("PDF export error:", err);
+        window.showToast("Failed to generate PDF: " + err.message, "error");
       }
     });
   }
@@ -1337,35 +1402,30 @@ Core Functional Requirements:
 
             detailedRows.push({
               "Team ID": tId,
-              "Student 1 Lead": leader,
-              "Student 1 VTU No": team.M1_VtuNo || team.m1VtuNo || "—",
-              "Student 1 Department": team.M1_Branch || team.branch || "—",
-              "Student 2 Member": team.M2_Name || "—",
-              "Student 2 VTU No": team.M2_VtuNo || team.m2VtuNo || "—",
-              "Student 2 Department": team.M2_Branch || team.m2Branch || "—",
-              "College": college,
-              "Team Status": status,
-              "Security Status": securityStatus,
-              "Sprint Start": sessionStart,
-              "Sprint End": sessionEnd,
-              "Completion Time": compTimeFormatted,
-              "Prompt Number": promptNum,
+              "Team Lead": leader,
+              "Lead VTU No.": team.M1_VtuNo || team.m1VtuNo || "—",
+              "Branch": team.M1_Branch || team.branch || "—",
+              "Member 2": team.M2_Name || "—",
+              "M2 VTU No.": team.M2_VtuNo || team.m2VtuNo || "—",
+              "Status": status,
+              "Session Start": sessionStart,
+              "Sprint Duration": compTimeFormatted,
+              "Prompt #": promptNum,
               "Prompt ID": promptId,
-              "AI Tool Used": aiTool,
+              "AI Tool": aiTool,
               "Prompt Text": promptText,
-              "Prompt Characters": promptText.length,
-              "Prompt Words": promptText ? promptText.trim().split(/\s+/).length : 0,
+              "Characters": promptText.length,
+              "Words": promptText ? promptText.trim().split(/\s+/).length : 0,
               "Submitted At": submittedAt,
-              "Evaluation Status": evalStatus,
-              "AI Score (0-50)": score,
-              "Score Level": level,
-              "Evaluation Reasoning": reasoning,
+              "Eval Status": evalStatus,
+              "Score /50": score,
+              "Rating Level": level,
+              "Reasoning": reasoning,
               "Evaluated At": evaluatedAt,
-              "Evaluator Provider": provider,
-              "Team Cumulative Score": teamCumulativeScore !== null ? teamCumulativeScore : "Not Graded",
-              "Team Total Prompts": totalPrompts,
-              "GitHub Repository": team.githubUrl || "—",
-              "Live Deployment": team.deploymentUrl || "—"
+              "Team Score /50": teamCumulativeScore !== null ? teamCumulativeScore : "Not Graded",
+              "Total Prompts": totalPrompts,
+              "GitHub": team.githubUrl || "—",
+              "Live URL": team.deploymentUrl || "—"
             });
           });
         });

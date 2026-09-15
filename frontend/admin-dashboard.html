@@ -161,18 +161,18 @@
             </select>
           </div>
 
-          <!-- Export CSV -->
-          <button id="exportBtn" class="btn-tool" title="Export team metrics to CSV">
-            <i class="fas fa-file-export"></i> Export CSV
-          </button>
-
           <!-- Export Excel -->
-          <button id="exportExcelBtn" class="btn-tool" title="Export team telemetry to Excel">
+          <button id="exportExcelBtn" class="btn-tool" title="Export evaluation summary to Excel (.xlsx)">
             <i class="fas fa-file-excel"></i> Export Excel
           </button>
 
+          <!-- Export PDF -->
+          <button id="exportPdfBtn" class="btn-tool" title="Export official evaluation report as PDF">
+            <i class="fas fa-file-pdf"></i> Export PDF
+          </button>
+
           <!-- Export Detailed Prompt Audit -->
-          <button id="exportDetailedBtn" class="btn-tool" title="Export detailed team-wise prompt audit to CSV / Excel">
+          <button id="exportDetailedBtn" class="btn-tool" title="Export detailed team-wise prompt audit to Excel">
             <i class="fas fa-file-invoice"></i> Export Prompt Audit
           </button>
 
@@ -200,18 +200,19 @@
             <tr>
               <th style="width: 70px;">Rank</th>
               <th style="width: 120px;">Team ID</th>
-              <th>Team Leader & College</th>
+              <th>Team Leader</th>
               <th style="width: 130px;">Status</th>
-              <th style="width: 140px;">Completion Time</th>
+              <th style="width: 140px;">Duration</th>
               <th style="width: 160px;">Deliverables</th>
-              <th style="width: 100px;">Prompts</th>
-              <th style="width: 120px;">AI Score</th>
+              <th style="width: 80px;">Prompts</th>
+              <th style="width: 110px;">AI Score</th>
+              <th style="width: 110px;">Jury Marks</th>
               <th style="width: 100px; text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="teamTable">
             <tr>
-              <td colspan="9" class="table-loading">
+              <td colspan="10" class="table-loading">
                 <i class="fas fa-spinner fa-spin"></i> Loading participant telemetry...
               </td>
             </tr>
@@ -606,6 +607,9 @@
   </footer>
 
   <script src="js/libs/xlsx.full.min.js"></script>
+  <!-- jsPDF + autotable for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="js/config.js"></script>
   <script src="js/dialogs.js"></script>
   <script src="js/admin-dashboard.js"></script>

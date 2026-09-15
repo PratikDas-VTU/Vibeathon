@@ -2123,38 +2123,39 @@ Core Functional Requirements:
       const isTimedOut = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec >= totalSec);
       const isLive = Boolean(isStarted && !isEnded && !isTimedOut);
       const status = isBlocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isLive ? "Live Sprint" : "Registered")));
-      const securityStatus = t.blocked ? `Suspended (${t.blockReason || 'Security Violation'})` : "Active / Clear";
-      const startTime = t.hackathonStart ? new Date(t.hackathonStart).toLocaleString() : "—";
-      const endTime = (t.completedAt || t.sessionEndedAt) ? new Date(t.completedAt || t.sessionEndedAt).toLocaleString() : "—";
-      const aiScoreVal = typeof t.aiScore === 'number' ? t.aiScore : (t.evaluation?.score ?? "—");
-      const promptCountVal = t.promptCount ?? (t.prompts ? (Array.isArray(t.prompts) ? t.prompts.length : Object.keys(t.prompts).length) : 0);
+      const aiScoreVal = typeof t.aiScore === 'number' ? t.aiScore : (t.evaluation?.score ?? "Not Graded");
       const passVal = t.password || t.M1_Phone || t.phone || "";
+
+      // Compute duration string
+      let sprintDuration = "—";
+      if (isEnded && startMs) {
+        const endMs = t.completedAt || t.sessionEndedAt ? new Date(t.completedAt || t.sessionEndedAt).getTime() : null;
+        if (endMs) {
+          const diffMs = endMs - startMs;
+          const h = Math.floor(diffMs / 3600000);
+          const m = Math.floor((diffMs % 3600000) / 60000);
+          const s = Math.floor((diffMs % 60000) / 1000);
+          sprintDuration = `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+        }
+      } else if (isTimedOut) {
+        sprintDuration = "2h 00m 00s";
+      }
 
       return {
         "Team ID": teamId,
-        "Team Size": t.teamSize || t.Team_Size || 2,
-        "Student 1 Name (Lead)": t.M1_Name || t.leaderName || "",
-        "Student 1 VTU No": t.M1_VtuNo || t.m1VtuNo || "",
-        "Student 1 Department": t.M1_Branch || t.branch || "",
-        "Student 1 Official Email (Login ID)": t.M1_Email || t.email || "",
-        "Student 1 Mobile No": t.M1_Phone || t.phone || "",
-        "Student 1 Login Password": passVal,
-        "College / Campus": t.college || t.M1_College || "",
-        "Student 2 Name (Member)": t.M2_Name || "—",
-        "Student 2 VTU No": t.M2_VtuNo || t.m2VtuNo || "—",
-        "Student 2 Department": t.M2_Branch || t.m2Branch || "—",
-        "Student 2 Official Email": t.M2_Email || t.m2Email || "—",
-        "Student 2 Mobile No": t.M2_Phone || t.m2Phone || "—",
-        "Session Status": status,
-        "Security Status": securityStatus,
-        "Sprint Start": startTime,
-        "Sprint End": endTime,
-        "GitHub Repository": t.githubUrl || "—",
-        "Live Deployment": t.deploymentUrl || "—",
-        "Total Prompts": promptCountVal,
-        "AI Score (0-50)": aiScoreVal,
-        "AI Rating Level": t.aiLevel || t.evaluation?.level || "—",
-        "Registered Timestamp": t.createdAt ? new Date(t.createdAt).toLocaleString() : "—"
+        "Team Lead Name": t.M1_Name || t.leaderName || "",
+        "Lead VTU No.": t.M1_VtuNo || t.m1VtuNo || "",
+        "Branch": t.M1_Branch || t.branch || "",
+        "Lead Email (Login ID)": t.M1_Email || t.email || "",
+        "Lead Password": passVal,
+        "Member 2 Name": t.M2_Name || "—",
+        "Member 2 VTU No.": t.M2_VtuNo || t.m2VtuNo || "—",
+        "Member 2 Branch": t.M2_Branch || t.m2Branch || "—",
+        "Participation Status": status,
+        "Sprint Duration": sprintDuration,
+        "GitHub Repository": t.githubUrl || "Not Submitted",
+        "Live Deployment URL": t.deploymentUrl || "Not Submitted",
+        "AI Jury Score /50": aiScoreVal
       };
     });
   }
