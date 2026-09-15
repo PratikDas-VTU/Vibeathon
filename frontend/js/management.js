@@ -49,12 +49,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // Cold start mitigation for 502/504 gateway timeout
-      if (res.status === 502 || res.status === 504) {
-        console.warn(`Gateway 502/504 for ${endpoint}. Retrying directly against Render backend...`);
+      // Cold start / proxy limit mitigation for 413/502/504
+      if (res.status === 502 || res.status === 504 || res.status === 413) {
+        console.warn(`Gateway status ${res.status} for ${endpoint}. Retrying directly against Render backend...`);
         const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
         const directUrl = `https://vibeathon-backend-g210.onrender.com${cleanEndpoint}`;
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         res = await fetch(directUrl, {
           ...options,
           headers: {
@@ -1177,8 +1177,8 @@ Core Functional Requirements:
           : "Default active configuration";
       }
 
-      if (mgmtProblemContext && data.text) {
-        mgmtProblemContext.value = data.text;
+      if (mgmtProblemContext) {
+        mgmtProblemContext.value = (data.text && data.text.trim()) ? data.text.trim() : DEFAULT_PROBLEM_STATEMENT_TEXT;
       }
 
       loadSettings();
@@ -1269,7 +1269,8 @@ Core Functional Requirements:
             fileName: file.name,
             fileBase64: base64Data,
             mimeType: file.type || "application/octet-stream",
-            fileSize: file.size
+            fileSize: file.size,
+            contextText: (mgmtProblemContext && mgmtProblemContext.value.trim()) ? mgmtProblemContext.value.trim() : null
           };
 
           const res = await manageFetch("/api/admin/problem-statement/upload", {

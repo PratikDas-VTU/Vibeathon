@@ -110,6 +110,15 @@ function heuristicEvaluate(promptText, aiTool, problemContext) {
     "venue", "resource", "allocation", "booking", "rejection", "event",
     "conflict", "capacity", "equipment", "status", "audit"
   ];
+  if (problemContext && typeof problemContext === "string" && problemContext.length > 30) {
+    const contextWords = problemContext.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !["this", "that", "with", "from", "have", "must", "will", "should", "your", "their", "system", "about"].includes(w));
+    contextWords.slice(0, 25).forEach(w => {
+      if (!domainKeywords.includes(w)) domainKeywords.push(w);
+    });
+  }
   let domainMatches = 0;
   domainKeywords.forEach(kw => {
     if (lower.includes(kw)) domainMatches++;
@@ -519,7 +528,7 @@ Evaluate strictly out of 50 based on these 5 criteria (max 10 points each):
 2. Clarity, Precision, Depth & Technical Detail (0-10)
 3. Prompt Engineering Technique (role, chain-of-thought, constraints specification) (0-10)
 4. Strategic Intentional AI Usage (thinking/design assistant vs raw code dump) (0-10)
-5. Contextual Alignment with the Event Management Problem Statement (0-10)
+5. Contextual Alignment with the Problem Statement Context above (0-10)
 
 Total maximum score is 50 points.
 If the prompt is just a greeting, placeholder, or random test like "testing", award 0 points.
