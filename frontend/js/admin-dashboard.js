@@ -1325,6 +1325,7 @@ Core Functional Requirements:
       "Lead Mobile": team.M1_Phone || team.phone || "",
       "Member 2 Name": team.M2_Name || "—",
       "Member 2 VTU No.": team.M2_VtuNo || team.m2VtuNo || "—",
+      "Member 2 Branch": team.M2_Branch || team.m2Branch || "—",
       "Participation Status": status,
       "Sprint Duration": compFormatted,
       "AI Prompts Logged": stats.promptCount || 0,
@@ -1378,6 +1379,7 @@ Core Functional Requirements:
       { header: "Branch", dataKey: "Branch" },
       { header: "Member 2", dataKey: "Member 2 Name" },
       { header: "M2 VTU No.", dataKey: "Member 2 VTU No." },
+      { header: "M2 Branch", dataKey: "Member 2 Branch" },
       { header: "Status", dataKey: "Participation Status" },
       { header: "Duration", dataKey: "Sprint Duration" },
       { header: "Prompts", dataKey: "AI Prompts Logged" },
@@ -1399,24 +1401,26 @@ Core Functional Requirements:
       alternateRowStyles: { fillColor: [245, 247, 252] },
       columnStyles: {
         0: { cellWidth: 20, fontStyle: "bold" },
-        1: { cellWidth: 28 },
-        2: { cellWidth: 22, font: "courier" },
-        3: { cellWidth: 24 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 20, font: "courier" },
-        6: { cellWidth: 18 },
-        7: { cellWidth: 18, halign: "center" },
-        8: { cellWidth: 14, halign: "center" },
-        9: { cellWidth: 16, halign: "center", fontStyle: "bold" },
-        10: { cellWidth: 18, halign: "center", fontStyle: "bold" },
-        11: { cellWidth: 18, halign: "center", fontStyle: "bold" },
-        12: { cellWidth: 20, halign: "center", fontStyle: "bold" },
-        13: { cellWidth: 32 },
-        14: { cellWidth: 32 }
+        1: { cellWidth: 26 },
+        2: { cellWidth: 20, font: "courier" },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 18, font: "courier" },
+        6: { cellWidth: 20 },
+        7: { cellWidth: 16 },
+        8: { cellWidth: 16, halign: "center" },
+        9: { cellWidth: 13, halign: "center" },
+        10: { cellWidth: 15, halign: "center", fontStyle: "bold" },
+        11: { cellWidth: 16, halign: "center", fontStyle: "bold" },
+        12: { cellWidth: 16, halign: "center", fontStyle: "bold" },
+        13: { cellWidth: 18, halign: "center", fontStyle: "bold" },
+        14: { cellWidth: 28 },
+        15: { cellWidth: 28 }
       },
       didParseCell(data) {
-        if ([9, 10, 11, 12].includes(data.column.index) && data.section === "body") {
+        if ([10, 11, 12, 13].includes(data.column.index) && data.section === "body") {
           const v = Number(data.cell.raw);
+
           if (!isNaN(v)) {
             data.cell.styles.textColor = v >= 40 ? [22, 163, 74] : v >= 20 ? [217, 119, 6] : [220, 38, 38];
           }
