@@ -1271,7 +1271,8 @@ Core Functional Requirements:
       "Distinct AI Tools": stats.uniqueAITools || 0,
       "AI Jury Score /50": aiScore !== null ? aiScore : "Not Graded",
       "GitHub Repository": team.githubUrl || "Not Submitted",
-      "Live Deployment URL": team.deploymentUrl || "Not Submitted"
+      "Live Deployment URL": team.deploymentUrl || "Not Submitted",
+      "Jury Marks /100": (team.juryScore !== null && team.juryScore !== undefined) ? team.juryScore : "—"
     };
   }
 
@@ -1315,7 +1316,8 @@ Core Functional Requirements:
       { header: "Prompts", dataKey: "AI Prompts Logged" },
       { header: "Jury Score /50", dataKey: "AI Jury Score /50" },
       { header: "GitHub", dataKey: "GitHub Repository" },
-      { header: "Live URL", dataKey: "Live Deployment URL" }
+      { header: "Live URL", dataKey: "Live Deployment URL" },
+      { header: "Jury Marks /100", dataKey: "Jury Marks /100" }
     ];
 
     doc.autoTable({
@@ -1338,10 +1340,11 @@ Core Functional Requirements:
         8: { cellWidth: 16, halign: "center" },
         9: { cellWidth: 20, halign: "center", fontStyle: "bold" },
         10: { cellWidth: 35 },
-        11: { cellWidth: 35 }
+        11: { cellWidth: 35 },
+        12: { cellWidth: 25, halign: "center", fontStyle: "bold" }
       },
       didParseCell(data) {
-        if (data.column.index === 9 && data.section === "body") {
+        if ((data.column.index === 9 || data.column.index === 12) && data.section === "body") {
           const v = Number(data.cell.raw);
           if (!isNaN(v)) {
             data.cell.styles.textColor = v >= 40 ? [22, 163, 74] : v >= 25 ? [217, 119, 6] : [220, 38, 38];
@@ -1473,7 +1476,8 @@ Core Functional Requirements:
               "Team Score /50": teamCumulativeScore !== null ? teamCumulativeScore : "Not Graded",
               "Total Prompts": totalPrompts,
               "GitHub": team.githubUrl || "—",
-              "Live URL": team.deploymentUrl || "—"
+              "Live URL": team.deploymentUrl || "—",
+              "Jury Marks /100": (team.juryScore !== null && team.juryScore !== undefined) ? team.juryScore : "—"
             });
           });
         });

@@ -2155,7 +2155,8 @@ Core Functional Requirements:
         "Sprint Duration": sprintDuration,
         "GitHub Repository": t.githubUrl || "Not Submitted",
         "Live Deployment URL": t.deploymentUrl || "Not Submitted",
-        "AI Jury Score /50": aiScoreVal
+        "AI Jury Score /50": aiScoreVal,
+        "Jury Marks /100": (t.juryScore !== null && t.juryScore !== undefined) ? t.juryScore : "—"
       };
     });
   }
