@@ -784,6 +784,95 @@ async function updateSettings(updates) {
 }
 
 /**
+ * Get competition session settings (base duration, extensions, global ended state)
+ */
+async function getSessionSettings() {
+    const snap = await db.ref("settings/session").once("value");
+    const val = snap.val() || {};
+    return {
+        baseDurationMinutes: typeof val.baseDurationMinutes === "number" ? val.baseDurationMinutes : 150,
+        extraMinutes: typeof val.extraMinutes === "number" ? val.extraMinutes : 0,
+        globalEnded: Boolean(val.globalEnded === true),
+        globalEndedAt: val.globalEndedAt || null,
+        updatedAt: val.updatedAt || null
+    };
+}
+
+/**
+ * Update competition session settings
+ */
+async function updateSessionSettings(updates) {
+    updates.updatedAt = new Date().toISOString();
+    await db.ref("settings/session").update(updates);
+    return await getSessionSettings();
+}
+
+/**
+ * Conclude all active participant sprint sessions globally
+ */
+async function endAllActiveSessions() {
+    const now = new Date().toISOString();
+    const snapshot = await db.ref("teams").once("value");
+    const teams = snapshot.val() || {};
+    const teamKeys = Object.keys(teams);
+
+    const updates = {};
+    let count = 0;
+
+    teamKeys.forEach(teamKey => {
+        const t = teams[teamKey] || {};
+        if (t.hackathonStart && !t.sessionEnded) {
+            updates[`teams/${teamKey}/sessionEnded`] = true;
+            updates[`teams/${teamKey}/sessionEndedAt`] = now;
+            if (!t.completedAt) {
+                updates[`teams/${teamKey}/completedAt`] = now;
+            }
+            updates[`teams/${teamKey}/globalEndedByAdmin`] = true;
+            updates[`teams/${teamKey}/updatedAt`] = now;
+            count++;
+        }
+    });
+
+    updates["settings/session/globalEnded"] = true;
+    updates["settings/session/globalEndedAt"] = now;
+    updates["settings/session/updatedAt"] = now;
+
+    await db.ref().update(updates);
+    return { totalConcluded: count, globalEnded: true, timestamp: now };
+}
+
+/**
+ * Restore/reopen sessions that were ended globally by management
+ */
+async function restoreAllActiveSessions() {
+    const now = new Date().toISOString();
+    const snapshot = await db.ref("teams").once("value");
+    const teams = snapshot.val() || {};
+    const teamKeys = Object.keys(teams);
+
+    const updates = {};
+    let count = 0;
+
+    teamKeys.forEach(teamKey => {
+        const t = teams[teamKey] || {};
+        if (t.globalEndedByAdmin === true) {
+            updates[`teams/${teamKey}/sessionEnded`] = false;
+            updates[`teams/${teamKey}/sessionEndedAt`] = null;
+            updates[`teams/${teamKey}/globalEndedByAdmin`] = false;
+            updates[`teams/${teamKey}/updatedAt`] = now;
+            count++;
+        }
+    });
+
+    updates["settings/session/globalEnded"] = false;
+    updates["settings/session/globalEndedAt"] = null;
+    updates["settings/session/updatedAt"] = now;
+
+    await db.ref().update(updates);
+    return { totalRestored: count, globalEnded: false, timestamp: now };
+}
+
+/**
  * Record system audit log
  */
 async function logActivity(action, details, adminUser = "Admin") {
@@ -861,6 +950,10 @@ module.exports = {
     // Settings & Logs
     getSettings,
     updateSettings,
+    getSessionSettings,
+    updateSessionSettings,
+    endAllActiveSessions,
+    restoreAllActiveSessions,
     logActivity,
     getAuditLogs,
 

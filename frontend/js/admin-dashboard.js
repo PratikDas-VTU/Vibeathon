@@ -74,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentFilter = "time";
   let searchQuery = "";
   let autoRefreshInterval = null;
+  let adminSessionExtraMinutes = 0;
 
   /* ==========================
      LOGOUT LOGIC
@@ -237,8 +238,21 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ==========================
      FETCH LIVE DATA
      ========================== */
+  async function fetchSessionSettings() {
+    try {
+      const res = await adminFetch("/api/manage/session-config");
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data.session && typeof data.session.extraMinutes === "number") {
+          adminSessionExtraMinutes = data.session.extraMinutes;
+        }
+      }
+    } catch (e) {}
+  }
+
   async function fetchTeams() {
     try {
+      await fetchSessionSettings();
       const res = await adminFetch("/api/admin/teams");
       if (!res.ok) throw new Error("HTTP " + res.status);
       teams = await res.json();
@@ -322,7 +336,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const startMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
       const isStarted = Boolean(startMs && !isNaN(startMs));
       const isEnded = Boolean(team.sessionEnded);
-      const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= 2 * 60 * 60 * 1000));
+      const totalDurationMs = (150 + adminSessionExtraMinutes) * 60 * 1000;
+      const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= totalDurationMs));
+      const isReadingPhase = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs < 30 * 60 * 1000));
 
       return {
         ...team,
@@ -332,7 +348,8 @@ document.addEventListener("DOMContentLoaded", () => {
         completionTime: compTime,
         aiScore: aiScore,
         aiEvaluating: isEvaluating,
-        isTimedOut: isTimedOut
+        isTimedOut: isTimedOut,
+        isReadingPhase: isReadingPhase
       };
     });
 
@@ -431,6 +448,8 @@ document.addEventListener("DOMContentLoaded", () => {
         statusHtml = `<span class="status-pill ended"><i class="fas fa-check-circle"></i> Completed</span>`;
       } else if (team.isTimedOut) {
         statusHtml = `<span class="status-pill timed-out"><i class="fas fa-hourglass-end"></i> Timed Out</span>`;
+      } else if (team.isReadingPhase) {
+        statusHtml = `<span class="status-pill reading" style="background:rgba(6,182,212,0.15); color:#38bdf8; border:1px solid rgba(6,182,212,0.4);"><i class="fas fa-book-reader"></i> Reading Phase</span>`;
       } else if (team.hackathonStart) {
         statusHtml = `<span class="status-pill active"><span class="pulse-dot"></span> Live Sprint</span>`;
       } else {
@@ -443,7 +462,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const formatted = formatDuration(team.completionTime);
         compTimeHtml = `<span class="time-chip"><i class="far fa-clock"></i> ${formatted || "—"}</span>`;
       } else if (team.isTimedOut) {
-        compTimeHtml = `<span class="time-chip timeout"><i class="far fa-clock"></i> 2h 00m 00s</span>`;
+        compTimeHtml = `<span class="time-chip timeout"><i class="far fa-clock"></i> Timed Out</span>`;
+      } else if (team.isReadingPhase) {
+        compTimeHtml = `<span class="time-chip in-progress" style="border-color:rgba(6,182,212,0.4); color:#38bdf8;"><i class="fas fa-book-reader"></i> Reading</span>`;
       } else if (team.hackathonStart) {
         compTimeHtml = `<span class="time-chip in-progress"><i class="fas fa-running"></i> In Progress</span>`;
       }
@@ -693,14 +714,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const modalStartMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
     const modalIsStarted = Boolean(modalStartMs && !isNaN(modalStartMs));
     const modalIsEnded = Boolean(team.sessionEnded);
-    const modalIsTimedOut = Boolean(modalIsStarted && !team.blocked && !modalIsEnded && (Date.now() - modalStartMs >= 2 * 60 * 60 * 1000));
-    const duration = formatDuration(getCompletionTime(team)) || (modalIsTimedOut ? "2h 00m 00s" : "—");
+    const modalTotalMs = (150 + adminSessionExtraMinutes) * 60 * 1000;
+    const modalIsTimedOut = Boolean(modalIsStarted && !team.blocked && !modalIsEnded && (Date.now() - modalStartMs >= modalTotalMs));
+    const modalIsReading = Boolean(modalIsStarted && !team.blocked && !modalIsEnded && (Date.now() - modalStartMs < 30 * 60 * 1000));
+    const duration = formatDuration(getCompletionTime(team)) || (modalIsTimedOut ? "Timed Out" : modalIsReading ? "Reading Phase" : "—");
 
     teamStats.innerHTML = `
       <div class="m-stat-box">
         <span class="m-stat-label">Session Status</span>
-        <span class="m-stat-val ${team.blocked ? "red" : team.sessionEnded ? "cyan" : modalIsTimedOut ? "amber" : team.hackathonStart ? "green" : ""}" style="${team.blocked ? "color:#f87171;" : modalIsTimedOut ? "color:#fbbf24;" : ""}">
-          ${team.blocked ? "Suspended" : team.sessionEnded ? "Ended" : modalIsTimedOut ? "Timed Out" : team.hackathonStart ? "Active" : "Registered"}
+        <span class="m-stat-val ${team.blocked ? "red" : team.sessionEnded ? "cyan" : modalIsTimedOut ? "amber" : modalIsReading ? "blue" : team.hackathonStart ? "green" : ""}" style="${team.blocked ? "color:#f87171;" : modalIsTimedOut ? "color:#fbbf24;" : modalIsReading ? "color:#38bdf8;" : ""}">
+          ${team.blocked ? "Suspended" : team.sessionEnded ? "Ended" : modalIsTimedOut ? "Timed Out" : modalIsReading ? "Reading Phase" : team.hackathonStart ? "Active" : "Registered"}
         </span>
       </div>
       <div class="m-stat-box">
@@ -1251,10 +1274,12 @@ Core Functional Requirements:
     const isEnded = Boolean(team.sessionEnded);
     const startMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
     const isStarted = Boolean(startMs && !isNaN(startMs));
-    const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= 2 * 60 * 60 * 1000));
-    const isLive = Boolean(team.hackathonStart && !isEnded && !isTimedOut);
-    const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isLive ? "Live Sprint" : "Registered")));
-    const compFormatted = compTime ? formatDuration(compTime) : (isTimedOut ? "2h 00m 00s" : "—");
+    const totalMs = (150 + adminSessionExtraMinutes) * 60 * 1000;
+    const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= totalMs));
+    const isReading = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs < 30 * 60 * 1000));
+    const isLive = Boolean(team.hackathonStart && !isEnded && !isTimedOut && !isReading);
+    const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isReading ? "Reading Phase" : (isLive ? "Live Sprint" : "Registered"))));
+    const compFormatted = compTime ? formatDuration(compTime) : (isTimedOut ? "Timed Out" : (isReading ? "Reading Phase" : "—"));
 
     return {
       "Team ID": tId,
@@ -1420,9 +1445,11 @@ Core Functional Requirements:
           const isEnded = Boolean(team.sessionEnded);
           const startMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
           const isStarted = Boolean(startMs && !isNaN(startMs));
-          const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= 2 * 60 * 60 * 1000));
-          const isLive = Boolean(team.hackathonStart && !isEnded && !isTimedOut);
-          const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isLive ? "Live Sprint" : "Registered")));
+          const totalMs = (150 + adminSessionExtraMinutes) * 60 * 1000;
+          const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= totalMs));
+          const isReading = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs < 30 * 60 * 1000));
+          const isLive = Boolean(team.hackathonStart && !isEnded && !isTimedOut && !isReading);
+          const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isReading ? "Reading Phase" : (isLive ? "Live Sprint" : "Registered"))));
           const securityStatus = team.blocked ? `Suspended (${team.blockReason || 'Security Violation'})` : "Active / Clear";
           const sessionStart = team.hackathonStart ? new Date(team.hackathonStart).toLocaleString() : "—";
           const endTimestamp = team.completedAt || team.sessionEndedAt || (team.sessionEnded ? team.updatedAt : null);

@@ -379,13 +379,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   /* ===================== TIMER & HACKATHON START ===================== */
-  const TOTAL_TIME = 2 * 60 * 60; // 2 hours in seconds
+  const BASE_DURATION = 150 * 60; // 2 hours 30 mins (150 mins) in seconds
+  const READING_PHASE_DURATION = 30 * 60; // 30 minutes in seconds
+  let extraMinutes = 0;
+  let hasUnlockedNotificationShown = false;
+  let isCurrentlyReadingPhase = false;
+  let voluntaryEnded = false;
+
+  const readingPhaseBanner = document.getElementById("readingPhaseBanner");
+  const readingPhaseCountdown = document.getElementById("readingPhaseCountdown");
 
   function updateTimerTick() {
     if (sessionEnded || !hackathonStart) return;
 
+    const totalTime = BASE_DURATION + (extraMinutes * 60);
     const elapsed = Math.floor((Date.now() - hackathonStart) / 1000);
-    const remaining = Math.max(TOTAL_TIME - elapsed, 0);
+    const remaining = Math.max(totalTime - elapsed, 0);
 
     const hours = String(Math.floor(remaining / 3600)).padStart(2, "0");
     const minutes = String(Math.floor((remaining % 3600) / 60)).padStart(2, "0");
@@ -393,6 +402,65 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (timerEl) {
       timerEl.textContent = `${hours}:${minutes}:${seconds}`;
+    }
+
+    // Phased Reading vs Coding Gate
+    const readingActive = (elapsed < READING_PHASE_DURATION && remaining > 0);
+
+    if (readingActive) {
+      isCurrentlyReadingPhase = true;
+      if (readingPhaseBanner) readingPhaseBanner.style.display = "block";
+
+      const readingRemaining = Math.max(0, READING_PHASE_DURATION - elapsed);
+      const rm = String(Math.floor(readingRemaining / 60)).padStart(2, "0");
+      const rs = String(readingRemaining % 60).padStart(2, "0");
+      if (readingPhaseCountdown) {
+        readingPhaseCountdown.textContent = `${rm}:${rs}`;
+      }
+
+      // Lock submissions while in reading phase
+      if (githubInput) githubInput.disabled = true;
+      if (submitGithubBtn) submitGithubBtn.disabled = true;
+      if (deployInput) deployInput.disabled = true;
+      if (submitDeployBtn) submitDeployBtn.disabled = true;
+      if (aiInput) aiInput.disabled = true;
+      if (promptInput) promptInput.disabled = true;
+      if (submitPromptBtn) submitPromptBtn.disabled = true;
+
+      const arenaStatus = document.getElementById("arenaStatus");
+      if (arenaStatus && !arenaStatus.classList.contains("reading-mode")) {
+        arenaStatus.innerHTML = `<span style="color:#38bdf8; font-weight:700;"><i class="fas fa-book-reader"></i> READING PHASE</span>`;
+        arenaStatus.classList.add("reading-mode");
+      }
+    } else {
+      if (readingPhaseBanner) readingPhaseBanner.style.display = "none";
+
+      if (isCurrentlyReadingPhase && !sessionEnded) {
+        isCurrentlyReadingPhase = false;
+        // Unfreeze submission inputs
+        if (githubInput) githubInput.disabled = false;
+        if (submitGithubBtn) submitGithubBtn.disabled = false;
+        if (deployInput && team && team.githubUrl) {
+          deployInput.disabled = false;
+          if (submitDeployBtn) submitDeployBtn.disabled = false;
+        }
+        if (aiInput) aiInput.disabled = false;
+        if (promptInput) promptInput.disabled = false;
+        if (submitPromptBtn) submitPromptBtn.disabled = false;
+
+        const arenaStatus = document.getElementById("arenaStatus");
+        if (arenaStatus) {
+          arenaStatus.textContent = "ACTIVE SPRINT";
+          arenaStatus.classList.remove("reading-mode");
+          arenaStatus.classList.add("status-active");
+          arenaStatus.style.color = "";
+        }
+
+        if (!hasUnlockedNotificationShown) {
+          hasUnlockedNotificationShown = true;
+          showToast("🚀 Reading phase complete! Coding sprint & submissions are now open.", "success");
+        }
+      }
     }
 
     if (remaining === 0 && !sessionEnded) {
@@ -415,6 +483,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const startData = await startRes.json();
     if (startData && startData.hackathonStart) {
       hackathonStart = new Date(startData.hackathonStart).getTime();
+      if (typeof startData.extraMinutes === "number") {
+        extraMinutes = startData.extraMinutes;
+      }
+      if (startData.globalEnded === true) {
+        showSessionEndedUI();
+        return;
+      }
       localStorage.setItem("hackathonStart_" + TEAM_ID, startData.hackathonStart);
       updateTimerTick();
     }
@@ -444,6 +519,21 @@ document.addEventListener("DOMContentLoaded", async () => {
           announcementBanner.style.display = "flex";
         } else {
           announcementBanner.style.display = "none";
+        }
+      }
+
+      // 2. Global Session & Live Timer Extensions
+      if (data.session) {
+        if (typeof data.session.extraMinutes === "number" && data.session.extraMinutes !== extraMinutes) {
+          extraMinutes = data.session.extraMinutes;
+          showToast(`⏱️ Timer extension updated: +${extraMinutes} mins!`, "info");
+          updateTimerTick();
+        }
+        if (data.session.globalEnded === true && !sessionEnded) {
+          showSessionEndedUI();
+        } else if (data.session.globalEnded === false && sessionEnded && !voluntaryEnded) {
+          sessionEnded = false;
+          location.reload();
         }
       }
 
@@ -902,6 +992,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
 
         if (confirmModal) confirmModal.classList.remove("show");
+        voluntaryEnded = true;
         showSessionEndedUI();
       } catch (err) {
         console.error("End session error:", err);

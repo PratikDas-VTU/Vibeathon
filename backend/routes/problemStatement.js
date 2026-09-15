@@ -30,6 +30,7 @@ router.get("/status", async (req, res) => {
     }
 
     const isReleased = Boolean(val.released === true);
+    const session = settings.session || {};
 
     res.json({
       released: isReleased,
@@ -38,7 +39,12 @@ router.get("/status", async (req, res) => {
       fileSize: val.fileSize || null,
       updatedAt: val.updatedAt || null,
       available: isReleased,
-      announcement: announcement.active ? announcement.message : null
+      announcement: announcement.active ? announcement.message : null,
+      session: {
+        baseDurationMinutes: typeof session.baseDurationMinutes === "number" ? session.baseDurationMinutes : 150,
+        extraMinutes: typeof session.extraMinutes === "number" ? session.extraMinutes : 0,
+        globalEnded: Boolean(session.globalEnded === true)
+      }
     });
   } catch (err) {
     console.error("Problem statement status error:", err);

@@ -257,6 +257,73 @@
 
     <!-- ================= TAB 3: SESSIONS & GLOBAL CONTROLS ================= -->
     <section id="tab-sessions" class="tab-panel">
+      <!-- Live Competition Timer Extension Card -->
+      <div class="card" style="border-color: rgba(6, 182, 212, 0.4); margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color: var(--cyan);">
+              <i class="fas fa-stopwatch"></i> Competition Timer Window & Live Extensions
+            </h2>
+            <p class="card-desc">
+              Base duration is 2h 30m (30m Problem Reading Phase + 2h Coding Sprint). Add instant time extensions to all active countdowns in real time.
+            </p>
+          </div>
+          <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: var(--radius-md); padding: 8px 16px; text-align: right;">
+            <span style="font-size: 0.72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; display: block;">Active Extension</span>
+            <span id="mgmtActiveExtensionBadge" style="font-family: var(--font-mono); font-size: 1.15rem; font-weight: 800; color: var(--cyan);">+0 Mins</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <button id="extend10Btn" class="btn btn-outline" style="border-color: rgba(6, 182, 212, 0.5); color: #38bdf8;">
+            <i class="fas fa-plus-circle"></i> +10 Mins
+          </button>
+          <button id="extend20Btn" class="btn btn-outline" style="border-color: rgba(6, 182, 212, 0.5); color: #38bdf8;">
+            <i class="fas fa-plus-circle"></i> +20 Mins
+          </button>
+          <button id="extend30Btn" class="btn btn-outline" style="border-color: rgba(6, 182, 212, 0.5); color: #38bdf8;">
+            <i class="fas fa-plus-circle"></i> +30 Mins
+          </button>
+          <button id="resetExtensionBtn" class="btn btn-secondary btn-sm" title="Clear extra minutes back to standard 2h 30m">
+            <i class="fas fa-undo"></i> Reset to 0m Extension
+          </button>
+        </div>
+      </div>
+
+      <!-- Global End All Sessions & Restore Control Card -->
+      <div class="card" style="border-color: rgba(239, 68, 68, 0.4); margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color: var(--rose);">
+              <i class="fas fa-power-off"></i> Global Competition Master Stop & Restore
+            </h2>
+            <p class="card-desc">
+              Instantly conclude and freeze all participant sprints simultaneously regardless of timer, or restore and reopen the workspace.
+            </p>
+          </div>
+          <div id="mgmtGlobalEndStatusPill" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-md); padding: 8px 16px;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: #f87171;"><i class="fas fa-lock"></i> SESSIONS GLOBALLY LOCKED</span>
+          </div>
+        </div>
+
+        <div style="background: rgba(239, 68, 68, 0.06); border: 1px dashed rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+          <p style="font-size: 0.85rem; color: #fca5a5; line-height: 1.6;">
+            <strong>Global Competition Controls:</strong><br />
+            • <strong>End All Sessions:</strong> Immediately locks every participant terminal into &quot;SESSION CONCLUDED&quot; and locks all submission APIs.<br />
+            • <strong>Restore / Reopen Sessions:</strong> Undoes the global lock and re-enables active participant terminals to resume work.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button id="globalEndAllSessionsBtn" class="btn btn-danger">
+            <i class="fas fa-stop-circle"></i> End All Sessions (Conclude Competition)
+          </button>
+          <button id="restoreAllSessionsBtn" class="btn btn-primary" style="background: rgba(16, 185, 129, 0.2); border-color: var(--green); color: #6ee7b7;">
+            <i class="fas fa-unlock-alt"></i> Restore / Reopen Sessions
+          </button>
+        </div>
+      </div>
+
       <!-- Master Reset Card -->
       <div class="card" style="border-color: rgba(245, 158, 11, 0.4);">
         <div class="card-header">

@@ -6,7 +6,8 @@ const {
   updateTeam,
   createPrompt,
   getPromptsByTeamId,
-  getPromptsByVccId
+  getPromptsByVccId,
+  getSessionSettings
 } = require("../services/firebaseService");
 const { enqueuePromptEvaluation } = require("../services/evaluationQueue");
 const { checkPromptSubmission, checkDeliverableSubmission } = require("../services/threatDetector");
@@ -42,6 +43,19 @@ function isValidGithubUrl(str) {
   }
 }
 
+async function checkSubmissionAllowed(team) {
+  const session = await getSessionSettings();
+  if (session.globalEnded || team.sessionEnded) {
+    return { allowed: false, message: "Session concluded. Submissions are locked." };
+  }
+  if (team.hackathonStart) {
+    const elapsedSec = (Date.now() - new Date(team.hackathonStart).getTime()) / 1000;
+    if (elapsedSec < 30 * 60) {
+      return { allowed: false, message: "Problem reading phase active. Submissions open at 02:00:00 remaining." };
+    }
+  }
+  return { allowed: true };
+}
 
 async function markActive(teamId) {
   await updateTeam(teamId, {
@@ -66,8 +80,15 @@ router.post("/start", auth, async (req, res) => {
 
     await markActive(teamId);
 
+    const session = await getSessionSettings();
     const updatedTeam = await getTeamById(teamId);
-    res.json({ hackathonStart: updatedTeam.hackathonStart });
+    res.json({
+      hackathonStart: updatedTeam.hackathonStart,
+      sessionEnded: Boolean(updatedTeam.sessionEnded || session.globalEnded),
+      baseDurationMinutes: session.baseDurationMinutes || 150,
+      extraMinutes: session.extraMinutes || 0,
+      globalEnded: session.globalEnded || false
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -105,8 +126,9 @@ router.post("/github", auth, async (req, res) => {
     const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    if (team.sessionEnded) {
-      return res.status(403).json({ message: "Session ended. Locked." });
+    const gateCheck = await checkSubmissionAllowed(team);
+    if (!gateCheck.allowed) {
+      return res.status(403).json({ message: gateCheck.message });
     }
 
     await updateTeam(teamId, { githubUrl: cleanUrl });
@@ -150,8 +172,9 @@ router.post("/deployment", auth, async (req, res) => {
     const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    if (team.sessionEnded) {
-      return res.status(403).json({ message: "Session ended. Locked." });
+    const gateCheck = await checkSubmissionAllowed(team);
+    if (!gateCheck.allowed) {
+      return res.status(403).json({ message: gateCheck.message });
     }
 
     await updateTeam(teamId, { deploymentUrl: cleanUrl });
@@ -215,8 +238,9 @@ router.post("/prompt", auth, async (req, res) => {
     const team = await getTeamById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    if (team.sessionEnded) {
-      return res.status(403).json({ message: "Session ended" });
+    const gateCheck = await checkSubmissionAllowed(team);
+    if (!gateCheck.allowed) {
+      return res.status(403).json({ message: gateCheck.message });
     }
 
     const nowIso = new Date().toISOString();

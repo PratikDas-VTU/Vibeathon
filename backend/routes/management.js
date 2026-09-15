@@ -19,6 +19,10 @@ const {
   purgeAllParticipants,
   getSettings,
   updateSettings,
+  getSessionSettings,
+  updateSessionSettings,
+  endAllActiveSessions,
+  restoreAllActiveSessions,
   logActivity,
   getAuditLogs,
   updateAdminPassword
@@ -638,6 +642,97 @@ router.post("/reset-all-sessions", verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error("Reset all sessions error:", err);
     res.status(500).json({ success: false, message: "Failed to reset all sessions: " + err.message });
+  }
+});
+
+/**
+ * GET /api/manage/session-config
+ * Fetch global session timer config (base duration, extra minutes, global ended flag)
+ */
+router.get("/session-config", verifyAdmin, async (req, res) => {
+  try {
+    const session = await getSessionSettings();
+    res.json({ success: true, session });
+  } catch (err) {
+    console.error("Fetch session config error:", err);
+    res.status(500).json({ success: false, message: "Failed to load session config: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/extend-timer
+ * Extend global timer by N minutes (e.g. 10, 20, 30, or reset to 0)
+ */
+router.post("/extend-timer", verifyAdmin, async (req, res) => {
+  try {
+    const { minutes } = req.body;
+    const extraMinutes = Math.max(0, parseInt(minutes) || 0);
+    const session = await updateSessionSettings({ extraMinutes });
+
+    await logActivity(
+      "EXTEND_TIMER",
+      `Set global timer extension to +${extraMinutes} minutes`,
+      req.admin?.username || "Admin"
+    );
+
+    res.json({
+      success: true,
+      message: `Timer extension set to +${extraMinutes} minutes!`,
+      session
+    });
+  } catch (err) {
+    console.error("Extend timer error:", err);
+    res.status(500).json({ success: false, message: "Failed to extend timer: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/end-all-sessions
+ * Global End Competition: Locks all active participant sessions immediately
+ */
+router.post("/end-all-sessions", verifyAdmin, async (req, res) => {
+  try {
+    const result = await endAllActiveSessions();
+
+    await logActivity(
+      "GLOBAL_END_ALL_SESSIONS",
+      `Concluded all participant sprints globally (${result.totalConcluded} active teams locked)`,
+      req.admin?.username || "Admin"
+    );
+
+    res.json({
+      success: true,
+      message: `Global End triggered! Concluded sessions for ${result.totalConcluded} active teams.`,
+      result
+    });
+  } catch (err) {
+    console.error("Global end error:", err);
+    res.status(500).json({ success: false, message: "Failed to conclude all sessions: " + err.message });
+  }
+});
+
+/**
+ * POST /api/manage/restore-all-sessions
+ * Restore/Reopen sessions that were ended globally
+ */
+router.post("/restore-all-sessions", verifyAdmin, async (req, res) => {
+  try {
+    const result = await restoreAllActiveSessions();
+
+    await logActivity(
+      "RESTORE_ALL_SESSIONS",
+      `Restored and reopened sprints globally (${result.totalRestored} teams unlocked)`,
+      req.admin?.username || "Admin"
+    );
+
+    res.json({
+      success: true,
+      message: `Global sessions restored! Reopened sprints for ${result.totalRestored} teams.`,
+      result
+    });
+  } catch (err) {
+    console.error("Restore all sessions error:", err);
+    res.status(500).json({ success: false, message: "Failed to restore sessions: " + err.message });
   }
 });
 

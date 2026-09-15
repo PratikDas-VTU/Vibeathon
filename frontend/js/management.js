@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Cached state
   let allTeamsData = [];
   let currentSettings = {};
+  let globalExtraMinutes = 0;
+  let globalEndedState = false;
 
   // 2. Network Fetch Helper
   async function manageFetch(endpoint, options = {}) {
@@ -175,6 +177,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const refreshTeamsBtn = document.getElementById("refreshTeamsBtn");
 
   async function loadParticipants() {
+    await loadSessionConfig();
+
     if (teamsTableBody) {
       teamsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-2);"><i class="fas fa-spinner fa-spin"></i> Loading participant roster...</td></tr>`;
     }
@@ -265,16 +269,22 @@ document.addEventListener("DOMContentLoaded", () => {
       const isBlocked = Boolean(t.blocked === true);
       const startMs = t.hackathonStart ? new Date(t.hackathonStart).getTime() : null;
       const isStarted = Boolean(startMs && !isNaN(startMs));
-      const totalSec = 2 * 60 * 60; // 2 hour duration
+      const totalSec = (150 + globalExtraMinutes) * 60; // 2h 30m base duration + live extensions
       const elapsedSec = isStarted ? Math.floor((Date.now() - startMs) / 1000) : 0;
       const isTimedOut = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec >= totalSec);
-      const isLive = Boolean(isStarted && !isEnded && !isTimedOut);
+      const isReading = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec < 30 * 60);
+      const isLive = Boolean(isStarted && !isEnded && !isTimedOut && !isReading);
       const isDemo = Boolean(t.isDemo || (teamId && teamId.startsWith("DEMO")));
       const displayEmail = formatDisplayEmail(t.M1_Email);
 
       // Live sprint remaining time calculation
       let remainingStr = "";
-      if (isLive && t.hackathonStart) {
+      if (isReading) {
+        const remReadSec = Math.max(0, 30 * 60 - elapsedSec);
+        const remM = Math.floor(remReadSec / 60);
+        const remS = remReadSec % 60;
+        remainingStr = `opens in ${remM}m ${remS}s`;
+      } else if (isLive && t.hackathonStart) {
         const remSec = Math.max(0, totalSec - elapsedSec);
         const remH = Math.floor(remSec / 3600);
         const remM = Math.floor((remSec % 3600) / 60);
@@ -296,6 +306,8 @@ document.addEventListener("DOMContentLoaded", () => {
         statusBadge = `<span class="status-pill ended"><i class="fas fa-flag-checkered"></i> CONCLUDED</span>`;
       } else if (isTimedOut) {
         statusBadge = `<span class="status-pill timed-out"><i class="fas fa-hourglass-end"></i> TIMED OUT</span>`;
+      } else if (isReading) {
+        statusBadge = `<span class="status-pill" style="background:rgba(6,182,212,0.15); color:#38bdf8; border:1px solid rgba(6,182,212,0.4); font-weight:700;"><i class="fas fa-book-reader"></i> READING PHASE (${remainingStr})</span>`;
       } else if (isLive) {
         statusBadge = `<span class="status-pill active"><span class="online-beacon"></span> LIVE SPRINT ${remainingStr ? `(${remainingStr})` : ''}</span>`;
       } else {
@@ -871,6 +883,130 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================================
   // TAB 3: GLOBAL SESSIONS & CONTROLS
   // =========================================================================
+  // --- Timer Extension & Global Competition Controls ---
+  async function loadSessionConfig() {
+    try {
+      const res = await manageFetch("/api/manage/session-config");
+      if (!res || !res.ok) return;
+      const data = await res.json();
+      if (data.session) {
+        globalExtraMinutes = data.session.extraMinutes || 0;
+        globalEndedState = Boolean(data.session.globalEnded === true);
+
+        const badge = document.getElementById("mgmtActiveExtensionBadge");
+        if (badge) badge.textContent = `+${globalExtraMinutes} Mins`;
+
+        const statusPill = document.getElementById("mgmtGlobalEndStatusPill");
+        if (statusPill) statusPill.style.display = globalEndedState ? "block" : "none";
+      }
+    } catch (err) {
+      console.warn("Load session config note:", err);
+    }
+  }
+
+  const extend10Btn = document.getElementById("extend10Btn");
+  const extend20Btn = document.getElementById("extend20Btn");
+  const extend30Btn = document.getElementById("extend30Btn");
+  const resetExtensionBtn = document.getElementById("resetExtensionBtn");
+
+  async function applyTimerExtension(mins) {
+    try {
+      const res = await manageFetch("/api/manage/extend-timer", {
+        method: "POST",
+        body: JSON.stringify({ minutes: mins })
+      });
+      if (res && res.ok) {
+        const data = await res.json();
+        globalExtraMinutes = data.session?.extraMinutes || 0;
+        const badge = document.getElementById("mgmtActiveExtensionBadge");
+        if (badge) badge.textContent = `+${globalExtraMinutes} Mins`;
+        showToast(`Timer extension set to +${globalExtraMinutes} Mins!`, "success");
+        loadParticipants();
+      } else {
+        showToast("Failed to extend timer", "error");
+      }
+    } catch (err) {
+      showToast("Error extending timer: " + err.message, "error");
+    }
+  }
+
+  if (extend10Btn) extend10Btn.addEventListener("click", () => applyTimerExtension(globalExtraMinutes + 10));
+  if (extend20Btn) extend20Btn.addEventListener("click", () => applyTimerExtension(globalExtraMinutes + 20));
+  if (extend30Btn) extend30Btn.addEventListener("click", () => applyTimerExtension(globalExtraMinutes + 30));
+  if (resetExtensionBtn) resetExtensionBtn.addEventListener("click", () => applyTimerExtension(0));
+
+  // Global End All Sessions
+  const globalEndAllSessionsBtn = document.getElementById("globalEndAllSessionsBtn");
+  if (globalEndAllSessionsBtn) {
+    globalEndAllSessionsBtn.addEventListener("click", async () => {
+      const confirmed = await window.showConfirmDialog({
+        title: "Global End Competition",
+        message: "Conclude all participant sprints immediately?",
+        details: "Every active participant dashboard will freeze and display 'SESSION CONCLUDED'. Submissions will be locked. You can undo this anytime with 'Restore / Reopen Sessions'.",
+        type: "danger",
+        confirmText: "Yes, Conclude All Sprints",
+        icon: "fas fa-power-off"
+      });
+      if (!confirmed) return;
+
+      globalEndAllSessionsBtn.disabled = true;
+      globalEndAllSessionsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locking all sessions...';
+
+      try {
+        const res = await manageFetch("/api/manage/end-all-sessions", { method: "POST" });
+        if (res && res.ok) {
+          const data = await res.json();
+          showToast(`✅ Global End triggered! Locked ${data.result?.totalConcluded || 0} active teams.`, "success");
+          await loadSessionConfig();
+          loadParticipants();
+        } else {
+          showToast("Failed to trigger global end", "error");
+        }
+      } catch (err) {
+        showToast("Error triggering global end: " + err.message, "error");
+      } finally {
+        globalEndAllSessionsBtn.disabled = false;
+        globalEndAllSessionsBtn.innerHTML = '<i class="fas fa-stop-circle"></i> End All Sessions (Conclude Competition)';
+      }
+    });
+  }
+
+  // Restore All Sessions
+  const restoreAllSessionsBtn = document.getElementById("restoreAllSessionsBtn");
+  if (restoreAllSessionsBtn) {
+    restoreAllSessionsBtn.addEventListener("click", async () => {
+      const confirmed = await window.showConfirmDialog({
+        title: "Restore & Reopen Sprints",
+        message: "Reopen participant sprints and unlock workspaces?",
+        details: "Teams whose sessions were concluded by Global End will be restored, allowing participants to resume work.",
+        type: "warning",
+        confirmText: "Yes, Restore Sprints",
+        icon: "fas fa-unlock-alt"
+      });
+      if (!confirmed) return;
+
+      restoreAllSessionsBtn.disabled = true;
+      restoreAllSessionsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restoring sessions...';
+
+      try {
+        const res = await manageFetch("/api/manage/restore-all-sessions", { method: "POST" });
+        if (res && res.ok) {
+          const data = await res.json();
+          showToast(`✅ Sprints restored! Reopened ${data.result?.totalRestored || 0} teams.`, "success");
+          await loadSessionConfig();
+          loadParticipants();
+        } else {
+          showToast("Failed to restore sessions", "error");
+        }
+      } catch (err) {
+        showToast("Error restoring sessions: " + err.message, "error");
+      } finally {
+        restoreAllSessionsBtn.disabled = false;
+        restoreAllSessionsBtn.innerHTML = '<i class="fas fa-unlock-alt"></i> Restore / Reopen Sessions';
+      }
+    });
+  }
+
   const resetConfirmModal = document.getElementById("resetConfirmModal");
   const quickResetAllBtn = document.getElementById("quickResetAllBtn");
   const triggerResetAllSessionsBtn = document.getElementById("triggerResetAllSessionsBtn");
@@ -2118,11 +2254,12 @@ Core Functional Requirements:
       const isBlocked = Boolean(t.blocked === true);
       const startMs = t.hackathonStart ? new Date(t.hackathonStart).getTime() : null;
       const isStarted = Boolean(startMs && !isNaN(startMs));
-      const totalSec = 2 * 60 * 60;
+      const totalSec = (150 + globalExtraMinutes) * 60;
       const elapsedSec = isStarted ? Math.floor((Date.now() - startMs) / 1000) : 0;
       const isTimedOut = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec >= totalSec);
-      const isLive = Boolean(isStarted && !isEnded && !isTimedOut);
-      const status = isBlocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isLive ? "Live Sprint" : "Registered")));
+      const isReading = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec < 30 * 60);
+      const isLive = Boolean(isStarted && !isEnded && !isTimedOut && !isReading);
+      const status = isBlocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isReading ? "Reading Phase" : (isLive ? "Live Sprint" : "Registered"))));
       const aiScoreVal = typeof t.aiScore === 'number' ? t.aiScore : (t.evaluation?.score ?? "Not Graded");
       const passVal = t.password || t.M1_Phone || t.phone || "";
 
