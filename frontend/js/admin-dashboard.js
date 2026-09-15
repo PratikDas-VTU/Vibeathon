@@ -1064,7 +1064,7 @@ Core Functional Requirements:
           const adminToken = sessionStorage.getItem("adminToken") || localStorage.getItem("adminToken");
           const uploadUrl = window.getApiUrl ? window.getApiUrl("/api/admin/problem-statement/upload") : "/api/admin/problem-statement/upload";
 
-          let res = await fetch(uploadUrl, {
+          const res = await fetch(uploadUrl, {
             method: "POST",
             headers: {
               "Authorization": "Bearer " + adminToken,
@@ -1073,21 +1073,6 @@ Core Functional Requirements:
             },
             body: JSON.stringify(payload)
           });
-
-          // Proxy limit / gateway fallback to direct Render backend
-          if (res.status === 413 || res.status === 502 || res.status === 504) {
-            console.warn(`Upload gateway status ${res.status}. Retrying directly against Render backend...`);
-            const directUrl = "https://vibeathon-backend-g210.onrender.com/api/admin/problem-statement/upload";
-            res = await fetch(directUrl, {
-              method: "POST",
-              headers: {
-                "Authorization": "Bearer " + adminToken,
-                "Content-Type": "application/json",
-                "ngrok-skip-browser-warning": "true"
-              },
-              body: JSON.stringify(payload)
-            });
-          }
 
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));

@@ -49,12 +49,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // Cold start / proxy limit mitigation for 413/502/504
-      if (res.status === 502 || res.status === 504 || res.status === 413) {
-        console.warn(`Gateway status ${res.status} for ${endpoint}. Retrying directly against Render backend...`);
+      // Cold start mitigation for 502/504 gateway timeout only
+      // NOTE: 413 (Payload Too Large) is intentionally excluded — retrying the same
+      // large payload directly to Render causes CORS failures (browser origin rejected).
+      // The backend 25mb limit fix handles 413 on the Render side.
+      if (res.status === 502 || res.status === 504) {
+        console.warn(`Gateway ${res.status} for ${endpoint}. Retrying directly against Render backend...`);
         const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
         const directUrl = `https://vibeathon-backend-g210.onrender.com${cleanEndpoint}`;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
         res = await fetch(directUrl, {
           ...options,
           headers: {
