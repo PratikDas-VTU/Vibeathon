@@ -414,6 +414,14 @@ document.addEventListener("DOMContentLoaded", () => {
       fastestTeamEl.textContent = completedList.length > 0 ? (completedList[0].teamId || completedList[0].id || completedList[0].vccId) : "—";
     }
 
+    // Sort demo teams to the bottom
+    const isDemo = t => Boolean(t.isDemo || (t.teamId || '').startsWith('DEMO'));
+    rankedTeams.sort((a, b) => {
+      const aDemo = isDemo(a) ? 1 : 0;
+      const bDemo = isDemo(b) ? 1 : 0;
+      return aDemo - bDemo;
+    });
+
     // 6. Render Table
     teamTable.innerHTML = "";
 
@@ -516,18 +524,43 @@ document.addEventListener("DOMContentLoaded", () => {
           <input
             type="number"
             min="0"
-            max="100"
+            max="20"
             step="1"
-            class="jury-score-input"
+            class="score-input"
             data-teamid="${escapeHtml(teamId)}"
-            value="${(team.juryScore !== null && team.juryScore !== undefined) ? team.juryScore : ''}"
+            data-field="interimScore"
+            value="${(team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : ''}"
             placeholder="—"
-            title="Enter Jury Marks (0-100)"
-            style="width:64px; background:transparent; border:1px solid rgba(255,255,255,0.12); border-radius:6px; color:var(--text-1); font-family:var(--font-mono); font-weight:700; font-size:0.92rem; text-align:center; padding:4px 6px; outline:none;"
+            title="Enter Interim Score (0-20)"
+            style="width:54px; background:transparent; border:1px solid rgba(255,255,255,0.12); border-radius:6px; color:var(--text-1); font-family:var(--font-mono); font-weight:700; font-size:0.92rem; text-align:center; padding:4px 4px; outline:none;"
           />
         </td>
+        <td style="text-align:center;">
+          <input
+            type="number"
+            min="0"
+            max="30"
+            step="1"
+            class="score-input"
+            data-teamid="${escapeHtml(teamId)}"
+            data-field="deploymentScore"
+            value="${(team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : ''}"
+            placeholder="—"
+            title="Enter Deployment Score (0-30)"
+            style="width:54px; background:transparent; border:1px solid rgba(255,255,255,0.12); border-radius:6px; color:var(--text-1); font-family:var(--font-mono); font-weight:700; font-size:0.92rem; text-align:center; padding:4px 4px; outline:none;"
+          />
+        </td>
+        <td style="text-align:center; font-family:var(--font-mono); font-weight:800; color:var(--cyan);">
+          ${(() => {
+            const ai = typeof team.aiScore === 'number' ? team.aiScore : 0;
+            const interim = typeof team.interimScore === 'number' ? team.interimScore : 0;
+            const deploy = typeof team.deploymentScore === 'number' ? team.deploymentScore : 0;
+            const hasAny = typeof team.aiScore === 'number' || typeof team.interimScore === 'number' || typeof team.deploymentScore === 'number';
+            return hasAny ? (ai + interim + deploy) + '/100' : '—';
+          })()}
+        </td>
         <td style="text-align: right;">
-          <button class="view-btn" data-id="${escapeHtml(teamId)}" title="Inspect Team Activity & Prompts">
+          <button class="view-btn" data-id="${escapeHtml(teamId)}" title="Inspect Team Activity &amp; Prompts">
             <i class="fas fa-eye"></i> View
           </button>
         </td>
@@ -538,40 +571,42 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==========================
-     JURY SCORE SAVE
+     SCORE SAVE (Interim / Deployment)
      ========================== */
   teamTable.addEventListener("change", async (e) => {
-    const input = e.target.closest(".jury-score-input");
+    const input = e.target.closest(".score-input");
     if (!input) return;
     const teamId = input.dataset.teamid;
+    const field = input.dataset.field; // "interimScore" or "deploymentScore"
     const raw = input.value.trim();
     const score = raw === "" ? null : Number(raw);
-    if (score !== null && (isNaN(score) || score < 0 || score > 100)) {
-      window.showToast("Jury score must be 0–100.", "error");
+    const maxVal = field === "interimScore" ? 20 : 30;
+    if (score !== null && (isNaN(score) || score < 0 || score > maxVal)) {
+      window.showToast(`Score must be 0–${maxVal}.`, "error");
       return;
     }
     try {
       const res = await adminFetch(`/api/manage/teams/${teamId}`, {
         method: "PUT",
-        body: JSON.stringify({ juryScore: score })
+        body: JSON.stringify({ [field]: score })
       });
       if (res && res.ok) {
         const t = teams.find(x => (x.teamId || x.id || x.vccId) === teamId);
-        if (t) t.juryScore = score;
+        if (t) t[field] = score;
         input.style.borderColor = "rgba(52,211,153,0.5)";
         setTimeout(() => { input.style.borderColor = "rgba(255,255,255,0.12)"; }, 1500);
-        window.showToast(`Jury marks saved for ${teamId}.`, "success");
+        window.showToast(`Score saved for ${teamId}.`, "success");
       } else {
-        window.showToast(`Failed to save jury marks for ${teamId}.`, "error");
+        window.showToast(`Failed to save score for ${teamId}.`, "error");
       }
     } catch (err) {
-      window.showToast("Network error saving jury marks.", "error");
+      window.showToast("Network error saving score.", "error");
     }
   });
 
   teamTable.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-      const input = e.target.closest(".jury-score-input");
+      const input = e.target.closest(".score-input");
       if (input) { input.blur(); }
     }
   });
@@ -1294,10 +1329,17 @@ Core Functional Requirements:
       "Sprint Duration": compFormatted,
       "AI Prompts Logged": stats.promptCount || 0,
       "Distinct AI Tools": stats.uniqueAITools || 0,
-      "AI Jury Score /50": aiScore !== null ? aiScore : "Not Graded",
+      "AI Score /50": aiScore !== null ? aiScore : "Not Graded",
+      "Interim Score /20": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
+      "Deployment Score /30": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—",
+      "Total /100": (() => {
+        const ai = typeof aiScore === 'number' ? aiScore : 0;
+        const interim = typeof team.interimScore === 'number' ? team.interimScore : 0;
+        const deploy = typeof team.deploymentScore === 'number' ? team.deploymentScore : 0;
+        return (typeof aiScore === 'number' || typeof team.interimScore === 'number' || typeof team.deploymentScore === 'number') ? (ai + interim + deploy) : "—";
+      })(),
       "GitHub Repository": team.githubUrl || "Not Submitted",
-      "Live Deployment URL": team.deploymentUrl || "Not Submitted",
-      "Jury Marks /100": (team.juryScore !== null && team.juryScore !== undefined) ? team.juryScore : "—"
+      "Live Deployment URL": team.deploymentUrl || "Not Submitted"
     };
   }
 
@@ -1339,10 +1381,12 @@ Core Functional Requirements:
       { header: "Status", dataKey: "Participation Status" },
       { header: "Duration", dataKey: "Sprint Duration" },
       { header: "Prompts", dataKey: "AI Prompts Logged" },
-      { header: "Jury Score /50", dataKey: "AI Jury Score /50" },
+      { header: "AI /50", dataKey: "AI Score /50" },
+      { header: "Interim /20", dataKey: "Interim Score /20" },
+      { header: "Deploy /30", dataKey: "Deployment Score /30" },
+      { header: "Total /100", dataKey: "Total /100" },
       { header: "GitHub", dataKey: "GitHub Repository" },
-      { header: "Live URL", dataKey: "Live Deployment URL" },
-      { header: "Jury Marks /100", dataKey: "Jury Marks /100" }
+      { header: "Live URL", dataKey: "Live Deployment URL" }
     ];
 
     doc.autoTable({
@@ -1355,24 +1399,26 @@ Core Functional Requirements:
       alternateRowStyles: { fillColor: [245, 247, 252] },
       columnStyles: {
         0: { cellWidth: 20, fontStyle: "bold" },
-        1: { cellWidth: 30 },
+        1: { cellWidth: 28 },
         2: { cellWidth: 22, font: "courier" },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 30 },
-        5: { cellWidth: 22, font: "courier" },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 20, halign: "center" },
-        8: { cellWidth: 16, halign: "center" },
-        9: { cellWidth: 20, halign: "center", fontStyle: "bold" },
-        10: { cellWidth: 35 },
-        11: { cellWidth: 35 },
-        12: { cellWidth: 25, halign: "center", fontStyle: "bold" }
+        3: { cellWidth: 24 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 20, font: "courier" },
+        6: { cellWidth: 18 },
+        7: { cellWidth: 18, halign: "center" },
+        8: { cellWidth: 14, halign: "center" },
+        9: { cellWidth: 16, halign: "center", fontStyle: "bold" },
+        10: { cellWidth: 18, halign: "center", fontStyle: "bold" },
+        11: { cellWidth: 18, halign: "center", fontStyle: "bold" },
+        12: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+        13: { cellWidth: 32 },
+        14: { cellWidth: 32 }
       },
       didParseCell(data) {
-        if ((data.column.index === 9 || data.column.index === 12) && data.section === "body") {
+        if ([9, 10, 11, 12].includes(data.column.index) && data.section === "body") {
           const v = Number(data.cell.raw);
           if (!isNaN(v)) {
-            data.cell.styles.textColor = v >= 40 ? [22, 163, 74] : v >= 25 ? [217, 119, 6] : [220, 38, 38];
+            data.cell.styles.textColor = v >= 40 ? [22, 163, 74] : v >= 20 ? [217, 119, 6] : [220, 38, 38];
           }
         }
       },
@@ -1397,7 +1443,8 @@ Core Functional Requirements:
     exportPdfBtn.addEventListener("click", () => {
       try {
         if (teams.length === 0) { window.showToast("No team data to export.", "info"); return; }
-        const rows = teams.map(buildTelemetryExportRow);
+        const realTeams = teams.filter(t => !(t.isDemo === true || (t.teamId || t.id || t.vccId || '').startsWith('DEMO')));
+        const rows = realTeams.map(buildTelemetryExportRow);
         exportToPDF(rows);
         window.showToast(`PDF report generated for ${rows.length} teams.`, "success");
       } catch (err) {
@@ -1412,7 +1459,8 @@ Core Functional Requirements:
   if (exportExcelBtn) {
     exportExcelBtn.addEventListener("click", async () => {
       try {
-        const rows = teams.map(buildTelemetryExportRow);
+        const realTeams = teams.filter(t => !(t.isDemo === true || (t.teamId || t.id || t.vccId || '').startsWith('DEMO')));
+        const rows = realTeams.map(buildTelemetryExportRow);
         const dateStr = new Date().toISOString().slice(0, 10);
         exportToExcel(rows, `vibeathon_telemetry_${dateStr}.xlsx`, "Telemetry");
         window.showToast(`Exported telemetry for ${rows.length} teams to Excel!`, "success");
@@ -1439,6 +1487,9 @@ Core Functional Requirements:
 
         teams.forEach(team => {
           const tId = team.teamId || team.id || team.vccId;
+          // Skip demo teams
+          if (team.isDemo === true || (tId || '').startsWith('DEMO')) return;
+
           const leader = team.M1_Name || team.leaderName || "—";
           const college = team.college || team.M1_College || "—";
           const teamSize = team.teamSize || 2;
@@ -1504,7 +1555,8 @@ Core Functional Requirements:
               "Total Prompts": totalPrompts,
               "GitHub": team.githubUrl || "—",
               "Live URL": team.deploymentUrl || "—",
-              "Jury Marks /100": (team.juryScore !== null && team.juryScore !== undefined) ? team.juryScore : "—"
+              "Interim Score /20": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
+              "Deployment Score /30": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—"
             });
           });
         });
@@ -1531,6 +1583,142 @@ Core Functional Requirements:
       }
     });
   }
+
+  /* ==========================
+     SCORE SHEET EXPORT
+     ========================== */
+  function buildScoreSheetRows() {
+    return teams
+      .filter(t => !(t.isDemo === true || (t.teamId || t.id || t.vccId || '').startsWith('DEMO')))
+      .map(team => {
+        const tId = team.teamId || team.id || team.vccId || "";
+        const aiScore = computeTeamAIScore(tId, team.aiScore);
+        const ai = typeof aiScore === 'number' ? aiScore : 0;
+        const interim = typeof team.interimScore === 'number' ? team.interimScore : 0;
+        const deploy = typeof team.deploymentScore === 'number' ? team.deploymentScore : 0;
+        const hasScore = typeof aiScore === 'number' || typeof team.interimScore === 'number' || typeof team.deploymentScore === 'number';
+        return {
+          "Team ID": tId,
+          "Team Leader Name": team.M1_Name || team.leaderName || "—",
+          "AI Score /50": aiScore !== null ? aiScore : "—",
+          "Interim Score /20": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
+          "Deployment Score /30": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—",
+          "Total /100": hasScore ? (ai + interim + deploy) : "—"
+        };
+      })
+      .sort((a, b) => {
+        const ta = typeof a["Total /100"] === 'number' ? a["Total /100"] : -1;
+        const tb = typeof b["Total /100"] === 'number' ? b["Total /100"] : -1;
+        return tb - ta;
+      });
+  }
+
+  const exportScoreSheetExcelBtn = document.getElementById("exportScoreSheetExcelBtn");
+  if (exportScoreSheetExcelBtn) {
+    exportScoreSheetExcelBtn.addEventListener("click", () => {
+      try {
+        const rows = buildScoreSheetRows();
+        if (rows.length === 0) { window.showToast("No team data to export.", "info"); return; }
+        const dateStr = new Date().toISOString().slice(0, 10);
+        exportToExcel(rows, `Vibeathon_Score_Sheet_${dateStr}.xlsx`, "Score Sheet");
+        window.showToast(`Score Sheet exported for ${rows.length} teams!`, "success");
+      } catch (err) {
+        console.error("Score Sheet Excel error:", err);
+        window.showToast("Failed to export Score Sheet: " + err.message, "error");
+      }
+    });
+  }
+
+  const exportScoreSheetPdfBtn = document.getElementById("exportScoreSheetPdfBtn");
+  if (exportScoreSheetPdfBtn) {
+    exportScoreSheetPdfBtn.addEventListener("click", () => {
+      try {
+        const rows = buildScoreSheetRows();
+        if (rows.length === 0) { window.showToast("No team data to export.", "info"); return; }
+        if (typeof window.jspdf === "undefined" && typeof jsPDF === "undefined") {
+          window.showToast("PDF library unavailable.", "error"); return;
+        }
+        const { jsPDF } = window.jspdf || window;
+        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const dateStr = new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text("VIBEATHON 2026 — Score Sheet", 14, 16);
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Vel Tech University  |  CSE (CS) Hackathon  |  Generated: ${dateStr}`, 14, 23);
+        doc.text(`Total Teams: ${rows.length}`, doc.internal.pageSize.getWidth() - 14, 23, { align: "right" });
+
+        doc.setDrawColor(180, 180, 180);
+        doc.line(14, 26, doc.internal.pageSize.getWidth() - 14, 26);
+
+        doc.autoTable({
+          columns: [
+            { header: "#", dataKey: "_rank" },
+            { header: "Team ID", dataKey: "Team ID" },
+            { header: "Team Leader Name", dataKey: "Team Leader Name" },
+            { header: "AI Score /50", dataKey: "AI Score /50" },
+            { header: "Interim Score /20", dataKey: "Interim Score /20" },
+            { header: "Deployment Score /30", dataKey: "Deployment Score /30" },
+            { header: "Total /100", dataKey: "Total /100" }
+          ],
+          body: rows.map((r, i) => ({ ...r, _rank: i + 1 })),
+          startY: 30,
+          margin: { left: 14, right: 14 },
+          styles: { fontSize: 9, cellPadding: 3, overflow: "linebreak" },
+          headStyles: { fillColor: [15, 23, 42], textColor: [200, 200, 255], fontStyle: "bold", fontSize: 9.5 },
+          alternateRowStyles: { fillColor: [245, 248, 255] },
+          columnStyles: {
+            0: { cellWidth: 12, halign: "center", fontStyle: "bold" },
+            1: { cellWidth: 35, fontStyle: "bold" },
+            2: { cellWidth: 70 },
+            3: { cellWidth: 30, halign: "center", fontStyle: "bold" },
+            4: { cellWidth: 30, halign: "center", fontStyle: "bold" },
+            5: { cellWidth: 35, halign: "center", fontStyle: "bold" },
+            6: { cellWidth: 30, halign: "center", fontStyle: "bold" }
+          },
+          didParseCell(data) {
+            if ([3, 4, 5, 6].includes(data.column.index) && data.section === "body") {
+              const v = Number(data.cell.raw);
+              if (!isNaN(v) && v > 0) {
+                data.cell.styles.textColor = v >= 80 ? [22, 163, 74] : v >= 50 ? [217, 119, 6] : [220, 38, 38];
+              }
+            }
+            // Highlight top 3
+            if (data.section === "body" && data.column.index === 0) {
+              const rank = Number(data.cell.raw);
+              if (rank === 1) data.cell.styles.fillColor = [255, 215, 0];
+              else if (rank === 2) data.cell.styles.fillColor = [192, 192, 192];
+              else if (rank === 3) data.cell.styles.fillColor = [205, 127, 50];
+            }
+          },
+          didDrawPage(data) {
+            const pageCount = doc.internal.getNumberOfPages();
+            const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text(
+              `Page ${pageNum} of ${pageCount}  |  Vibeathon 2026  |  Vel Tech University  |  Confidential`,
+              doc.internal.pageSize.getWidth() / 2,
+              doc.internal.pageSize.getHeight() - 8,
+              { align: "center" }
+            );
+          }
+        });
+
+        doc.save(`Vibeathon_Score_Sheet_${new Date().toISOString().slice(0, 10)}.pdf`);
+        window.showToast(`Score Sheet PDF generated for ${rows.length} teams!`, "success");
+      } catch (err) {
+        console.error("Score Sheet PDF error:", err);
+        window.showToast("Failed to generate Score Sheet PDF: " + err.message, "error");
+      }
+    });
+  }
+
 
   /* ==========================
      RUN AI EVALUATION

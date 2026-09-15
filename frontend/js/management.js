@@ -258,8 +258,17 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderTeams(teams) {
     if (!teamsTableBody) return;
 
+    // Sort demo teams to the bottom
+    teams = [...teams].sort((a, b) => {
+      const aId = a.id || a.teamId || a.vccId || '';
+      const bId = b.id || b.teamId || b.vccId || '';
+      const aDemo = a.isDemo || aId.startsWith('DEMO') ? 1 : 0;
+      const bDemo = b.isDemo || bId.startsWith('DEMO') ? 1 : 0;
+      return aDemo - bDemo;
+    });
+
     if (teams.length === 0) {
-      teamsTableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-3);">No matching teams found.</td></tr>`;
+      teamsTableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 2rem; color: var(--text-3);">No matching teams found.</td></tr>`;
       return;
     }
 
@@ -347,6 +356,15 @@ document.addEventListener("DOMContentLoaded", () => {
         aiScoreBadge = `<span class="ai-score-pill" title="AI Score: ${normScore}/50"><i class="fas fa-bolt"></i> ${normScore}/50</span>`;
       }
 
+      // Total score calculation
+      const aiVal = typeof t.aiScore === 'number' ? (t.aiScore > 50 ? Math.round(t.aiScore / 2) : t.aiScore) : 0;
+      const interimVal = typeof t.interimScore === 'number' ? t.interimScore : 0;
+      const deployVal = typeof t.deploymentScore === 'number' ? t.deploymentScore : 0;
+      const hasAnyScore = typeof t.aiScore === 'number' || typeof t.interimScore === 'number' || typeof t.deploymentScore === 'number';
+      const totalDisplay = hasAnyScore ? `<span style="font-family:var(--font-mono);font-weight:800;color:var(--cyan);">${aiVal + interimVal + deployVal}/100</span>` : `<span style="color:var(--text-3)">—</span>`;
+
+      const scoreInputStyle = `width:52px; background:transparent; border:1px solid rgba(255,255,255,0.12); border-radius:6px; color:var(--text-1); font-family:var(--font-mono); font-weight:700; font-size:0.88rem; text-align:center; padding:3px 4px; outline:none;`;
+
       return `
         <tr class="${isBlocked ? 'row-suspended' : ''}">
           <td class="col-id"><span class="team-badge ${isBlocked ? 'badge-suspended' : ''}">${teamId}</span></td>
@@ -370,12 +388,31 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
           <td class="col-status">${statusBadge}</td>
           <td class="col-deliv">${deliverableSummary}</td>
-          <td class="col-score">${aiScoreBadge}</td>
+          <td class="col-score" style="text-align:center;">${aiScoreBadge}</td>
+          <td class="col-score" style="text-align:center;">
+            <input type="number" min="0" max="20" step="1"
+              class="mgmt-score-input"
+              data-teamid="${escapeHtml(teamId)}"
+              data-field="interimScore"
+              value="${(t.interimScore !== null && t.interimScore !== undefined) ? t.interimScore : ''}"
+              placeholder="—" title="Interim Score (0-20)"
+              style="${scoreInputStyle}" />
+          </td>
+          <td class="col-score" style="text-align:center;">
+            <input type="number" min="0" max="30" step="1"
+              class="mgmt-score-input"
+              data-teamid="${escapeHtml(teamId)}"
+              data-field="deploymentScore"
+              value="${(t.deploymentScore !== null && t.deploymentScore !== undefined) ? t.deploymentScore : ''}"
+              placeholder="—" title="Deployment Score (0-30)"
+              style="${scoreInputStyle}" />
+          </td>
+          <td class="col-score" style="text-align:center;">${totalDisplay}</td>
           <td class="col-actions actions-cell">
             <div class="actions-wrap">
               ${isBlocked ? `
               <!-- UNBLOCK BUTTON FOR SUSPENDED TEAMS -->
-              <button class="btn btn-success btn-sm js-team-unblock" data-id="${escapeHtml(teamId)}" title="Unblock Team & Restore Access" style="background:var(--green); color:#000; font-weight:700;">
+              <button class="btn btn-success btn-sm js-team-unblock" data-id="${escapeHtml(teamId)}" title="Unblock Team &amp; Restore Access" style="background:var(--green); color:#000; font-weight:700;">
                 <i class="fas fa-unlock"></i> Unblock
               </button>
               ` : `
@@ -423,6 +460,46 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (deleteBtn) {
         const teamId = deleteBtn.dataset.id;
         if (teamId && window.deleteTeamSingle) window.deleteTeamSingle(teamId);
+      }
+    });
+
+    // Score inputs: Interim & Deployment save on change
+    teamsTableBody.addEventListener("change", async (e) => {
+      const input = e.target.closest(".mgmt-score-input");
+      if (!input) return;
+      const teamId = input.dataset.teamid;
+      const field = input.dataset.field;
+      const raw = input.value.trim();
+      const score = raw === "" ? null : Number(raw);
+      const maxVal = field === "interimScore" ? 20 : 30;
+      if (score !== null && (isNaN(score) || score < 0 || score > maxVal)) {
+        showToast(`Score must be 0–${maxVal}.`, "error");
+        return;
+      }
+      try {
+        const res = await fetch(`/api/manage/teams/${teamId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "x-admin-token": localStorage.getItem("mgmtToken") || "" },
+          body: JSON.stringify({ [field]: score })
+        });
+        if (res && res.ok) {
+          const t = allTeamsData.find(x => (x.id || x.teamId || x.vccId) === teamId);
+          if (t) t[field] = score;
+          input.style.borderColor = "rgba(52,211,153,0.5)";
+          setTimeout(() => { input.style.borderColor = "rgba(255,255,255,0.12)"; }, 1500);
+          showToast(`Score saved for ${teamId}.`, "success");
+        } else {
+          showToast(`Failed to save score for ${teamId}.`, "error");
+        }
+      } catch (err) {
+        showToast("Network error saving score.", "error");
+      }
+    });
+
+    teamsTableBody.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const input = e.target.closest(".mgmt-score-input");
+        if (input) input.blur();
       }
     });
   }
@@ -2248,54 +2325,67 @@ Core Functional Requirements:
   }
 
   function buildParticipantExportObjects(teamsList) {
-    return teamsList.map(t => {
-      const teamId = t.Team_ID || t.teamId || t.id || t.vccId || t.VCC_ID || "";
-      const isEnded = Boolean(t.sessionEnded);
-      const isBlocked = Boolean(t.blocked === true);
-      const startMs = t.hackathonStart ? new Date(t.hackathonStart).getTime() : null;
-      const isStarted = Boolean(startMs && !isNaN(startMs));
-      const totalSec = (150 + globalExtraMinutes) * 60;
-      const elapsedSec = isStarted ? Math.floor((Date.now() - startMs) / 1000) : 0;
-      const isTimedOut = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec >= totalSec);
-      const isReading = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec < 30 * 60);
-      const isLive = Boolean(isStarted && !isEnded && !isTimedOut && !isReading);
-      const status = isBlocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isReading ? "Reading Phase" : (isLive ? "Live Sprint" : "Registered"))));
-      const aiScoreVal = typeof t.aiScore === 'number' ? t.aiScore : (t.evaluation?.score ?? "Not Graded");
-      const passVal = t.password || t.M1_Phone || t.phone || "";
+    return teamsList
+      .filter(t => {
+        const tid = t.Team_ID || t.teamId || t.id || t.vccId || t.VCC_ID || '';
+        return !(t.isDemo === true || tid.startsWith('DEMO'));
+      })
+      .map(t => {
+        const teamId = t.Team_ID || t.teamId || t.id || t.vccId || t.VCC_ID || "";
+        const isEnded = Boolean(t.sessionEnded);
+        const isBlocked = Boolean(t.blocked === true);
+        const startMs = t.hackathonStart ? new Date(t.hackathonStart).getTime() : null;
+        const isStarted = Boolean(startMs && !isNaN(startMs));
+        const totalSec = (150 + globalExtraMinutes) * 60;
+        const elapsedSec = isStarted ? Math.floor((Date.now() - startMs) / 1000) : 0;
+        const isTimedOut = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec >= totalSec);
+        const isReading = Boolean(isStarted && !isBlocked && !isEnded && elapsedSec < 30 * 60);
+        const isLive = Boolean(isStarted && !isEnded && !isTimedOut && !isReading);
+        const status = isBlocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isReading ? "Reading Phase" : (isLive ? "Live Sprint" : "Registered"))));
+        const aiScoreRaw = typeof t.aiScore === 'number' ? t.aiScore : (t.evaluation?.score ?? null);
+        const aiScore = aiScoreRaw !== null ? (aiScoreRaw > 50 ? Math.round(aiScoreRaw / 2) : aiScoreRaw) : "Not Graded";
+        const passVal = t.password || t.M1_Phone || t.phone || "";
 
-      // Compute duration string
-      let sprintDuration = "—";
-      if (isEnded && startMs) {
-        const endMs = t.completedAt || t.sessionEndedAt ? new Date(t.completedAt || t.sessionEndedAt).getTime() : null;
-        if (endMs) {
-          const diffMs = endMs - startMs;
-          const h = Math.floor(diffMs / 3600000);
-          const m = Math.floor((diffMs % 3600000) / 60000);
-          const s = Math.floor((diffMs % 60000) / 1000);
-          sprintDuration = `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+        // Compute duration string
+        let sprintDuration = "—";
+        if (isEnded && startMs) {
+          const endMs = t.completedAt || t.sessionEndedAt ? new Date(t.completedAt || t.sessionEndedAt).getTime() : null;
+          if (endMs) {
+            const diffMs = endMs - startMs;
+            const h = Math.floor(diffMs / 3600000);
+            const m = Math.floor((diffMs % 3600000) / 60000);
+            const s = Math.floor((diffMs % 60000) / 1000);
+            sprintDuration = `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+          }
+        } else if (isTimedOut) {
+          sprintDuration = "2h 30m 00s";
         }
-      } else if (isTimedOut) {
-        sprintDuration = "2h 00m 00s";
-      }
 
-      return {
-        "Team ID": teamId,
-        "Team Lead Name": t.M1_Name || t.leaderName || "",
-        "Lead VTU No.": t.M1_VtuNo || t.m1VtuNo || "",
-        "Branch": t.M1_Branch || t.branch || "",
-        "Lead Email (Login ID)": t.M1_Email || t.email || "",
-        "Lead Password": passVal,
-        "Member 2 Name": t.M2_Name || "—",
-        "Member 2 VTU No.": t.M2_VtuNo || t.m2VtuNo || "—",
-        "Member 2 Branch": t.M2_Branch || t.m2Branch || "—",
-        "Participation Status": status,
-        "Sprint Duration": sprintDuration,
-        "GitHub Repository": t.githubUrl || "Not Submitted",
-        "Live Deployment URL": t.deploymentUrl || "Not Submitted",
-        "AI Jury Score /50": aiScoreVal,
-        "Jury Marks /100": (t.juryScore !== null && t.juryScore !== undefined) ? t.juryScore : "—"
-      };
-    });
+        const ai = typeof t.aiScore === 'number' ? (t.aiScore > 50 ? Math.round(t.aiScore / 2) : t.aiScore) : 0;
+        const interim = typeof t.interimScore === 'number' ? t.interimScore : 0;
+        const deploy = typeof t.deploymentScore === 'number' ? t.deploymentScore : 0;
+        const hasAnyScore = typeof t.aiScore === 'number' || typeof t.interimScore === 'number' || typeof t.deploymentScore === 'number';
+
+        return {
+          "Team ID": teamId,
+          "Team Lead Name": t.M1_Name || t.leaderName || "",
+          "Lead VTU No.": t.M1_VtuNo || t.m1VtuNo || "",
+          "Branch": t.M1_Branch || t.branch || "",
+          "Lead Email (Login ID)": t.M1_Email || t.email || "",
+          "Lead Password": passVal,
+          "Member 2 Name": t.M2_Name || "—",
+          "Member 2 VTU No.": t.M2_VtuNo || t.m2VtuNo || "—",
+          "Member 2 Branch": t.M2_Branch || t.m2Branch || "—",
+          "Participation Status": status,
+          "Sprint Duration": sprintDuration,
+          "GitHub Repository": t.githubUrl || "Not Submitted",
+          "Live Deployment URL": t.deploymentUrl || "Not Submitted",
+          "AI Score /50": aiScore,
+          "Interim Score /20": (t.interimScore !== null && t.interimScore !== undefined) ? t.interimScore : "—",
+          "Deployment Score /30": (t.deploymentScore !== null && t.deploymentScore !== undefined) ? t.deploymentScore : "—",
+          "Total /100": hasAnyScore ? (ai + interim + deploy) : "—"
+        };
+      });
   }
 
   function downloadCsvFile(rows, filename) {

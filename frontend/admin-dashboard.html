@@ -176,6 +176,16 @@
             <i class="fas fa-file-invoice"></i> Export Prompt Audit
           </button>
 
+          <!-- Score Sheet Excel -->
+          <button id="exportScoreSheetExcelBtn" class="btn-tool" title="Export Vibeathon Score Sheet to Excel">
+            <i class="fas fa-star"></i> Score Sheet (Excel)
+          </button>
+
+          <!-- Score Sheet PDF -->
+          <button id="exportScoreSheetPdfBtn" class="btn-tool" title="Export Vibeathon Score Sheet to PDF">
+            <i class="fas fa-star"></i> Score Sheet (PDF)
+          </button>
+
           <!-- Problem Statement Manager -->
           <button id="manageProblemBtn" class="btn-tool" title="Upload challenge document and edit evaluation criteria">
             <i class="fas fa-file-upload"></i> Problem Statement
@@ -205,14 +215,16 @@
               <th style="width: 140px;">Duration</th>
               <th style="width: 160px;">Deliverables</th>
               <th style="width: 80px;">Prompts</th>
-              <th style="width: 110px;">AI Score</th>
-              <th style="width: 110px;">Jury Marks</th>
+              <th style="width: 90px;">AI /50</th>
+              <th style="width: 90px;">Interim /20</th>
+              <th style="width: 90px;">Deploy /30</th>
+              <th style="width: 80px;">Total /100</th>
               <th style="width: 100px; text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody id="teamTable">
             <tr>
-              <td colspan="10" class="table-loading">
+              <td colspan="12" class="table-loading">
                 <i class="fas fa-spinner fa-spin"></i> Loading participant telemetry...
               </td>
             </tr>
