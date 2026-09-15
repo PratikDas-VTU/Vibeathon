@@ -1330,10 +1330,10 @@ Core Functional Requirements:
       "Sprint Duration": compFormatted,
       "AI Prompts Logged": stats.promptCount || 0,
       "Distinct AI Tools": stats.uniqueAITools || 0,
-      "AI Score /50": aiScore !== null ? aiScore : "Not Graded",
-      "Interim Score /20": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
-      "Deployment Score /30": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—",
-      "Total /100": (() => {
+      "AI Score (50 marks)": aiScore !== null ? aiScore : "Not Graded",
+      "Interim Score (20 marks)": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
+      "Deployment Score (30 marks)": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—",
+      "Total (100 marks)": (() => {
         const ai = typeof aiScore === 'number' ? aiScore : 0;
         const interim = typeof team.interimScore === 'number' ? team.interimScore : 0;
         const deploy = typeof team.deploymentScore === 'number' ? team.deploymentScore : 0;
@@ -1383,10 +1383,10 @@ Core Functional Requirements:
       { header: "Status", dataKey: "Participation Status" },
       { header: "Duration", dataKey: "Sprint Duration" },
       { header: "Prompts", dataKey: "AI Prompts Logged" },
-      { header: "AI /50", dataKey: "AI Score /50" },
-      { header: "Interim /20", dataKey: "Interim Score /20" },
-      { header: "Deploy /30", dataKey: "Deployment Score /30" },
-      { header: "Total /100", dataKey: "Total /100" },
+      { header: "AI Score\n50 marks", dataKey: "AI Score (50 marks)" },
+      { header: "Interim\n20 marks", dataKey: "Interim Score (20 marks)" },
+      { header: "Deploy\n30 marks", dataKey: "Deployment Score (30 marks)" },
+      { header: "Total\n100 marks", dataKey: "Total (100 marks)" },
       { header: "GitHub", dataKey: "GitHub Repository" },
       { header: "Live URL", dataKey: "Live Deployment URL" }
     ];
@@ -1559,8 +1559,8 @@ Core Functional Requirements:
               "Total Prompts": totalPrompts,
               "GitHub": team.githubUrl || "—",
               "Live URL": team.deploymentUrl || "—",
-              "Interim Score /20": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
-              "Deployment Score /30": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—"
+              "Interim Score (20 marks)": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
+              "Deployment Score (30 marks)": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—"
             });
           });
         });
@@ -1604,15 +1604,15 @@ Core Functional Requirements:
         return {
           "Team ID": tId,
           "Team Leader Name": team.M1_Name || team.leaderName || "—",
-          "AI Score /50": aiScore !== null ? aiScore : "—",
-          "Interim Score /20": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
-          "Deployment Score /30": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—",
-          "Total /100": hasScore ? (ai + interim + deploy) : "—"
+          "AI Score (50 marks)": aiScore !== null ? aiScore : "—",
+          "Interim Score (20 marks)": (team.interimScore !== null && team.interimScore !== undefined) ? team.interimScore : "—",
+          "Deployment Score (30 marks)": (team.deploymentScore !== null && team.deploymentScore !== undefined) ? team.deploymentScore : "—",
+          "Total (100 marks)": hasScore ? (ai + interim + deploy) : "—"
         };
       })
       .sort((a, b) => {
-        const ta = typeof a["Total /100"] === 'number' ? a["Total /100"] : -1;
-        const tb = typeof b["Total /100"] === 'number' ? b["Total /100"] : -1;
+        const ta = typeof a["Total (100 marks)"] === 'number' ? a["Total (100 marks)"] : -1;
+        const tb = typeof b["Total (100 marks)"] === 'number' ? b["Total (100 marks)"] : -1;
         return tb - ta;
       });
   }
@@ -1665,10 +1665,10 @@ Core Functional Requirements:
             { header: "#", dataKey: "_rank" },
             { header: "Team ID", dataKey: "Team ID" },
             { header: "Team Leader Name", dataKey: "Team Leader Name" },
-            { header: "AI Score /50", dataKey: "AI Score /50" },
-            { header: "Interim Score /20", dataKey: "Interim Score /20" },
-            { header: "Deployment Score /30", dataKey: "Deployment Score /30" },
-            { header: "Total /100", dataKey: "Total /100" }
+            { header: "AI Score\n50 marks", dataKey: "AI Score (50 marks)" },
+            { header: "Interim Score\n20 marks", dataKey: "Interim Score (20 marks)" },
+            { header: "Deployment Score\n30 marks", dataKey: "Deployment Score (30 marks)" },
+            { header: "Total\n100 marks", dataKey: "Total (100 marks)" }
           ],
           body: rows.map((r, i) => ({ ...r, _rank: i + 1 })),
           startY: 30,

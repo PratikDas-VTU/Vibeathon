@@ -329,159 +329,123 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
     // ---- Batch email deduplication ----
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const seenEmails = new Set();
-    let autoVbIndex = 0; // increments only for rows that need an auto-generated ID
 
+    // Pre-validate and build team data objects (sync, fast)
+    const validTeams = [];
     for (let i = 0; i < importedList.length; i++) {
       const row = importedList[i];
-      try {
-        let leaderEmail = (row.M1_Email || row.email || row.leaderEmail || "").trim().toLowerCase();
-        if (leaderEmail.includes("@")) {
-          const atIdx = leaderEmail.indexOf("@");
-          const local = leaderEmail.slice(0, atIdx);
-          const domain = leaderEmail.slice(atIdx + 1).replace(/,/g, ".");
-          leaderEmail = local + "@" + domain;
-        }
-        const malformedMatch = leaderEmail.match(/^(\d+)gmail@\.com$/i) || leaderEmail.match(/^(\d+)@?g[a-z]+@?\.com$/i);
-        if (malformedMatch) {
-          leaderEmail = `vtu${malformedMatch[1]}@veltech.edu.in`;
-        }
-        const leaderPhone = String(row.M1_Phone || row.phone || row.leaderPhone || "").replace(/[^0-9]/g, "").trim();
-        const leaderName = (row.M1_Name || row.leaderName || row.name || `Team Lead ${i + 1}`).trim();
-        let teamId = (row.Team_ID || row.teamId || row.id || row.VCC_ID || row.vccId || "").trim().toUpperCase();
+      let leaderEmail = (row.M1_Email || row.email || row.leaderEmail || "").trim().toLowerCase();
+      if (leaderEmail.includes("@")) {
+        const atIdx = leaderEmail.indexOf("@");
+        const local = leaderEmail.slice(0, atIdx);
+        const domain = leaderEmail.slice(atIdx + 1).replace(/,/g, ".");
+        leaderEmail = local + "@" + domain;
+      }
+      const malformedMatch = leaderEmail.match(/^(\d+)gmail@\.com$/i) || leaderEmail.match(/^(\d+)@?g[a-z]+@?\.com$/i);
+      if (malformedMatch) {
+        leaderEmail = `vtu${malformedMatch[1]}@veltech.edu.in`;
+      }
+      const leaderPhone = String(row.M1_Phone || row.phone || row.leaderPhone || "").replace(/[^0-9]/g, "").trim();
+      const leaderName = (row.M1_Name || row.leaderName || row.name || `Team Lead ${i + 1}`).trim();
+      let teamId = (row.Team_ID || row.teamId || row.id || row.VCC_ID || row.vccId || "").trim().toUpperCase();
 
-        // Auto-generate VB ID if none supplied
-        if (!teamId) {
-          autoVbIndex++;
-          teamId = `VB${String(maxVbNum + autoVbIndex).padStart(3, "0")}`;
-        }
+      if (!teamId) {
+        teamId = `VB${String(maxVbNum + validTeams.length + 1).padStart(3, "0")}`;
+      }
 
-        // Validate leader email
-        if (!leaderEmail) {
-          results.errors.push(`Row ${i + 1}: Skipped — missing leader email.`);
-          continue;
-        }
-        if (!emailRegex.test(leaderEmail)) {
-          results.errors.push(`Row ${i + 1}: Skipped — invalid leader email format.`);
-          continue;
-        }
-        if (seenEmails.has(leaderEmail)) {
-          results.errors.push(`Row ${i + 1}: Skipped — duplicate leader email in this batch.`);
-          continue;
-        }
-        seenEmails.add(leaderEmail);
+      if (!leaderEmail) { results.errors.push(`Row ${i + 1}: Skipped — missing leader email.`); continue; }
+      if (!emailRegex.test(leaderEmail)) { results.errors.push(`Row ${i + 1}: Skipped — invalid leader email format.`); continue; }
+      if (seenEmails.has(leaderEmail)) { results.errors.push(`Row ${i + 1}: Skipped — duplicate leader email in this batch.`); continue; }
+      seenEmails.add(leaderEmail);
+      if (!leaderPhone || leaderPhone.length < 7) { results.errors.push(`Row ${i + 1}: Skipped — leader phone is missing or too short (need ≥7 digits).`); continue; }
 
-        // Validate leader phone — reject instead of padding with fake digits
-        if (!leaderPhone || leaderPhone.length < 7) {
-          results.errors.push(`Row ${i + 1}: Skipped — leader phone is missing or too short (need ≥7 digits).`);
-          continue;
-        }
+      const teamData = {
+        id: teamId, teamId, vccId: teamId,
+        teamNo: parseInt(row.Team_No || row.teamNo) || (i + 1),
+        teamSize: parseInt(row.Team_Size || row.teamSize) || (row.M2_Name ? 2 : 1),
+        college: (row.M1_College || row.college || "").trim(),
+        M1_Name: leaderName, M1_Email: leaderEmail, M1_Phone: leaderPhone,
+        M1_VtuNo: (row.M1_VtuNo || row.m1VtuNo || row.M1_VTUNo || "").trim(),
+        M1_Branch: (row.M1_Branch || row.M1_Dept || row.branch || "").trim(),
+        sessionEnded: false, hackathonStart: null, githubUrl: null, deploymentUrl: null
+      };
 
-        const teamData = {
-          id: teamId,
-          teamId: teamId,
-          vccId: teamId,
-          teamNo: parseInt(row.Team_No || row.teamNo) || (i + 1),
-          teamSize: parseInt(row.Team_Size || row.teamSize) || (row.M2_Name ? 2 : 1),
-          college: (row.M1_College || row.college || "").trim(),
-          M1_Name: leaderName,
-          M1_Email: leaderEmail,
-          M1_Phone: leaderPhone,
-          M1_VtuNo: (row.M1_VtuNo || row.m1VtuNo || row.M1_VTUNo || "").trim(),
-          M1_Branch: (row.M1_Branch || row.M1_Dept || row.branch || "").trim(),
-          sessionEnded: false,
-          hackathonStart: null,
-          githubUrl: null,
-          deploymentUrl: null
-        };
+      if (row.M2_Name) {
+        teamData.M2_Name = row.M2_Name.trim();
+        teamData.M2_Email = (row.M2_Email || "").trim().toLowerCase();
+        teamData.M2_Phone = String(row.M2_Phone || "").replace(/[^0-9]/g, "").trim();
+        teamData.M2_College = (row.M2_College || teamData.college || "").trim();
+        teamData.M2_VtuNo = (row.M2_VtuNo || row.M2_VTUNo || "").trim();
+        teamData.M2_Branch = (row.M2_Branch || row.M2_Dept || row.M2_Department || "").trim();
+      }
 
-        // Member 2 — full schema including VTU number and branch
-        if (row.M2_Name) {
-          teamData.M2_Name = row.M2_Name.trim();
-          teamData.M2_Email = (row.M2_Email || "").trim().toLowerCase();
-          teamData.M2_Phone = String(row.M2_Phone || "").replace(/[^0-9]/g, "").trim();
-          teamData.M2_College = (row.M2_College || teamData.college || "").trim();
-          teamData.M2_VtuNo = (row.M2_VtuNo || row.M2_VTUNo || "").trim();
-          teamData.M2_Branch = (row.M2_Branch || row.M2_Dept || row.M2_Department || "").trim();
-        }
+      teamData.members = [{
+        name: teamData.M1_Name, email: teamData.M1_Email, phone: teamData.M1_Phone,
+        college: teamData.M1_College || teamData.college, branch: teamData.M1_Branch,
+        vtuNo: teamData.M1_VtuNo || (teamData.M1_Email && teamData.M1_Email.match(/(vtu\d+)/i) ? teamData.M1_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
+        isLeader: true
+      }];
+      if (teamData.M2_Name && teamData.M2_Name !== "NA" && teamData.M2_Name !== "undefined") {
+        teamData.members.push({
+          name: teamData.M2_Name, email: teamData.M2_Email || "", phone: teamData.M2_Phone || "",
+          college: teamData.M2_College || teamData.college, branch: teamData.M2_Branch || teamData.M1_Branch,
+          vtuNo: teamData.M2_VtuNo || (teamData.M2_Email && teamData.M2_Email.match(/(vtu\d+)/i) ? teamData.M2_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
+          isLeader: false
+        });
+      }
 
-        // Build normalized members array for instant frontend rendering
-        teamData.members = [
-          {
-            name: teamData.M1_Name,
-            email: teamData.M1_Email,
-            phone: teamData.M1_Phone,
-            college: teamData.M1_College || teamData.college,
-            branch: teamData.M1_Branch,
-            vtuNo: teamData.M1_VtuNo || (teamData.M1_Email && teamData.M1_Email.match(/(vtu\d+)/i) ? teamData.M1_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
-            isLeader: true
-          }
-        ];
-        if (teamData.M2_Name && teamData.M2_Name !== "NA" && teamData.M2_Name !== "undefined") {
-          teamData.members.push({
-            name: teamData.M2_Name,
-            email: teamData.M2_Email || "",
-            phone: teamData.M2_Phone || "",
-            college: teamData.M2_College || teamData.college,
-            branch: teamData.M2_Branch || teamData.M1_Branch,
-            vtuNo: teamData.M2_VtuNo || (teamData.M2_Email && teamData.M2_Email.match(/(vtu\d+)/i) ? teamData.M2_Email.match(/(vtu\d+)/i)[1].toUpperCase() : ""),
-            isLeader: false
-          });
-        }
+      validTeams.push({ teamData, rowIndex: i });
+    }
 
-        // 1. Create or sync Firebase Auth (leader only — one login per team) with immediate custom claims
-        const teamClaims = {
-          id: teamData.teamId,
-          teamId: teamData.teamId,
-          vccId: teamData.teamId,
-          teamNo: teamData.teamNo,
-          role: "participant"
-        };
+    // ---- Parallel processing: Firebase Auth + RTDB write for all valid teams simultaneously ----
+    const processingResults = await Promise.allSettled(
+      validTeams.map(async ({ teamData, rowIndex }) => {
+        const teamClaims = { id: teamData.teamId, teamId: teamData.teamId, vccId: teamData.teamId, teamNo: teamData.teamNo, role: "participant" };
+
+        // Firebase Auth create/sync (non-blocking on error)
         try {
           const userRec = await createTeamUser(teamData.M1_Email, teamData.M1_Phone, teamClaims);
-          if (userRec) {
-            await auth.setCustomUserClaims(userRec.uid, teamClaims);
-          }
+          if (userRec) await auth.setCustomUserClaims(userRec.uid, teamClaims);
         } catch (authErr) {
           console.warn("Auth creation/sync error for", teamData.M1_Email, authErr.message);
         }
 
-        // 2. Save in RTDB
+        // RTDB write
         const teamLookup = getTeamById || getTeamByVccId;
         const existing = await teamLookup(teamData.teamId);
+        let wasCreated = false;
         if (existing) {
           await updateTeamCredentials(teamData.teamId, teamData);
-          results.updated++;
         } else {
           await createTeam(teamData);
-          results.created++;
+          wasCreated = true;
         }
 
-        results.importedTeams.push({
-          id: teamData.teamId,
-          teamId: teamData.teamId,
-          vccId: teamData.teamId,
-          teamNo: teamData.teamNo,
-          leaderName: teamData.M1_Name,
-          email: teamData.M1_Email,
-          password: teamData.password || teamData.M1_Phone,
-          college: teamData.college,
-          teamSize: teamData.teamSize,
-          M1_Name: teamData.M1_Name,
-          M1_VtuNo: teamData.M1_VtuNo || "",
-          M1_Branch: teamData.M1_Branch || "",
-          M1_Email: teamData.M1_Email,
-          M1_Phone: teamData.M1_Phone,
-          M2_Name: teamData.M2_Name || "",
-          M2_VtuNo: teamData.M2_VtuNo || "",
-          M2_Branch: teamData.M2_Branch || "",
-          M2_Email: teamData.M2_Email || "",
-          M2_Phone: teamData.M2_Phone || ""
-        });
+        return {
+          wasCreated,
+          exported: {
+            id: teamData.teamId, teamId: teamData.teamId, vccId: teamData.teamId,
+            teamNo: teamData.teamNo, leaderName: teamData.M1_Name, email: teamData.M1_Email,
+            password: teamData.password || teamData.M1_Phone, college: teamData.college,
+            teamSize: teamData.teamSize, M1_Name: teamData.M1_Name, M1_VtuNo: teamData.M1_VtuNo || "",
+            M1_Branch: teamData.M1_Branch || "", M1_Email: teamData.M1_Email, M1_Phone: teamData.M1_Phone,
+            M2_Name: teamData.M2_Name || "", M2_VtuNo: teamData.M2_VtuNo || "",
+            M2_Branch: teamData.M2_Branch || "", M2_Email: teamData.M2_Email || "", M2_Phone: teamData.M2_Phone || ""
+          }
+        };
+      })
+    );
 
-      } catch (rowErr) {
-        results.errors.push(`Row ${i + 1} (${row.teamId || row.id || row.vccId || "unknown"}): ${rowErr.message}`);
+    // Collate parallel results
+    processingResults.forEach((result, idx) => {
+      if (result.status === "fulfilled") {
+        if (result.value.wasCreated) results.created++; else results.updated++;
+        results.importedTeams.push(result.value.exported);
+      } else {
+        const td = validTeams[idx]?.teamData;
+        results.errors.push(`Team ${td?.teamId || idx + 1}: ${result.reason?.message || "Unknown error"}`);
       }
-    }
+    });
 
     await logActivity(
       "IMPORT_TEAMS_CSV",
@@ -499,6 +463,7 @@ router.post("/import-teams", verifyAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to batch import teams: " + err.message });
   }
 });
+
 
 /**
  * DELETE /api/manage/prompts

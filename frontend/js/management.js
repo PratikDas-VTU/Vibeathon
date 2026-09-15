@@ -51,23 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // Cold start mitigation for 502/504 gateway timeout only
-      // NOTE: 413 (Payload Too Large) is intentionally excluded — retrying the same
-      // large payload directly to Render causes CORS failures (browser origin rejected).
-      // The backend 25mb limit fix handles 413 on the Render side.
-      if (res.status === 502 || res.status === 504) {
-        console.warn(`Gateway ${res.status} for ${endpoint}. Retrying directly against Render backend...`);
-        const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-        const directUrl = `https://vibeathon-backend-g210.onrender.com${cleanEndpoint}`;
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        res = await fetch(directUrl, {
-          ...options,
-          headers: {
-            ...defaultHeaders,
-            ...(options.headers || {})
-          }
-        });
-      }
+      // Cold start 502/504 are handled by the Vercel proxy retry logic — no client-side fallback needed.
+      // (Direct Render calls would fail with CORS for authenticated POST requests.)
 
       if (res.status === 401 || res.status === 403) {
         sessionStorage.removeItem("adminToken");
@@ -2380,10 +2365,10 @@ Core Functional Requirements:
           "Sprint Duration": sprintDuration,
           "GitHub Repository": t.githubUrl || "Not Submitted",
           "Live Deployment URL": t.deploymentUrl || "Not Submitted",
-          "AI Score /50": aiScore,
-          "Interim Score /20": (t.interimScore !== null && t.interimScore !== undefined) ? t.interimScore : "—",
-          "Deployment Score /30": (t.deploymentScore !== null && t.deploymentScore !== undefined) ? t.deploymentScore : "—",
-          "Total /100": hasAnyScore ? (ai + interim + deploy) : "—"
+          "AI Score (50 marks)": aiScore,
+          "Interim Score (20 marks)": (t.interimScore !== null && t.interimScore !== undefined) ? t.interimScore : "—",
+          "Deployment Score (30 marks)": (t.deploymentScore !== null && t.deploymentScore !== undefined) ? t.deploymentScore : "—",
+          "Total (100 marks)": hasAnyScore ? (ai + interim + deploy) : "—"
         };
       });
   }
