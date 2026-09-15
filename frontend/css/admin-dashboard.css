@@ -588,6 +588,13 @@ body {
   color: var(--text-3);
 }
 
+.status-pill.timed-out,
+.status-pill.timeout {
+  background: var(--amber-dim);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: var(--amber);
+}
+
 .status-pill.blocked {
   background: rgba(239, 68, 68, 0.18);
   border: 1px solid rgba(239, 68, 68, 0.4);
@@ -624,6 +631,12 @@ body {
   color: var(--green);
   background: var(--green-dim);
   border-color: rgba(52, 211, 153, 0.3);
+}
+
+.time-chip.timeout {
+  color: var(--amber);
+  background: var(--amber-dim);
+  border-color: rgba(251, 191, 36, 0.3);
 }
 
 .time-chip.none {

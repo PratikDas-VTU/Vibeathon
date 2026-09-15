@@ -319,6 +319,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const aiScore = typeof evalScore === "number" ? evalScore : (typeof team.aiScore === "number" ? team.aiScore : null);
       const isEvaluating = Boolean(team.aiEvaluating) || (stats.promptCount > 0 && allPrompts.some(p => (p.teamId || p.vccId) === tId && (p.evaluationStatus === "evaluating" || (!p.evaluation && p.evaluationStatus !== "failed"))));
 
+      const startMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
+      const isStarted = Boolean(startMs && !isNaN(startMs));
+      const isEnded = Boolean(team.sessionEnded);
+      const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= 2 * 60 * 60 * 1000));
+
       return {
         ...team,
         teamId: tId,
@@ -326,7 +331,8 @@ document.addEventListener("DOMContentLoaded", () => {
         uniqueAITools: stats.uniqueAITools,
         completionTime: compTime,
         aiScore: aiScore,
-        aiEvaluating: isEvaluating
+        aiEvaluating: isEvaluating,
+        isTimedOut: isTimedOut
       };
     });
 
@@ -337,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const leader = (t.leaderName || "").toLowerCase();
         const college = (t.college || t.M1_College || "").toLowerCase();
         const email = (t.email || t.M1_Email || "").toLowerCase();
-        return teamId.includes(searchQuery) || leader.includes(searchQuery) || college.includes(searchQuery) || email.includes(searchQuery);
+        return teamId.includes(searchQuery) || leader.includes(searchQuery) || college.includes(searchQuery) || email.includes(searchQuery) || (t.isTimedOut && ("timed out".includes(searchQuery) || "timeout".includes(searchQuery)));
       });
     }
 
@@ -423,6 +429,8 @@ document.addEventListener("DOMContentLoaded", () => {
         statusHtml = `<span class="status-pill blocked" title="SUSPENDED: ${escapeHtml(team.blockReason || 'Security violation detected')}"><i class="fas fa-ban"></i> SUSPENDED</span>`;
       } else if (team.sessionEnded) {
         statusHtml = `<span class="status-pill ended"><i class="fas fa-check-circle"></i> Completed</span>`;
+      } else if (team.isTimedOut) {
+        statusHtml = `<span class="status-pill timed-out"><i class="fas fa-hourglass-end"></i> Timed Out</span>`;
       } else if (team.hackathonStart) {
         statusHtml = `<span class="status-pill active"><span class="pulse-dot"></span> Live Sprint</span>`;
       } else {
@@ -434,6 +442,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (team.sessionEnded) {
         const formatted = formatDuration(team.completionTime);
         compTimeHtml = `<span class="time-chip"><i class="far fa-clock"></i> ${formatted || "—"}</span>`;
+      } else if (team.isTimedOut) {
+        compTimeHtml = `<span class="time-chip timeout"><i class="far fa-clock"></i> 2h 00m 00s</span>`;
       } else if (team.hackathonStart) {
         compTimeHtml = `<span class="time-chip in-progress"><i class="fas fa-running"></i> In Progress</span>`;
       }
@@ -627,13 +637,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. Team Stats Box
     const stats = promptStats[selectedTeamId] || { promptCount: 0, uniqueAITools: 0 };
     const aiScore = computeTeamAIScore(selectedTeamId, team.aiScore);
-    const duration = formatDuration(getCompletionTime(team));
+    const modalStartMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
+    const modalIsStarted = Boolean(modalStartMs && !isNaN(modalStartMs));
+    const modalIsEnded = Boolean(team.sessionEnded);
+    const modalIsTimedOut = Boolean(modalIsStarted && !team.blocked && !modalIsEnded && (Date.now() - modalStartMs >= 2 * 60 * 60 * 1000));
+    const duration = formatDuration(getCompletionTime(team)) || (modalIsTimedOut ? "2h 00m 00s" : "—");
 
     teamStats.innerHTML = `
       <div class="m-stat-box">
         <span class="m-stat-label">Session Status</span>
-        <span class="m-stat-val ${team.blocked ? "red" : team.sessionEnded ? "cyan" : team.hackathonStart ? "green" : ""}" style="${team.blocked ? "color:#f87171;" : ""}">
-          ${team.blocked ? "Suspended" : team.sessionEnded ? "Ended" : team.hackathonStart ? "Active" : "Registered"}
+        <span class="m-stat-val ${team.blocked ? "red" : team.sessionEnded ? "cyan" : modalIsTimedOut ? "amber" : team.hackathonStart ? "green" : ""}" style="${team.blocked ? "color:#f87171;" : modalIsTimedOut ? "color:#fbbf24;" : ""}">
+          ${team.blocked ? "Suspended" : team.sessionEnded ? "Ended" : modalIsTimedOut ? "Timed Out" : team.hackathonStart ? "Active" : "Registered"}
         </span>
       </div>
       <div class="m-stat-box">
@@ -1182,8 +1196,11 @@ Core Functional Requirements:
     const compTime = getCompletionTime(team);
     const aiScore = computeTeamAIScore(tId, team.aiScore);
     const isEnded = Boolean(team.sessionEnded);
-    const isLive = Boolean(team.hackathonStart && !isEnded);
-    const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isLive ? "Live Sprint" : "Registered"));
+    const startMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
+    const isStarted = Boolean(startMs && !isNaN(startMs));
+    const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= 2 * 60 * 60 * 1000));
+    const isLive = Boolean(team.hackathonStart && !isEnded && !isTimedOut);
+    const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isLive ? "Live Sprint" : "Registered")));
     const securityStatus = team.blocked ? `Suspended (${team.blockReason || 'Security Violation'})` : "Active / Clear";
     const compFormatted = compTime ? formatDuration(compTime) : "—";
     const compMins = compTime ? Math.round(compTime / 60000) : "—";
@@ -1284,7 +1301,12 @@ Core Functional Requirements:
           const leader = team.M1_Name || team.leaderName || "—";
           const college = team.college || team.M1_College || "—";
           const teamSize = team.teamSize || 2;
-          const status = team.blocked ? "Suspended" : (team.sessionEnded ? "Completed" : (team.hackathonStart ? "Live Sprint" : "Registered"));
+          const isEnded = Boolean(team.sessionEnded);
+          const startMs = team.hackathonStart ? new Date(team.hackathonStart).getTime() : null;
+          const isStarted = Boolean(startMs && !isNaN(startMs));
+          const isTimedOut = Boolean(isStarted && !team.blocked && !isEnded && (Date.now() - startMs >= 2 * 60 * 60 * 1000));
+          const isLive = Boolean(team.hackathonStart && !isEnded && !isTimedOut);
+          const status = team.blocked ? "Suspended" : (isEnded ? "Completed" : (isTimedOut ? "Timed Out" : (isLive ? "Live Sprint" : "Registered")));
           const securityStatus = team.blocked ? `Suspended (${team.blockReason || 'Security Violation'})` : "Active / Clear";
           const sessionStart = team.hackathonStart ? new Date(team.hackathonStart).toLocaleString() : "—";
           const endTimestamp = team.completedAt || team.sessionEndedAt || (team.sessionEnded ? team.updatedAt : null);
