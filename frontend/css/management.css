@@ -505,13 +505,15 @@ button:disabled {
 
 /* Column Width Bounds to Prevent Table Overflow */
 .manage-table .col-id { width: 90px; white-space: nowrap; }
-.manage-table .col-leader { width: 260px; min-width: 220px; max-width: 280px; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
-.manage-table .col-email { min-width: 160px; }
+.manage-table .col-leader { min-width: 240px; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
+.manage-table .col-email { width: 190px; min-width: 160px; }
 .manage-table .col-phone { width: 115px; white-space: nowrap; }
-.manage-table .col-status { width: 155px; white-space: nowrap; }
-.manage-table .col-deliv { width: 110px; text-align: center; white-space: nowrap; }
-.manage-table .col-score { width: 85px; min-width: 85px; text-align: center; white-space: nowrap; }
-.manage-table .col-actions { min-width: 185px; width: 190px; text-align: right; white-space: nowrap; }
+.manage-table .col-status { width: 140px; text-align: center; white-space: nowrap; }
+.manage-table th.col-status,
+.manage-table td.col-status { text-align: center; }
+.manage-table .col-deliv { width: 100px; text-align: center; white-space: nowrap; }
+.manage-table .col-score { width: 70px; min-width: 65px; text-align: center; white-space: nowrap; }
+.manage-table .col-actions { width: 190px; min-width: 185px; text-align: right; white-space: nowrap; }
 
 /* Deliverables Clickable Chips */
 .deliv-wrap {
