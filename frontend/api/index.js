@@ -87,6 +87,13 @@ module.exports = async function handler(req, res) {
   forwardHeaders["origin"] = "http://localhost:5500";
   forwardHeaders["user-agent"] = req.headers["user-agent"] || "Vibeathon-Edge-Bridge/1.0";
 
+  // Explicitly forward participant client IP so Render doesn't lump all traffic under Vercel serverless IP
+  const clientIp = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.socket?.remoteAddress || "";
+  if (clientIp) {
+    forwardHeaders["x-forwarded-for"] = clientIp;
+    forwardHeaders["x-real-ip"] = clientIp.split(",")[0].trim();
+  }
+
   // Build request options
   const fetchOptions = {
     method: req.method,

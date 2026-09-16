@@ -14,7 +14,7 @@ const verifyAdmin = require("./middleware/verifyAdmin");
 
 
 const app = express();
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
 
 /* =====================================================
    MIDDLEWARE & CORS CONFIGURATION
@@ -103,9 +103,31 @@ app.use((req, res, next) => {
 /* =====================================================
    RATE LIMITING
 ===================================================== */
+// Helper to safely extract identifier key so 32+ teams on university Wi-Fi / NAT IP or Vercel proxy
+// do not share a single rate-limit bucket and inadvertently lock each other out.
+const getParticipantKey = (req) => {
+  const id = (req.body && (req.body.email || req.body.identifier || req.body.teamId))
+    ? String(req.body.email || req.body.identifier || req.body.teamId).toLowerCase().trim()
+    : "";
+  if (id) return `user_${id}`;
+  return req.ip ? rateLimit.ipKeyGenerator(req.ip) : "unknown";
+};
+
+const getAdminKey = (req) => {
+  const user = (req.body && (req.body.username || req.body.email))
+    ? String(req.body.username || req.body.email).toLowerCase().trim()
+    : "";
+  if (user) return `admin_${user}`;
+  return req.ip ? rateLimit.ipKeyGenerator(req.ip) : "unknown";
+};
+
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: parseInt(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX, 10) || 50,
+  skipSuccessfulRequests: true,
+  skip: (req) => process.env.DISABLE_RATE_LIMIT === "true",
+  keyGenerator: getAdminKey,
+  validate: { keyGeneratorIpFallback: false, default: true },
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many admin login attempts. Please try again in 15 minutes." }
@@ -113,7 +135,12 @@ const adminLoginLimiter = rateLimit({
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  // Generous limit of 60 failed attempts per team/account, with successful logins skipped completely
+  max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 60,
+  skipSuccessfulRequests: true,
+  skip: (req) => process.env.DISABLE_RATE_LIMIT === "true",
+  keyGenerator: getParticipantKey,
+  validate: { keyGeneratorIpFallback: false, default: true },
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many login attempts. Please try again in 15 minutes." }
@@ -121,8 +148,9 @@ const loginLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  // Raised to 1500 to support 32+ teams sharing a single university Wi-Fi / NAT IP
-  max: parseInt(process.env.API_RATE_LIMIT_MAX, 10) || 1500,
+  // Raised to 3000 to support 32+ teams sharing a single university Wi-Fi / NAT IP
+  max: parseInt(process.env.API_RATE_LIMIT_MAX, 10) || 3000,
+  skip: (req) => process.env.DISABLE_RATE_LIMIT === "true",
   standardHeaders: true,
   legacyHeaders: false,
 });
