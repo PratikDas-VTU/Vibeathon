@@ -101,6 +101,21 @@ app.use((req, res, next) => {
 });
 
 /* =====================================================
+   HEALTH CHECK (Unrestricted - Never Rate Limited)
+===================================================== */
+app.get("/", (req, res) => {
+  res.send("Vibeathon Backend is LIVE 🚀");
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    service: "Vibeathon Backend API",
+    timestamp: new Date().toISOString()
+  });
+});
+
+/* =====================================================
    RATE LIMITING
 ===================================================== */
 // Helper to safely extract identifier key so 32+ teams on university Wi-Fi / NAT IP or Vercel proxy
@@ -123,7 +138,7 @@ const getAdminKey = (req) => {
 
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX, 10) || 50,
+  max: parseInt(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX, 10) || 100,
   skipSuccessfulRequests: true,
   skip: (req) => process.env.DISABLE_RATE_LIMIT === "true",
   keyGenerator: getAdminKey,
@@ -135,8 +150,8 @@ const adminLoginLimiter = rateLimit({
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  // Generous limit of 60 failed attempts per team/account, with successful logins skipped completely
-  max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 60,
+  // Generous limit of 100 failed attempts per team/account, with successful logins skipped completely
+  max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 100,
   skipSuccessfulRequests: true,
   skip: (req) => process.env.DISABLE_RATE_LIMIT === "true",
   keyGenerator: getParticipantKey,
@@ -148,14 +163,22 @@ const loginLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  // Raised to 3000 to support 32+ teams sharing a single university Wi-Fi / NAT IP
-  max: parseInt(process.env.API_RATE_LIMIT_MAX, 10) || 3000,
-  skip: (req) => process.env.DISABLE_RATE_LIMIT === "true",
+  // 100,000 capacity to safely support 32+ teams continuous polling and live dashboards
+  max: parseInt(process.env.API_RATE_LIMIT_MAX, 10) || 100000,
+  skip: (req) => {
+    if (process.env.DISABLE_RATE_LIMIT === "true") return true;
+    const p = req.path || "";
+    // Never rate limit admin control, auth endpoints, or health
+    if (p.startsWith("/admin") || p.startsWith("/auth") || p === "/health" || p === "/") {
+      return true;
+    }
+    return false;
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// FIX HIGH-4: Mount stricter, route-specific limiters BEFORE the general /api limiter
+// FIX HIGH-4: Mount route-specific limiters BEFORE the general /api limiter
 app.use("/api/admin/login", adminLoginLimiter);
 app.use("/api/auth/login", loginLimiter);
 app.use("/api", apiLimiter);
@@ -171,22 +194,6 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/admin", require("./routes/evaluatePrompts"));
 app.use("/api/manage", require("./routes/management"));
 app.use("/api/problem-statement", require("./routes/problemStatement"));
-
-
-/* =====================================================
-   HEALTH CHECK
-===================================================== */
-app.get("/", (req, res) => {
-  res.send("Vibeathon Backend is LIVE 🚀");
-});
-
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "healthy",
-    service: "Vibeathon Backend API",
-    timestamp: new Date().toISOString()
-  });
-});
 
 app.get("/api/version", verifyAdmin, (req, res) => {
   res.json({
